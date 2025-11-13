@@ -69,22 +69,31 @@ export function GraphComposer({ profile, onChange }: { profile: Profile | null; 
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <strong title="What to do once the condition is true">Action Sequence</strong>
-          <button
-            onClick={() => {
-              const t = actionTypes[0] ?? "Click";
-              const def: ActionConfig = t === "MoveCursor"
-                ? { type: "MoveCursor", x: 0, y: 0 }
-                : t === "Type"
-                ? { type: "Type", text: "" }
-                : t === "Key"
-                ? { type: "Key", key: "Enter" }
-                : { type: "Click", button: "Left" };
-              onChange({ ...profile, actions: [...profile.actions, def] });
-            }}
-            title="Append an action to the sequence"
-          >
-            + Add Action
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => {
+                const t = actionTypes[0] ?? "Click";
+                const def: ActionConfig = t === "MoveCursor"
+                  ? { type: "MoveCursor", x: 0, y: 0 }
+                  : t === "Type"
+                  ? { type: "Type", text: "" }
+                  : t === "Key"
+                  ? { type: "Key", key: "Enter" }
+                  : { type: "Click", button: "Left" };
+                onChange({ ...profile, actions: [...profile.actions, def] });
+              }}
+              title="Append an action to the sequence"
+            >
+              + Add Action
+            </button>
+            <button
+              onClick={() => onChange({ ...profile, actions: [] })}
+              disabled={profile.actions.length === 0}
+              title="Remove all actions"
+            >
+              Clear All
+            </button>
+          </div>
         </div>
         <ol style={{ margin: 0, paddingLeft: 16 }}>
           {profile.actions.map((a, i) => {

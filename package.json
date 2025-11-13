@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "dev:xcap": "tauri dev -- --no-default-features --features os-linux-capture-xcap",
+    "build:xcap": "tauri build -- --no-default-features --features os-linux-capture-xcap",
     "test": "bun test tests/**/*.bun.*",
     "test:ui:cov": "vitest run --coverage"
   },

@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { windowPosition } from "../tauriBridge";
 
 export type RecordingEvent =
-  | { t: "move"; x: number; y: number }
-  | { t: "click"; button: "Left" | "Right" | "Middle" }
+  | { t: "click"; button: "Left" | "Right" | "Middle"; x: number; y: number }
   | { t: "type"; text: string }
   | { t: "key"; key: string };
 
@@ -15,11 +14,10 @@ export function RecordingBar(props: {
   const [recording, setRecording] = useState(false);
   const [events, setEvents] = useState<RecordingEvent[]>([]);
   const [screenOffset, setScreenOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const lastMoveTs = useRef<number>(0);
   const typeBuffer = useRef<string>("");
 
   useEffect(() => {
-    if (!recording) return;
+  if (!recording) return;
 
     let unsub = () => {};
     (async () => {
@@ -29,17 +27,11 @@ export function RecordingBar(props: {
         setScreenOffset(pos);
       } catch {}
 
-      const onMouseMove = (e: MouseEvent) => {
-        const now = performance.now();
-        if (now - lastMoveTs.current < 50) return; // throttle ~20Hz
-        lastMoveTs.current = now;
-        setEvents((prev) => [...prev, { t: "move", x: e.clientX + screenOffset.x, y: e.clientY + screenOffset.y }]);
-      };
       const onMouseDown = (e: MouseEvent) => {
         let button: "Left" | "Right" | "Middle" = "Left";
         if (e.button === 1) button = "Middle";
         else if (e.button === 2) button = "Right";
-        setEvents((prev) => [...prev, { t: "click", button }]);
+        setEvents((prev) => [...prev, { t: "click", button, x: e.clientX + screenOffset.x, y: e.clientY + screenOffset.y }]);
       };
       const flushType = () => {
         if (typeBuffer.current.length > 0) {
@@ -60,14 +52,17 @@ export function RecordingBar(props: {
       };
       const onBlur = () => flushType();
 
-      window.addEventListener("mousemove", onMouseMove, { passive: true });
-      window.addEventListener("mousedown", onMouseDown, { passive: true });
-      window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("mousedown", onMouseDown, { passive: true });
+  window.addEventListener("keydown", onKeyDown);
+  // Also attach to document to be robust in test environments (jsdom)
+  document.addEventListener("mousedown", onMouseDown as any, { passive: true } as any);
+  document.addEventListener("keydown", onKeyDown as any);
       window.addEventListener("blur", onBlur);
       unsub = () => {
-        window.removeEventListener("mousemove", onMouseMove as any);
-        window.removeEventListener("mousedown", onMouseDown as any);
-        window.removeEventListener("keydown", onKeyDown as any);
+  window.removeEventListener("mousedown", onMouseDown as any);
+  window.removeEventListener("keydown", onKeyDown as any);
+  document.removeEventListener("mousedown", onMouseDown as any);
+  document.removeEventListener("keydown", onKeyDown as any);
         window.removeEventListener("blur", onBlur as any);
       };
     })();
@@ -124,8 +119,10 @@ export function toActions(events: RecordingEvent[]) {
     | { type: "Key"; key: string }
   > = [];
   for (const ev of events) {
-    if (ev.t === "move") actions.push({ type: "MoveCursor", x: ev.x, y: ev.y });
-    else if (ev.t === "click") actions.push({ type: "Click", button: ev.button });
+    if (ev.t === "click") {
+      actions.push({ type: "MoveCursor", x: ev.x, y: ev.y });
+      actions.push({ type: "Click", button: ev.button });
+    }
     else if (ev.t === "type") actions.push({ type: "Type", text: ev.text });
     else if (ev.t === "key") actions.push({ type: "Key", key: ev.key });
   }
