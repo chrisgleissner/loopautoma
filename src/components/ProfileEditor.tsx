@@ -27,6 +27,9 @@ export function ProfileEditor({ profile, onChange }: { profile: Profile | null; 
 
   return (
     <div>
+      <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>
+        Tip: Edit JSON directly or use the Graphical Composer above. Both views stay in sync.
+      </div>
       <textarea
         style={{ width: "100%", height: 200, fontFamily: "monospace" }}
         value={text}

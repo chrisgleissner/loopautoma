@@ -6,6 +6,8 @@ mod action;
 mod monitor;
 #[cfg(test)]
 mod tests;
+#[cfg(any(feature = "os-linux-capture", feature = "os-linux-input", feature = "os-macos", feature = "os-windows"))]
+mod os;
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -14,6 +16,7 @@ use domain::*;
 use tauri::Emitter; // for Window.emit
 mod fakes;
 use fakes::{FakeAutomation, FakeCapture};
+use std::env;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -68,6 +71,34 @@ pub(crate) fn build_monitor_from_profile<'a>(p: &Profile) -> (monitor::Monitor<'
     (monitor::Monitor::new(trig, cond, seq, gr), regions)
 }
 
+fn select_backends() -> (
+    Box<dyn ScreenCapture + Send + Sync>,
+    Box<dyn Automation + Send + Sync>,
+) {
+    if env::var("LOOPAUTOMA_BACKEND").ok().as_deref() == Some("fake") {
+        return (Box::new(FakeCapture), Box::new(FakeAutomation));
+    }
+    #[cfg(feature = "os-linux-capture")]
+    {
+        #[cfg(feature = "os-linux-input")]
+        { (Box::new(crate::os::linux::LinuxCapture), Box::new(crate::os::linux::LinuxAutomation)) }
+        #[cfg(not(feature = "os-linux-input"))]
+        { (Box::new(crate::os::linux::LinuxCapture), Box::new(FakeAutomation)) }
+    }
+    #[cfg(all(not(feature = "os-linux-capture"), feature = "os-macos"))]
+    {
+        (Box::new(crate::os::macos::MacCapture), Box::new(crate::os::macos::MacAutomation))
+    }
+    #[cfg(all(not(feature = "os-linux-capture"), not(feature = "os-macos"), feature = "os-windows"))]
+    {
+        (Box::new(crate::os::windows::WinCapture), Box::new(crate::os::windows::WinAutomation))
+    }
+    #[cfg(all(not(feature = "os-linux-capture"), not(feature = "os-macos"), not(feature = "os-windows")))]
+    {
+        (Box::new(FakeCapture), Box::new(FakeAutomation))
+    }
+}
+
 #[tauri::command]
 fn profiles_load(state: tauri::State<AppState>) -> Result<Vec<Profile>, String> {
     Ok(state.profiles.lock().unwrap().clone())
@@ -90,9 +121,8 @@ fn monitor_start(profile_id: String, window: tauri::Window, state: tauri::State<
     let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let cancel_clone = cancel.clone();
 
-    // backends (fakes for MVP)
-    let cap = FakeCapture;
-    let auto = FakeAutomation;
+    // backends: OS adapters by default; set LOOPAUTOMA_BACKEND=fake to force fakes
+    let (cap, auto) = select_backends();
     let mut events = vec![];
     mon.start(&mut events);
     for e in events.drain(..) { let _ = window.emit("loopautoma://event", &e); }
@@ -104,7 +134,7 @@ fn monitor_start(profile_id: String, window: tauri::Window, state: tauri::State<
             if cancel_clone.load(std::sync::atomic::Ordering::Relaxed) { break; }
             let now = Instant::now();
             let mut evs = vec![];
-            mon.tick(now, &regions, &cap, &auto, &mut evs);
+            mon.tick(now, &regions, &*cap, &*auto, &mut evs);
             for e in evs { let _ = win.emit("loopautoma://event", &e); }
             std::thread::sleep(Duration::from_millis(100));
         }
@@ -137,8 +167,23 @@ pub fn run() {
             profiles_load,
             profiles_save,
             monitor_start,
-            monitor_stop
+            monitor_stop,
+            window_position,
+            region_pick
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[tauri::command]
+fn window_position(window: tauri::Window) -> Result<(i32, i32), String> {
+    window.outer_position()
+        .map(|p| (p.x as i32, p.y as i32))
+        .map_err(|e| e.to_string())
+}
+
+// Placeholder for a graphical region picker; will be implemented with a transparent overlay window.
+#[tauri::command]
+fn region_pick() -> Result<(i32, i32, u32, u32), String> {
+    Err("region_pick not yet implemented".into())
 }

@@ -6,13 +6,19 @@
   filter: drop-shadow(0 0 2em #61dafb);
 }
 :root {
+  --brand-bg: #0b0f16;      /* deep background */
+  --brand-surface: #121826; /* surface */
+  --brand-accent: #59d0ff;  /* accent (logo light) */
+  --brand-accent-2: #6ef3a5;/* secondary accent if needed */
+  --brand-text: #eaf2ff;    /* primary text */
+  --brand-muted: #9fb3c8;   /* muted text */
+
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  color: var(--brand-text);
+  background-color: var(--brand-bg);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -21,18 +27,116 @@
   -webkit-text-size-adjust: 100%;
 }
 
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
+/* Use system theme by default */
+@media (prefers-color-scheme: light) {
+  :root {
+    --brand-bg: #f7fafc;
+    --brand-surface: #ffffff;
+    --brand-text: #0c1729;
+    --brand-muted: #32455a;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand-bg: #0b0f16;
+    --brand-surface: #121826;
+    --brand-text: #eaf2ff;
+    --brand-muted: #9fb3c8;
+  }
 }
 
+/* light theme override */
+[data-theme="light"] {
+  --brand-bg: #f7fafc;
+  --brand-surface: #ffffff;
+  --brand-text: #0c1729;
+  --brand-muted: #32455a;
+}
+
+/* dark theme explicit */
+[data-theme="dark"] {
+  --brand-bg: #0b0f16;
+  --brand-surface: #121826;
+  --brand-text: #eaf2ff;
+  --brand-muted: #9fb3c8;
+}
+
+.container {
+  margin: 0 auto;
+  max-width: 1100px;
+  padding: 32px 20px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.brand {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand-logo {
+  height: 56px;
+  width: auto;
+  filter: drop-shadow(0 0 0.6rem var(--brand-accent));
+  border-radius: 8px;
+}
+
+.brand-title h1 {
+  margin: 0 0 4px 0;
+}
+
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-icons {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.icon-btn {
+  height: 28px;
+  width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  padding: 0;
+  color: var(--brand-text);
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: none;
+}
+.icon-btn:hover { border-color: var(--brand-accent); background-color: rgba(89,208,255,0.08); }
+.icon-btn.active { border-color: var(--brand-accent); box-shadow: 0 0 0 1px rgba(89,208,255,0.25) inset; }
+
+.framework-badges {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  opacity: 0.7;
+}
+
+.framework-badges .badge {
+  height: 18px;
+  width: auto;
+  opacity: 0.6;
+  transition: opacity .2s ease;
+}
+.framework-badges .badge:hover {
+  opacity: 1;
+}
+
+/* legacy logo classes kept for compatibility */
 .logo {
-  height: 6em;
-  padding: 1.5em;
+  height: 3em;
+  padding: 0.5em;
   will-change: filter;
   transition: 0.75s;
 }
@@ -41,76 +145,80 @@
   filter: drop-shadow(0 0 2em #24c8db);
 }
 
-.row {
-  display: flex;
-  justify-content: center;
+.row { display: none; }
+
+a { color: var(--brand-accent); text-decoration: none; }
+a:hover { color: var(--brand-accent-2); }
+
+h1 { text-align: left; }
+
+/* small status chip when running */
+.running-chip {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: rgba(110, 243, 165, 0.15);
+  color: var(--brand-text);
+  border: 1px solid rgba(110, 243, 165, 0.35);
+  position: relative;
+  animation: running-pulse 2.2s ease-in-out infinite;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+@keyframes running-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(110, 243, 165, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(110, 243, 165, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(110, 243, 165, 0.35);
+  }
 }
 
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
+@media (prefers-reduced-motion: reduce) {
+  .running-chip {
+    animation: none;
+  }
 }
 
 input,
-button {
+button,
+select {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
+  color: var(--brand-text);
+  background-color: var(--brand-surface);
   transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  color-scheme: light dark;
 }
 
 button {
   cursor: pointer;
 }
 
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
+button:hover { border-color: var(--brand-accent); }
+button:active { border-color: var(--brand-accent); background-color: rgba(89,208,255,0.08); }
 
 input,
-button {
-  outline: none;
-}
+button,
+select { outline: none; }
 
 #greet-input {
   margin-right: 5px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
+/* system theme is the default via prefers-color-scheme, overridden by data-theme when chosen */
 
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
+/* Ensure dropdowns are readable in dark mode on Linux (KDE/Qt theme overrides) */
+select,
+select option {
+  background-color: var(--brand-surface);
+  color: var(--brand-text);
 }
+select:focus { outline: none; border-color: var(--brand-accent); }

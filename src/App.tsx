@@ -4,15 +4,26 @@ import "./App.css";
 import { ProfileSelector } from "./components/ProfileSelector";
 import { EventLog } from "./components/EventLog";
 import { ProfileEditor } from "./components/ProfileEditor";
+import { RecordingBar, toActions } from "./components/RecordingBar";
+import { GraphComposer } from "./components/GraphComposer";
 import { useEventStream, useProfiles, useRunState } from "./store";
 import { defaultPresetProfile, Profile } from "./types";
 import { monitorStart, monitorStop, profilesLoad, profilesSave } from "./tauriBridge";
+import logo from "../doc/img/logo.png";
+import { useEffectOnce } from "./hooks/useEffectOnce";
+import { registerBuiltins } from "./plugins/builtins";
 
 function App() {
   const { profiles, setProfiles } = useProfiles();
   const { events, clear } = useEventStream();
   const { runningProfileId, setRunningProfileId } = useRunState();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showGraph, setShowGraph] = useState(true);
+  const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
+
+  useEffectOnce(() => {
+    registerBuiltins();
+  });
 
   useEffect(() => {
     // Load profiles from backend; seed default if none
@@ -41,6 +52,7 @@ function App() {
     setRunningProfileId(selectedId);
   };
   const selectedProfile = profiles.find((p) => p.id === selectedId) ?? null;
+  const isRunning = !!runningProfileId;
 
   const updateProfile = async (updated: any) => {
     const idx = profiles.findIndex((p) => p.id === updated.id);
@@ -59,38 +71,95 @@ function App() {
     setRunningProfileId(null);
   };
 
-  return (
-    <main className="container">
-      <h1>Loop Automa</h1>
+  // theme handling: apply data-theme attribute; system is default via CSS
+  const themeAttr = theme === "system" ? undefined : theme;
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+  return (
+    <main className="container" data-theme={themeAttr}>
+      <div className="brand">
+        <img src={logo} alt="Loop Automa" className="brand-logo" />
+        <div className="brand-title">
+          <h1 title="Compose automations to keep your agent moving">Loop Automa</h1>
+        </div>
+        <div className="top-right">
+          <div className="theme-icons" role="group" aria-label="Color theme">
+            <button
+              className={`icon-btn ${theme === "system" ? "active" : ""}`}
+              onClick={() => setTheme("system")}
+              title="Use system theme"
+              aria-label="System theme"
+            >
+              {/* monitor icon */}
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="12" rx="2" ry="2" fill="currentColor" opacity="0.2" />
+                <rect x="5" y="6" width="14" height="8" rx="1.2" ry="1.2" stroke="currentColor" fill="none" strokeWidth="1.5" />
+                <rect x="10" y="18" width="4" height="1.5" rx="0.75" fill="currentColor" />
+              </svg>
+            </button>
+            <button
+              className={`icon-btn ${theme === "light" ? "active" : ""}`}
+              onClick={() => setTheme("light")}
+              title="Light theme"
+              aria-label="Light theme"
+            >
+              {/* sun icon */}
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" fill="currentColor" />
+                <g stroke="currentColor" strokeWidth="1.5">
+                  <line x1="12" y1="2" x2="12" y2="5" />
+                  <line x1="12" y1="19" x2="12" y2="22" />
+                  <line x1="2" y1="12" x2="5" y2="12" />
+                  <line x1="19" y1="12" x2="22" y2="12" />
+                  <line x1="4.2" y1="4.2" x2="6.3" y2="6.3" />
+                  <line x1="17.7" y1="17.7" x2="19.8" y2="19.8" />
+                  <line x1="17.7" y1="6.3" x2="19.8" y2="4.2" />
+                  <line x1="4.2" y1="19.8" x2="6.3" y2="17.7" />
+                </g>
+              </svg>
+            </button>
+            <button
+              className={`icon-btn ${theme === "dark" ? "active" : ""}`}
+              onClick={() => setTheme("dark")}
+              title="Dark theme"
+              aria-label="Dark theme"
+            >
+              {/* moon icon */}
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path d="M21 12.5A8.5 8.5 0 1 1 11.5 3a7 7 0 1 0 9.5 9.5Z" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
+          <div className="framework-badges" title="Powered by Vite, Tauri, and React">
+            <a href="https://vite.dev" target="_blank" aria-label="Vite">
+              <img src="/vite.svg" className="badge" alt="Vite" />
+            </a>
+            <a href="https://tauri.app" target="_blank" aria-label="Tauri">
+              <img src="/tauri.svg" className="badge" alt="Tauri" />
+            </a>
+            <a href="https://react.dev" target="_blank" aria-label="React">
+              <img src={reactLogo} className="badge" alt="React" />
+            </a>
+          </div>
+        </div>
       </div>
       <section style={{ display: "grid", gap: 12 }}>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <label>Profile:</label>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <label title="Pick or change the active automation profile">Profile:</label>
           <ProfileSelector
             profiles={profiles}
             value={selectedId}
             onChange={(id) => setSelectedId(id)}
           />
-          <button onClick={start} disabled={!selectedId || !!runningProfileId}>
-            Start
+          <button
+            onClick={isRunning ? stop : start}
+            disabled={!isRunning && !selectedId}
+            title={isRunning ? "Stop immediately" : "Start the monitor loop with the selected profile"}
+          >
+            {isRunning ? "Stop" : "Start"}
           </button>
-          <button onClick={stop} disabled={!runningProfileId}>
-            Panic Stop
-          </button>
-          <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.8 }}>
-            State: {runningProfileId ? "Running" : "Stopped"}
-          </span>
+          {isRunning && (
+            <span className="running-chip" aria-live="polite" title="Monitor is running">Running</span>
+          )}
         </div>
 
         {selectedProfile && (
@@ -139,14 +208,40 @@ function App() {
 
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 style={{ margin: 0 }}>Events</h3>
-            <button onClick={clear}>Clear</button>
+            <h3 style={{ margin: 0 }} title="Live stream of runtime events from the monitor">Events</h3>
+            <button onClick={clear} title="Clear the events list (does not stop the monitor)">Clear</button>
           </div>
           <EventLog events={events} />
         </div>
 
         <div>
-          <h3 style={{ margin: 0 }}>Profile JSON</h3>
+          <h3 style={{ margin: 0 }} title="Capture a sequence of mouse/keyboard actions to reuse as an ActionSequence">Recording</h3>
+          <RecordingBar
+            onSave={async (evts) => {
+              if (!selectedProfile) return;
+              const newActions = toActions(evts);
+              await updateProfile({
+                ...selectedProfile,
+                actions: [...selectedProfile.actions, ...newActions],
+              });
+            }}
+          />
+        </div>
+
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h3 style={{ margin: 0 }} title="Visually edit Trigger → Condition → ActionSequence for the selected profile">Graphical Composer</h3>
+            <label style={{ fontSize: 12 }}>
+              <input type="checkbox" checked={showGraph} onChange={(e) => setShowGraph(e.target.checked)} /> Show
+            </label>
+          </div>
+          {showGraph && (
+            <GraphComposer profile={selectedProfile} onChange={updateProfile} />
+          )}
+        </div>
+
+        <div>
+          <h3 style={{ margin: 0 }} title="Advanced: edit the underlying profile configuration directly as JSON">Profile JSON</h3>
           <ProfileEditor profile={selectedProfile} onChange={updateProfile} />
         </div>
       </section>

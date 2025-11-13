@@ -37,8 +37,10 @@ describe("ProfileEditor", () => {
     const textareas2 = screen.getAllByRole("textbox");
     const ta = textareas2[textareas2.length - 1] as HTMLTextAreaElement;
     fireEvent.change(ta, { target: { value: "{" } });
-    fireEvent.click(screen.getByText(/Save Profile/));
-    expect(screen.getByText((t) => /JSON/.test(t))).toBeTruthy();
+  fireEvent.click(screen.getByText(/Save Profile/));
+  // Find the error container next to the Save button
+  const errorEls = screen.getAllByText(/JSON/);
+  expect(errorEls.some((el) => el.tagName.toLowerCase() === "span")).toBe(true);
     fireEvent.change(ta, { target: { value: JSON.stringify({ foo: "bar" }) } });
     fireEvent.click(screen.getByText(/Save Profile/));
     expect(screen.getByText(/Invalid profile shape/)).toBeTruthy();
