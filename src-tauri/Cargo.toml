@@ -32,7 +32,7 @@ ahash = { version = "0.8", optional = true }
 enigo = { version = "0.1.3", optional = true }
  
 [features]
-default = ["os-linux-capture"]
+default = ["os-linux-capture-xcap"]
 os-linux-capture = ["screenshots", "ahash"]
 os-linux-capture-xcap = ["xcap", "ahash"]
 os-linux-input = ["enigo"]

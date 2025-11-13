@@ -24,14 +24,29 @@ Cross‑platform desktop automation to keep AI agents working indefinitely. Watc
 ## Quick Start ⚡
 
 - Prereqs and OS notes: [doc/developer.md](doc/developer.md)
-- Dev run:
+- Dev run (full app):
   ```bash
   bun install
-  bun run tauri dev
+  bun run dev
   ```
 - Safe mode (no real clicks/keys):
   ```bash
   LOOPAUTOMA_BACKEND=fake bun run tauri dev
+  ```
+  (or: `LOOPAUTOMA_BACKEND=fake bun run dev`)
+
+Pure web dev (no Tauri window):
+  ```bash
+  bun run dev:web
+  ```
+
+Builds:
+  ```bash
+  # full Tauri bundles
+  bun run build
+
+  # web-only bundle
+  bun run build:web
   ```
 
 ### Run in Docker (optional)
@@ -52,6 +67,8 @@ docker run --rm -v "$PWD:/workspace" -w /workspace loopautoma/ci:local \
 ```
 
 Our CI uses this same image and uploads coverage to Codecov.
+
+CI is container-native: jobs run inside the prebuilt image (no repeated `docker run` wrappers). The image prewarms Bun and compiles Rust dependencies so test jobs don’t re-download crates on each run.
 ## Docs 📚
 - Architecture: [doc/architecture.md](doc/architecture.md)
 - Rollout plan: [doc/rollout-plan.md](doc/rollout-plan.md)

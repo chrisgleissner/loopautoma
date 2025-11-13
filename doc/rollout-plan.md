@@ -28,7 +28,39 @@ Deliverables: a working cross‑platform app that can run unattended with a pres
 
 Gate: all tasks done, tests green, coverage ≥90%, at least one OS bundle produced.
 
-## Phase B — Hardening and Cross‑OS
+## Phase B — UI Usability and Authoring
+
+Deliverables: a polished UI that makes it easy to define Regions to watch, author Actions, and understand what the Monitor is doing—all with rich, actionable logging. Coverage remains ≥90% (UI + Rust combined for this phase scope).
+
+- [ ] Region selection UX:
+	- [ ] "Add Region" button opens a transparent overlay region picker (drag to select area; ESC to cancel).
+	- [ ] Live outline and dimmed background while dragging; final rect snapped to integer pixels; HiDPI aware.
+	- [ ] Selected Region gets a friendly default name and is appended to the Profile; can be renamed inline.
+	- [ ] Tests: simulate picker contract via mocked `region_pick` and ensure Profile updates correctly.
+- [ ] Action authoring improvements:
+	- [ ] Quick‑add toolbar for common Actions: Click, Type("continue"), Key(Enter), MoveCursor to last click.
+	- [ ] Drag‑handle reordering and multi‑select delete; keyboard shortcuts (Del, Ctrl/Cmd+↑/↓).
+	- [ ] Inline validation (e.g., empty text, invalid coordinates) with accessible error states.
+	- [ ] Tests: add/edit/remove/reorder paths; validation error rendering.
+- [ ] Logging and observability:
+	- [ ] Structured Event log with filters (Trigger/Condition/Action/Guardrail/Error) and search.
+	- [ ] Collapsible event details (timestamps, payloads), copy‑to‑clipboard, and clear.
+	- [ ] Lightweight metrics header: last activation time, activations/hour, current cooldown, runtime.
+	- [ ] Tests: filter semantics, details toggle, metrics derivation from sample event stream.
+- [ ] Theming and accessibility polish:
+	- [ ] High‑contrast theme variant and focus outlines; ensure readable selects in dark mode.
+	- [ ] Reduced‑motion support on pulsing indicators and animated affordances.
+	- [ ] Tests: snapshot/ARIA checks for critical controls.
+- [ ] Guardrails UX:
+	- [ ] Inline explanations and presets (conservative/balanced/aggressive) that set cooldown and rate limits.
+	- [ ] Clear, prominent Panic Stop that’s idempotent with visible state.
+	- [ ] Tests: toggling presets updates bound inputs; Panic Stop emits expected command.
+- [ ] E2E happy path (UI‑driven):
+	- [ ] User adds a Region, composes a simple ActionSequence, starts the Monitor, and sees expected Events.
+
+Gate: all tasks done, tests green, coverage ≥90%, and one E2E proving the full UI authoring loop.
+
+## Phase C — Hardening and Cross‑OS
 
 Deliverables: robustness, performance, cross‑OS validation, and soak stability for unattended runs.
 

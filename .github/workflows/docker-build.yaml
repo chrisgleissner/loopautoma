@@ -39,7 +39,14 @@ jobs:
       - name: Determine Docker context hash
         id: context
         run: |
-          HASH=$(git ls-files Dockerfile apt-packages.txt 2>/dev/null | xargs -r cat | sha256sum | cut -d' ' -f1)
+          HASH=$(git ls-files \
+            Dockerfile \
+            apt-packages.txt \
+            src-tauri/Cargo.toml \
+            src-tauri/Cargo.lock \
+            package.json \
+            bun.lock \
+            2>/dev/null | xargs -r cat | sha256sum | cut -d' ' -f1)
           if [ -z "$HASH" ]; then HASH=$(sha256sum Dockerfile | cut -d' ' -f1); fi
           echo "hash=${HASH}" >> "$GITHUB_OUTPUT"
 

@@ -25,6 +25,9 @@ RUN apt-get update && \
       patchelf \
       libayatana-appindicator3-dev \
       clang \
+  llvm-dev \
+  libpipewire-0.3-dev \
+  libspa-0.2-dev \
       libclang-dev \
       cmake \
       xz-utils \
@@ -49,6 +52,17 @@ RUN curl -fsSL "$BUN_INSTALL_URL" | bash && \
 RUN cargo install cargo-tarpaulin || true
 
 WORKDIR /workspace
+
+# Pre-warm UI deps cache (optional; speeds up bun install by priming cache)
+COPY package.json bun.lock* ./
+RUN if [ -f package.json ]; then bun install --frozen-lockfile || true; fi
+
+# Prebuild Rust dependencies at the same path CI uses so compiled deps can be reused
+COPY src-tauri/Cargo.toml src-tauri/Cargo.lock /workspace/src-tauri/
+RUN mkdir -p /workspace/src-tauri/src && \
+  printf 'fn main() { println!("prebuild"); }\n' > /workspace/src-tauri/src/main.rs && \
+  (cd /workspace/src-tauri && cargo build --locked --tests || cargo build --locked) && \
+  rm -rf /workspace/src-tauri/src
 
 # Default to a shell; CI runs will override with commands
 CMD ["bash"]

@@ -18,7 +18,8 @@ Project quick facts
   - Used to scaffold the Tauri v2 project via Bun with React + TypeScript template.
 - `curl https://sh.rustup.rs -sSf | sh`
   - Installed Rust toolchain (rustup + cargo) via the official installer.
-- `bun run tauri dev`
+- `bun run dev` (full Tauri app)
+  - For pure web (no Tauri), use: `bun run dev:web`
 
 ## Follow-ups and quick checks (local)
 
@@ -30,7 +31,7 @@ Project quick facts
 - If you scaffolded into a subfolder (recommended), change into it before running dev:
   - cd <your-app-folder>
   - bun install
-  - bun run tauri dev
+  - bun run dev
 
 ## Notes
 
@@ -60,9 +61,9 @@ sudo apt update
 sudo apt install -y pkg-config build-essential libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev patchelf libxdo-dev
 ```
 
-### Optional: use xcap for screenshots (warning-free)
+### Linux capture backends (warnings)
 
-The default Linux capture backend uses the `screenshots` crate (0.8.x), which currently emits a Rust future-incompatibility warning. To eliminate that warning, you can build with the alternative `xcap` backend. This requires PipeWire/SPA headers and Clang toolchain.
+We now default to the `xcap` backend on Linux to avoid a Rust future‑incompatibility warning from the `screenshots` crate (0.8.x). `xcap` requires PipeWire/SPA headers and Clang toolchain (installed in the CI image).
 
 Install the extra packages:
 
@@ -70,27 +71,35 @@ Install the extra packages:
 sudo apt install -y libpipewire-0.3-dev libspa-0.2-dev clang llvm-dev libc6-dev
 ```
 
-Build with xcap capture feature:
+Build explicitly with xcap capture feature (default already uses this):
 
 ```bash
 # from src-tauri/
 cargo build --no-default-features --features os-linux-capture-xcap
 ```
 
-Run the app in dev mode with xcap capture:
+Run the app in dev mode with xcap capture (default):
 
 ```bash
 # from project root
 TAURI_TRIPLE="" bun run tauri dev -- --no-default-features --features os-linux-capture-xcap
 ```
 
-Note: If you don’t have the PipeWire/Clang headers available, keep using the default `screenshots` backend; it’s fully functional, only with a warning from a dependency.
+Opt back into the `screenshots` backend (may emit warnings):
+
+```bash
+# from src-tauri/
+cargo build --no-default-features --features os-linux-capture
+
+# or run dev from project root
+TAURI_TRIPLE="" bun run tauri dev -- --no-default-features --features os-linux-capture
+```
 
 Then retry:
 
 ```bash
 source "$HOME/.cargo/env"
-bun run tauri dev
+bun run dev
 ```
 
 ## Scripts and common tasks
@@ -98,19 +107,25 @@ bun run tauri dev
 - Dev app window:
 
 ```bash
-bun run tauri dev
+bun run dev
 ```
 
-- UI build (typecheck + bundle):
+- Pure web dev (no Tauri window):
 
 ```bash
-bun run build
+bun run dev:web
+```
+
+- UI build (typecheck + bundle only):
+
+```bash
+bun run build:web
 ```
 
 - Packaging (Linux bundles: .deb, .rpm, .AppImage):
 
 ```bash
-bun run tauri build
+bun run build
 ```
 
 Artifacts land under `src-tauri/target/release/bundle/`.
@@ -194,8 +209,11 @@ Both live in `src-tauri/src/tests.rs` and run via `cargo test`.
 
 ## CI basics
 
-- Installs Linux prerequisites, sets up Bun and Rust toolchains.
-- Runs UI tests with coverage and Rust tests; uploads coverage to Codecov.
+- Container-native CI:
+  - A reusable workflow builds a GHCR image (loopautoma-ci) keyed by a dependency hash (Dockerfile, Cargo.* and bun lockfiles).
+  - Downstream jobs run inside that image via `jobs.<name>.container.image` (no repeated `docker run`).
+  - The Dockerfile prewarms Bun cache and compiles Rust dependencies so tests don’t re-download crates on each CI run.
+- The CI runs UI tests with coverage and Rust tests/coverage, then uploads to Codecov.
 - Coverage gate targeted at ≥90% (see rollout plan).
 
 ## Troubleshooting
