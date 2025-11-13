@@ -22,9 +22,7 @@ jobs:
             libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev patchelf
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: 1.3.x
+        uses: oven-sh/setup-bun@v2
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
