@@ -1,82 +1,57 @@
-# Loop Automa — Lean Rollout Plan (Fast MVP)
+# Loop Automa — Lean Rollout Plan (Ubuntu/X11‑first MVP)
 
-Global rule: You may progress only when all tasks are completed, all tests pass, and overall coverage (Rust + UI combined) is ≥90% for the scope of that phase. MVP goal: unattended operation to keep an AI agent (e.g., VS Code Copilot) progressing indefinitely once started, with guardrails and a panic stop. Required reading before coding: `doc/architecture.md` for contracts and `doc/rollout-plan.md` for acceptance gates. Use idiomatic approaches and avoid overengineering—prefer the defaults from Tauri/React/Rust unless the architecture requires an abstraction.
+Global rule: Progress only when the current phase is complete, tests pass, and combined coverage (Rust + UI) is ≥90% for that phase. MVP scope: Ubuntu 24.04 in X11 sessions. macOS and Windows 11 come after the Ubuntu/X11 MVP, behind the same trait‑based backends described in doc/architecture.md.
 
-## Phase A — Ship the MVP
+Required reading: doc/architecture.md for contracts and OS abstraction; this file for acceptance gates. Prefer defaults from Tauri/React/Rust unless architecture requires otherwise.
 
-Deliverables: a working cross‑platform app that can run unattended with a preset to “keep agent going”, with tests and ≥90% coverage.
+## Phase 0 — Foundations (done)
 
-- [x] Workspace bootstrapped: Tauri 2 app with Rust backend + React/TypeScript UI.
-- [x] Toolchain pinned: Rust stable ≥1.75; TypeScript 5.9; Bun ≥1.3 for UI dev/build/test (preferred). If Bun is incompatible with a required dependency, fall back to Node.js 20 LTS.
-- [x] Scaffold the app using Tauri v2’s Bun initializer: `bun create tauri-app` and select React + TypeScript template.
-- [x] Core contracts: Rust traits `Trigger`, `Condition`, `Action`, `ActionSequence`, `ScreenCapture`, `Automation`, `Monitor`.
-- [x] Shared model: `Region`, `Event` (incl. `WatchdogTripped`, `MonitorStateChanged`), `Profile` JSON schema.
-- [x] MVP implementations:
-	- [x] `IntervalTrigger`
-	- [x] `RegionCondition` (no‑visual‑change with stableMs, downscale, hash)
-	- [x] Actions: `MoveCursor`, `Click`, `Type("continue")`, `Key(Enter)` and `ActionSequence`
-	- [x] `Monitor` loop with cooldowns and guardrails (`maxActivationsPerHour`, `maxRuntimeMs`)
-	- [x] Fake `ScreenCapture`/`Automation` for tests; OS implementations behind traits for runtime
-- [x] Tauri bridge: commands `profiles_load/save`, `monitor_start/stop`, optional `region_pick`; event streaming to UI.
-- [x] UI MVP: Profile editor, Monitor Start/Stop, live Event log, unattended mode controls (preset selector, guardrail inputs), Panic Stop button.
-- [x] Coverage-focused tests:
-	- [x] Rust unit/integration tests for Monitor, Condition, Trigger, ActionSequence (with fakes)
-	- [x] UI component/contract tests (mock commands)
-	- [x] One E2E happy path that runs the preset and asserts Events
-- [x] CI: build, tests, coverage (tarpaulin/grcov + vitest) → Codecov; gate: overall coverage ≥90%.
- - [x] Packaging: produce installers/bundles for at least one OS to release MVP quickly.
+- [x] Tauri 2 app with Rust backend + React/TypeScript UI scaffolded.
+- [x] Tooling pinned: Rust stable ≥1.75; TypeScript 5.9; Bun ≥1.3.
+- [x] Core contracts defined: Trigger, Condition, Action, ActionSequence, ScreenCapture, Automation, Monitor.
+- [x] Shared model: Region, Event (incl. WatchdogTripped, MonitorStateChanged), Profile JSON schema.
+- [x] Initial implementations: IntervalTrigger, RegionCondition, basic Actions, Monitor with guardrails; fakes for tests.
+- [x] Tauri bridge: profiles_load/save, monitor_start/stop, optional region_pick; event streaming to UI.
+- [x] UI MVP: Profile editor, Monitor Start/Stop, live Event log, guardrail inputs, Panic Stop.
+- [x] CI with coverage upload and gate at ≥90%.
 
-Gate: all tasks done, tests green, coverage ≥90%, at least one OS bundle produced.
+## Phase 1 — Ubuntu/X11 Backends (MVP core)
 
-## Phase B — UI Usability and Authoring
+Deliverables: working unattended app on Ubuntu/X11 with first‑class backend support and authoring helpers.
 
-Deliverables: a polished UI that makes it easy to define Regions to watch, author Actions, and understand what the Monitor is doing—all with rich, actionable logging. Coverage remains ≥90% (UI + Rust combined for this phase scope).
+- [ ] Backend traits finalized (domain): ScreenCapture, Automation (replay), InputCapture (recording). Unified types: InputEvent, MouseEvent, KeyboardEvent, ScreenFrame, DisplayInfo, BackendError.
+- [ ] X11 screen capture (XShm + Xrandr; fallback XGetImage): multi‑monitor, ARGB32 conversion, downscale + hash utilities.
+- [ ] X11 input capture (XInput2 + XKB): raw motion, buttons, wheel; key down/up with modifiers; background thread; reconnect logic.
+- [ ] X11 input replay (XTest): absolute pointer move, button up/down, key down/up; layout translation via XKB.
+- [ ] Tauri commands for authoring flows: start_screen_stream/stop_screen_stream, start_input_recording/stop_input_recording, inject_mouse_event/inject_keyboard_event (throttled; dev‑only by default).
+- [ ] UI authoring helpers: region selection overlay, recording bar (start/stop), optional low‑FPS screen preview, simple event timeline.
+- [ ] Tests: unit + integration around backends (where feasible), Monitor loop with fakes; UI component/contract tests; one end‑to‑end happy path.
+- [ ] Packaging: Ubuntu bundle(s) produced; documented Wayland limitation (X11 required).
 
-- [ ] Region selection UX:
-	- [ ] "Add Region" button opens a transparent overlay region picker (drag to select area; ESC to cancel).
-	- [ ] Live outline and dimmed background while dragging; final rect snapped to integer pixels; HiDPI aware.
-	- [ ] Selected Region gets a friendly default name and is appended to the Profile; can be renamed inline.
-	- [ ] Tests: simulate picker contract via mocked `region_pick` and ensure Profile updates correctly.
-- [ ] Action authoring improvements:
-	- [ ] Quick‑add toolbar for common Actions: Click, Type("continue"), Key(Enter), MoveCursor to last click.
-	- [ ] Drag‑handle reordering and multi‑select delete; keyboard shortcuts (Del, Ctrl/Cmd+↑/↓).
-	- [ ] Inline validation (e.g., empty text, invalid coordinates) with accessible error states.
-	- [ ] Tests: add/edit/remove/reorder paths; validation error rendering.
-- [ ] Logging and observability:
-	- [ ] Structured Event log with filters (Trigger/Condition/Action/Guardrail/Error) and search.
-	- [ ] Collapsible event details (timestamps, payloads), copy‑to‑clipboard, and clear.
-	- [ ] Lightweight metrics header: last activation time, activations/hour, current cooldown, runtime.
-	- [ ] Tests: filter semantics, details toggle, metrics derivation from sample event stream.
-- [ ] Theming and accessibility polish:
-	- [ ] High‑contrast theme variant and focus outlines; ensure readable selects in dark mode.
-	- [ ] Reduced‑motion support on pulsing indicators and animated affordances.
-	- [ ] Tests: snapshot/ARIA checks for critical controls.
-- [ ] Guardrails UX:
-	- [ ] Inline explanations and presets (conservative/balanced/aggressive) that set cooldown and rate limits.
-	- [ ] Clear, prominent Panic Stop that’s idempotent with visible state.
-	- [ ] Tests: toggling presets updates bound inputs; Panic Stop emits expected command.
-- [ ] E2E happy path (UI‑driven):
-	- [ ] User adds a Region, composes a simple ActionSequence, starts the Monitor, and sees expected Events.
+Gate: all tasks done on Ubuntu/X11, tests green, coverage ≥90%, Ubuntu package produced.
 
-Gate: all tasks done, tests green, coverage ≥90%, and one E2E proving the full UI authoring loop.
+## Phase 2 — Hardening on Ubuntu/X11
 
-## Phase C — Hardening and Cross‑OS
+- [ ] Performance pass: throttle authoring streams; buffer reuse; enforce cooldowns/backoff; document CPU/memory baselines.
+- [ ] Soak test: long‑running unattended loops validate guardrails and clean Panic Stop; memory/cpu bounds checked.
+- [ ] Security basics: input‑synthesis safety, permissions review; dev‑only flags locked down for production builds.
+- [ ] UX polish: clearer preset(s) like “Copilot Keep‑Alive”; improved profile validation feedback.
 
-Deliverables: robustness, performance, cross‑OS validation, and soak stability for unattended runs.
+Gate: tests green, coverage ≥90% for domain/runtime/UI; soak stability documented.
 
-- [ ] OS adapter completeness: ScreenCapture/Automation optimized per OS; FPS caps and buffer reuse.
-- [ ] Contract + integration tests across OSes (best‑effort in CI); documented limitations.
-- [ ] Soak test (time‑dilated if needed): validates memory/cpu bounds, guardrails, and clean panic stop.
-- [ ] Performance pass: lower CPU in hot paths, enforce cooldowns/backoff; document baselines.
-- [ ] Security review basics: permissions, sandbox, input‑synthesis safety.
-- [ ] Packaging/signing for remaining OSes; smoke matrix.
+## Phase 3 — Cross‑OS Enablement (post‑MVP)
 
-Gate: all tasks done, tests green, coverage ≥90% (domain/runtime), smoke on all targeted OSes.
+- [ ] macOS backends behind existing traits: ScreenCapture (CGDisplayStream), Automation (Quartz events), InputCapture (event taps); packaging/signing; smoke.
+- [ ] Windows 11 backends behind existing traits: ScreenCapture (Desktop Duplication), Automation (SendInput), InputCapture (Raw Input/hooks); packaging/signing; smoke.
+- [ ] Cross‑OS contract tests and limitations documented.
 
-## Backlog (post‑B; feature‑flag or follow‑ups)
+Gate: smoke runs on each OS; domain/runtime coverage ≥90%; UI unchanged across OSes.
 
-- [ ] Focus‑binding Condition to restrict actions to a bound app/window.
-- [ ] Optional keep‑awake Action (cursor jiggle/sleep inhibition) behind traits.
-- [ ] Extension registry and sample plug‑ins (`DelayTrigger`, `NoopAction`).
+## Backlog / Future
+
+- [ ] Focus‑binding Condition to restrict actions to an app/window.
+- [ ] Optional keep‑awake Action (jiggle/sleep inhibition) behind traits.
+- [ ] Extension registry and sample plug‑ins (DelayTrigger, NoopAction).
 - [ ] OCR/LLM Conditions + Actions (not MVP).
 - [ ] Telemetry opt‑in and privacy doc polish.
+

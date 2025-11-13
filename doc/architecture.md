@@ -2,6 +2,8 @@
 
 This document defines the target architecture for a cross‑platform desktop app built with Tauri 2, a Rust backend, and a React/TypeScript UI. It uses the following abstract entities everywhere (no OS logic in the UI): Trigger, Condition, Action, ActionSequence, Monitor, Event, Region/RegionSource. The initial primary use case is unattended operation to keep an AI agent (e.g., VS Code Copilot) progressing indefinitely once started.
 
+MVP target platform (scope): Ubuntu 24.04 on X11. The architecture preserves clean extension points for macOS and Windows 11, which will be implemented after the Ubuntu/X11 MVP phases are complete. Wayland is out‑of‑scope for the MVP.
+
 ## Tooling and versions (MVP)
 
 - Rust stable (edition 2021) ≥1.75 (latest as of Nov 2025 is 1.91.x)
@@ -25,6 +27,7 @@ Project bootstrap (idiomatic):
 - Extensible: adding new Triggers/Conditions/Actions must not require redesign.
 - Test‑driven: overall coverage ≥90% (Rust + UI combined) with unit + integration + E2E. CI uploads coverage to Codecov.
 - Unattended operation: runs safely without a user present, with strong guardrails (watchdog, rate limits, bounded scope) and a single‑click “panic stop”.
+ - MVP scope explicitly targets Ubuntu/X11; other OSes must be supportable by adding backends behind the same traits without modifying UI or core contracts.
 
 ## Layered architecture (modules and data flow)
 
@@ -47,16 +50,21 @@ Top to bottom layers; arrows indicate primary call/flow direction.
    ↓
 4) Domain layer (core)
    - Abstract traits and types: Trigger, Condition, Action, ActionSequence, Event, Region, RegionSource, ScreenCapture, Automation
+   - InputCapture trait for recording global keyboard/mouse events (for region picking, recording, and replay authoring)
    - Decision logic and contracts, pure and testable
    ↓
 5) Platform layer (os-impl)
    - Concrete implementations behind traits:
      - ScreenCapture (RegionSource): fast downscaled capture + hashing
-     - Automation: cursor move, click, type, key press
+     - Automation: cursor move, click, type, key press (input replay)
+     - InputCapture: global keyboard/mouse recording
    - Separate modules per OS; compiled conditionally; never surfaced to UI
 
 Event flow (runtime):
 Trigger fires → Event(trigger_fired) → Condition evaluates Regions (via ScreenCapture/RegionSource) → Event(condition_evaluated) → if true, execute ActionSequence via Automation → Event(action_executed) → all Events streamed to UI.
+
+Recording/authoring flow (MVP helpers):
+- Optional screen stream (for region picking/preview) and input recorder feed UI with ScreenFrame and InputEvent messages; these are not required for unattended operation but support profile authoring.
 
 ## Core abstractions (Rust traits)
 
@@ -78,6 +86,9 @@ Interfaces are intentionally minimal; implementations can extend via associated 
   - Contract: capture(region) → pixel buffer; hash(region, downscale) → u64/bytes.
 - Automation
   - Purpose: input synthesis (mouse/keyboard) via OS APIs, hidden behind a safe trait.
+ - InputCapture
+   - Purpose: subscribe to global mouse/keyboard events for recording and tooling.
+   - Contract: start()/stop(), subscribe(sender) → push InputEvent (mouse move/button/wheel; key down/up with modifiers).
 - Monitor
   - Purpose: orchestrator binding Trigger + Condition + ActionSequence; emits typed Events.
   - Loop: on each Trigger tick, evaluate Condition across Regions; if true and guardrails allow, execute ActionSequence exactly once, then apply cooldown; emit Events at each step; supports start/stop and backpressure.
@@ -157,9 +168,13 @@ Profile schema (minimal contract):
   - monitor_start(profileId: String) -> Result<(), Error>
   - monitor_stop() -> Result<(), Error>
   - region_pick() -> Result<Region, Error> (optional helper using overlay)
+  - start_screen_stream() / stop_screen_stream() -> control an optional low‑FPS screen stream for authoring
+  - start_input_recording() / stop_input_recording() -> control global input recorder (authoring)
+  - inject_mouse_event(event: MouseEvent) / inject_keyboard_event(event: KeyboardEvent) -> direct input replay for tooling
 - Events to UI:
   - Channel: "loopautoma://event"; payload = Event (JSON)
   - Backpressure: events may be batched ≤100ms; if buffer >10_000, drop oldest and emit Error { message: "event_backpressure_drop" }
+  - Authoring streams: ScreenFrame (throttled) and InputEvent are emitted on dedicated channels or with a `kind` discriminator; apply strict throttling and backpressure.
 
 ## UI responsibilities (React/TypeScript, no OS logic)
 
@@ -168,14 +183,23 @@ Profile schema (minimal contract):
 - Unattended mode: toggle to enable guardrails (max runtime/activations, cooldowns) and a prominent Panic Stop button; preset selector (e.g., “Copilot Keep‑Alive”).
 - State management: Zustand store; React Query optional for command calls; types mirror Rust models.
 - Serialization: JSON round‑trip to/from backend; validation errors surfaced inline.
+ - Authoring helpers (Ubuntu/X11 MVP): recording bar to start/stop input capture, region selection overlay, and an optional screen preview; future OSes reuse the same UI.
 
 ## Platform implementations (per OS, behind traits)
 
-- ScreenCapture: platform APIs (e.g., Desktop Duplication API on Windows, CGDisplayStream on macOS, X11/Wayland backends on Linux) wrapped to return downscaled buffers and hashes efficiently; frame rate bounded to reduce CPU.
-- Automation: OS‑level input synthesis for cursor/key events.
-- Both hidden behind ScreenCapture and Automation traits; selected via cfg(target_os) at compile time.
-- Unattended operation helpers (kept within existing traits):
-  - Keep‑awake behavior via Automation‑backed Actions (e.g., subtle jiggle or OS sleep inhibition). This remains behind Action/Automation and is not exposed to UI as OS‑specific logic.
+Ubuntu/X11 MVP (primary focus):
+- ScreenCapture: X11 + XShm (MIT‑SHM) for fast frames; Xrandr for display enumeration; fallback to XGetImage if SHM unavailable.
+- InputCapture: XInput2 for raw keyboard/mouse events; XKB for layout/modifier normalization.
+- Automation (Input replay): XTest extension for pointer/keyboard injection.
+- Note: requires X11 session; not compatible with Wayland for MVP.
+
+macOS (post‑MVP):
+- ScreenCapture via CGDisplayStream; Automation via Quartz Events; InputCapture via event taps.
+
+Windows 11 (post‑MVP):
+- ScreenCapture via Desktop Duplication API (DXGI); Automation via SendInput; InputCapture via Raw Input/Low‑level hooks.
+
+All backends are hidden behind ScreenCapture, Automation, and InputCapture traits; selected via cfg(target_os) and feature flags.
 
 ## Performance strategy (MVP)
 
@@ -184,6 +208,7 @@ Profile schema (minimal contract):
 - IntervalTrigger uses a monotonic timer; jitter acceptable but bounded.
 - Minimal allocations in hot paths; reuse buffers per Region.
  - Guardrails avoid runaway loops (cooldowns/rate limits) to reduce CPU and unintended behavior when conditions flap.
+ - Authoring streams (screen/input) are strictly throttled and disabled in unattended runs.
 
 ## Testing strategy and coverage
 
@@ -192,12 +217,14 @@ Profile schema (minimal contract):
 - UI: component tests + contract tests against mocked commands; E2E with Tauri driver or Playwright (headless) to start/stop Monitor and assert Events.
 - CI: cargo test + tarpaulin for Rust coverage, Vitest for UI; combine and upload to Codecov. Gate: overall coverage ≥90% before merging.
  - Soak tests (time‑dilated where possible) to validate unattended operation: ensure no memory leaks, watchdog trips as configured, and correct recovery after stop/start.
+ - Ubuntu/X11 backends: add integration tests behind feature gates where possible; mock X11 when CI access is limited.
 
 ## Extensibility points
 
 - New Trigger/Condition/Action types extend traits without changing existing code; registered in a factory/registry that maps JSON descriptors to concrete types.
 - Future Conditions can perform OCR on Regions and feed text to LLMs to generate Action inputs; this only requires new Condition and Action implementations, not architectural changes.
  - Additional safety Conditions (e.g., WindowFocusCondition, AllOfCondition) can be composed to restrict actions to a bound application window; implemented as standard Conditions without UI/OS branching.
+ - Backends: implement ScreenCapture, Automation, and InputCapture for each OS under separate modules; no UI changes required.
 
 ## Unattended operation: design notes
 

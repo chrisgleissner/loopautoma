@@ -58,7 +58,37 @@ Example (Ubuntu/Debian):
 
 ```bash
 sudo apt update
-sudo apt install -y pkg-config build-essential libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev patchelf libxdo-dev
+sudo apt install -y \
+  pkg-config build-essential libssl-dev \
+  libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev patchelf \
+  libxdo-dev
+
+### Ubuntu 24.04 X11 (MVP target)
+
+The MVP targets Ubuntu 24.04 running an X11 session. Wayland is not supported for the MVP.
+
+- Check your session type:
+
+  ```bash
+  echo "$XDG_SESSION_TYPE"   # should print: x11
+  ```
+
+- To switch to X11: at the Ubuntu login screen, click the gear icon and select “Ubuntu on Xorg” (or “GNOME on Xorg”), then log in.
+
+- Install X11 development libraries used by the backends (screen capture, input capture, input replay):
+
+  ```bash
+  sudo apt install -y \
+    libx11-dev libxext-dev libxrandr-dev \
+    libxi-dev libxtst-dev \
+    libxkbcommon-dev libxkbcommon-x11-dev
+  ```
+
+- Optional verification via pkg-config (should print versions, not errors):
+
+  ```bash
+  pkg-config --modversion x11 xext xrandr xi xtst xkbcommon xkbcommon-x11
+  ```
 ```
 
 ### Linux capture backends (defaults and options)
@@ -279,4 +309,3 @@ Both live in `src-tauri/src/tests.rs` and run via `cargo test`.
 
 - Rust toolchain not available in current shell:
   - `source "$HOME/.cargo/env"`
-
