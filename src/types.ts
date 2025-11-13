@@ -6,6 +6,7 @@ export type TriggerConfig = { type: string; interval_ms: number };
 export type ConditionConfig = { type: string; stable_ms: number; downscale: number };
 
 export type MouseButton = "Left" | "Right" | "Middle";
+export type Modifiers = { shift: boolean; control: boolean; alt: boolean; meta: boolean };
 export type ActionConfig =
   | { type: "MoveCursor"; x: number; y: number }
   | { type: "Click"; button: MouseButton }
@@ -38,6 +39,55 @@ export type Event =
   | { type: "MonitorStateChanged"; state: MonitorState }
   | { type: "WatchdogTripped"; reason: string }
   | { type: "Error"; message: string };
+
+export type MouseInputEvent = {
+  event_type: "move" | { button_down: MouseButton } | { button_up: MouseButton } | Record<string, never>;
+  x: number;
+  y: number;
+  modifiers: Modifiers;
+  timestamp_ms: number;
+};
+
+export type KeyboardInputEvent = {
+  state: "down" | "up";
+  key: string;
+  code: number;
+  text?: string | null;
+  modifiers: Modifiers;
+  timestamp_ms: number;
+};
+
+export type ScrollInputEvent = {
+  delta_x: number;
+  delta_y: number;
+  modifiers: Modifiers;
+  timestamp_ms: number;
+};
+
+export type InputEvent =
+  | { kind: "mouse"; mouse: MouseInputEvent }
+  | { kind: "keyboard"; keyboard: KeyboardInputEvent }
+  | { kind: "scroll"; scroll: ScrollInputEvent };
+
+export type DisplayInfo = {
+  id: number;
+  name?: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale_factor: number;
+  is_primary: boolean;
+};
+
+export type ScreenFrame = {
+  display: DisplayInfo;
+  width: number;
+  height: number;
+  stride: number;
+  bytes: number[];
+  timestamp_ms: number;
+};
 
 export const defaultPresetProfile = (): Profile => ({
   id: "keep-agent-001",

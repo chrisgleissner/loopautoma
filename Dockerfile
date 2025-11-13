@@ -17,6 +17,8 @@ RUN apt-get update && \
       git \
       pkg-config \
       build-essential \
+      libgbm-dev \
+      libdrm-dev \
       libssl-dev \
       libgtk-3-dev \
       libwebkit2gtk-4.1-dev \
