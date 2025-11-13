@@ -24,7 +24,7 @@ Deliverables: a working cross‑platform app that can run unattended with a pres
 	- [x] UI component/contract tests (mock commands)
 	- [x] One E2E happy path that runs the preset and asserts Events
 - [x] CI: build, tests, coverage (tarpaulin/grcov + vitest) → Codecov; gate: overall coverage ≥90%.
-- [ ] Packaging: produce installers/bundles for at least one OS to release MVP quickly.
+ - [x] Packaging: produce installers/bundles for at least one OS to release MVP quickly.
 
 Gate: all tasks done, tests green, coverage ≥90%, at least one OS bundle produced.
 

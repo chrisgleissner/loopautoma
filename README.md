@@ -40,3 +40,14 @@ bun test
 cd src-tauri && cargo test
 ```
 
+
+## Installers (Linux)
+
+Build packages locally:
+
+```bash
+bun run tauri build
+```
+
+Artifacts will be generated under `src-tauri/target/release/bundle/` (e.g., `.deb`, `.rpm`, `.AppImage`).
+
