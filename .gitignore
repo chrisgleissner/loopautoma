@@ -9,6 +9,7 @@ lerna-debug.log*
 
 # Coverage
 coverage/*
+src-tauri/coverage/*
 
 node_modules
 dist

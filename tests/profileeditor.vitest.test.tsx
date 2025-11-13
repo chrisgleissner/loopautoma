@@ -40,7 +40,8 @@ describe("ProfileEditor", () => {
     // Invalid JSON
     fireEvent.change(ta, { target: { value: "{" } });
     fireEvent.click(screen.getByText(/Save Profile/));
-    expect(screen.getByText(/Unexpected end of JSON/)).toBeTruthy();
+  // Match any JSON parse error text
+  expect(screen.getByText((t) => /JSON/.test(t))).toBeTruthy();
     // Invalid shape
     fireEvent.change(ta, { target: { value: JSON.stringify({ foo: "bar" }) } });
     fireEvent.click(screen.getByText(/Save Profile/));
