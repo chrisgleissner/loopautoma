@@ -24,6 +24,8 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      CARGO_TARGET_DIR: /workspace/target
     defaults:
       run:
         shell: bash
@@ -33,6 +35,21 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
+
+      - name: Environment diagnostics (Rust)
+        run: |
+          set -x
+          echo "CARGO_TARGET_DIR=${CARGO_TARGET_DIR}"
+          echo "CARGO_HOME=${CARGO_HOME}"
+          echo "RUSTUP_HOME=${RUSTUP_HOME}"
+          echo "PWD=$(pwd)"
+          which cargo || true
+          cargo -vV || true
+          rustc -vV || true
+          echo "Listing /workspace/target (if present):"
+          ls -la /workspace/target || true
+          echo "Listing src-tauri/target (if present):"
+          ls -la src-tauri/target || true
 
       - name: Bun version
         run: bun --version || true
@@ -51,7 +68,12 @@ jobs:
 
       - name: Rust coverage (tarpaulin)
         run: |
-          if [ -f src-tauri/Cargo.toml ]; then (cd src-tauri && cargo tarpaulin --out Xml --timeout 120 --engine llvm || cargo tarpaulin --out Xml --timeout 120); fi
+          if [ -f src-tauri/Cargo.toml ]; then (
+            cd src-tauri && \
+            cargo tarpaulin --avoid-clean --out Xml --timeout 120 --engine llvm \
+              || cargo tarpaulin --avoid-clean --out Xml --timeout 120 \
+              || cargo tarpaulin --out Xml --timeout 120
+          ); fi
 
       - name: Upload coverage to Codecov (Rust)
         if: ${{ always() }}

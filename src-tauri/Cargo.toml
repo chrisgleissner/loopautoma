@@ -26,16 +26,15 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-screenshots = { version = "0.8.10", optional = true }
-xcap = { version = "0.7", optional = true }
+xcap = { version = "0.7.1", optional = true }
 ahash = { version = "0.8", optional = true }
 enigo = { version = "0.1.3", optional = true }
+device_query = { version = "4.0", optional = true }
  
 [features]
-default = ["os-linux-capture"]
-os-linux-capture = ["screenshots", "ahash"]
+default = ["os-linux-capture-xcap"]
 os-linux-capture-xcap = ["xcap", "ahash"]
-os-linux-input = ["enigo"]
+os-linux-input = ["enigo", "device_query"]
 os-macos = []
 os-windows = []
 

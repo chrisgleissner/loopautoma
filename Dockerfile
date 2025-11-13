@@ -17,6 +17,7 @@ RUN apt-get update && \
       git \
       pkg-config \
       build-essential \
+      libx11-dev \
       libssl-dev \
       libgtk-3-dev \
       libwebkit2gtk-4.1-dev \
@@ -25,9 +26,9 @@ RUN apt-get update && \
       patchelf \
       libayatana-appindicator3-dev \
       clang \
-  llvm-dev \
-  libpipewire-0.3-dev \
-  libspa-0.2-dev \
+      llvm-dev \
+      libpipewire-0.3-dev \
+      libspa-0.2-dev \
       libclang-dev \
       cmake \
       xz-utils \
@@ -38,6 +39,8 @@ RUN apt-get update && \
 ENV RUSTUP_HOME=/root/.rustup
 ENV CARGO_HOME=/root/.cargo
 ENV PATH=/root/.cargo/bin:$PATH
+ENV CARGO_TARGET_DIR=/workspace/target
+ENV BINDGEN_EXTRA_CLANG_ARGS="--sysroot=/usr -I/usr/lib/llvm-18/lib/clang/18/include -I/usr/include/x86_64-linux-gnu"
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && \
     rustup default stable
 
@@ -51,6 +54,7 @@ RUN curl -fsSL "$BUN_INSTALL_URL" | bash && \
 # Optional: Coverage tool for Rust
 RUN cargo install cargo-tarpaulin || true
 
+RUN mkdir -p /workspace
 WORKDIR /workspace
 
 # Pre-warm UI deps cache (optional; speeds up bun install by priming cache)

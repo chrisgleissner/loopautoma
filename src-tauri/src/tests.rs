@@ -4,15 +4,20 @@ mod tests {
 
     use crate::action::{Click, Key, MoveCursor, TypeText};
     use crate::condition::RegionCondition;
-    use crate::domain::{Action, ActionSequence, Automation, Condition, Guardrails, MouseButton, Rect, Region, ScreenCapture, Trigger};
+    use crate::domain::{Action, ActionSequence, Automation, BackendError, Condition, DisplayInfo, Guardrails, MouseButton, Rect, Region, ScreenCapture, ScreenFrame, Trigger};
     use crate::monitor::Monitor;
     use crate::trigger::IntervalTrigger;
     use crate::domain::{ActionConfig, ConditionConfig, GuardrailsConfig, Profile, TriggerConfig};
     use crate::build_monitor_from_profile;
 
+    fn capture_region_stub() -> Result<ScreenFrame, BackendError> { Err(BackendError::new("fake_capture", "hash-only test capture stub")) }
+    fn displays_stub() -> Result<Vec<DisplayInfo>, BackendError> { Ok(vec![]) }
+
     struct FakeCap { seq: Vec<u64> }
     impl ScreenCapture for FakeCap {
         fn hash_region(&self, _region: &Region, _downscale: u32) -> u64 { self.seq[0] }
+        fn capture_region(&self, _region: &Region) -> Result<ScreenFrame, BackendError> { capture_region_stub() }
+        fn displays(&self) -> Result<Vec<DisplayInfo>, BackendError> { displays_stub() }
     }
 
     struct FakeAuto { pub calls: std::sync::Mutex<Vec<String>> }
@@ -115,7 +120,12 @@ mod tests {
         let (mut mon, regions) = build_monitor_from_profile(&profile);
 
         // Use our fakes just like the runtime path
-        struct Cap; impl ScreenCapture for Cap { fn hash_region(&self, _r: &Region, _d: u32) -> u64 { 1 } }
+        struct Cap;
+        impl ScreenCapture for Cap {
+            fn hash_region(&self, _r: &Region, _d: u32) -> u64 { 1 }
+            fn capture_region(&self, _region: &Region) -> Result<ScreenFrame, BackendError> { capture_region_stub() }
+            fn displays(&self) -> Result<Vec<DisplayInfo>, BackendError> { displays_stub() }
+        }
         struct Auto; impl Automation for Auto {
             fn move_cursor(&self, _x: u32, _y: u32) -> Result<(), String> { Ok(()) }
             fn click(&self, _b: MouseButton) -> Result<(), String> { Ok(()) }
@@ -151,7 +161,12 @@ mod tests {
             Guardrails { cooldown: Duration::from_millis(0), max_runtime: Some(Duration::from_millis(1)), max_activations_per_hour: None },
         );
         let r = Region { id: "r".into(), rect: Rect { x: 0, y: 0, width: 1, height: 1 }, name: None };
-        struct C; impl ScreenCapture for C { fn hash_region(&self, _r:&Region,_d:u32)->u64{0} }
+        struct C;
+        impl ScreenCapture for C {
+            fn hash_region(&self, _r:&Region,_d:u32)->u64{0}
+            fn capture_region(&self, _region: &Region) -> Result<ScreenFrame, BackendError> { capture_region_stub() }
+            fn displays(&self) -> Result<Vec<DisplayInfo>, BackendError> { displays_stub() }
+        }
         struct A; impl Automation for A{ fn move_cursor(&self,_:u32,_:u32)->Result<(),String>{Ok(())} fn click(&self,_:MouseButton)->Result<(),String>{Ok(())} fn type_text(&self,_:&str)->Result<(),String>{Ok(())} fn key(&self,_:&str)->Result<(),String>{Ok(())} }
         let cap=C; let auto=A;
         let mut evs=vec![]; m.start(&mut evs);
@@ -172,7 +187,12 @@ mod tests {
             Guardrails { cooldown: Duration::from_millis(0), max_runtime: None, max_activations_per_hour: Some(1) },
         );
         let r = Region { id: "r".into(), rect: Rect { x: 0, y: 0, width: 1, height: 1 }, name: None };
-        struct C; impl ScreenCapture for C { fn hash_region(&self, _r:&Region,_d:u32)->u64{0} }
+        struct C;
+        impl ScreenCapture for C {
+            fn hash_region(&self, _r:&Region,_d:u32)->u64{0}
+            fn capture_region(&self, _region: &Region) -> Result<ScreenFrame, BackendError> { capture_region_stub() }
+            fn displays(&self) -> Result<Vec<DisplayInfo>, BackendError> { displays_stub() }
+        }
         struct A; impl Automation for A{ fn move_cursor(&self,_:u32,_:u32)->Result<(),String>{Ok(())} fn click(&self,_:MouseButton)->Result<(),String>{Ok(())} fn type_text(&self,_:&str)->Result<(),String>{Ok(())} fn key(&self,_:&str)->Result<(),String>{Ok(())} }
         let cap=C; let auto=A; let mut evs=vec![]; m.start(&mut evs);
         let t0=Instant::now();
@@ -205,7 +225,12 @@ mod tests {
         let (mut mon, regions) = build_monitor_from_profile(&profile);
 
         // Use deterministic fakes: constant hash (no visual change) and no-op automation
-        struct Cap; impl ScreenCapture for Cap { fn hash_region(&self, _r: &Region, _d: u32) -> u64 { 42 } }
+        struct Cap;
+        impl ScreenCapture for Cap {
+            fn hash_region(&self, _r: &Region, _d: u32) -> u64 { 42 }
+            fn capture_region(&self, _region: &Region) -> Result<ScreenFrame, BackendError> { capture_region_stub() }
+            fn displays(&self) -> Result<Vec<DisplayInfo>, BackendError> { displays_stub() }
+        }
         struct Auto; impl Automation for Auto {
             fn move_cursor(&self, _x: u32, _y: u32) -> Result<(), String> { Ok(()) }
             fn click(&self, _b: MouseButton) -> Result<(), String> { Ok(()) }
@@ -244,7 +269,12 @@ mod tests {
             Guardrails { cooldown: Duration::from_millis(1), max_runtime: Some(Duration::from_millis(5)), max_activations_per_hour: Some(1_000_000) },
         );
         let r = Region { id: "r1".into(), rect: Rect { x: 0, y: 0, width: 1, height: 1 }, name: None };
-        struct C; impl ScreenCapture for C { fn hash_region(&self, _r:&Region,_d:u32)->u64{0} }
+        struct C;
+        impl ScreenCapture for C {
+            fn hash_region(&self, _r:&Region,_d:u32)->u64{0}
+            fn capture_region(&self, _region: &Region) -> Result<ScreenFrame, BackendError> { capture_region_stub() }
+            fn displays(&self) -> Result<Vec<DisplayInfo>, BackendError> { displays_stub() }
+        }
         struct A; impl Automation for A{ fn move_cursor(&self,_:u32,_:u32)->Result<(),String>{Ok(())} fn click(&self,_:MouseButton)->Result<(),String>{Ok(())} fn type_text(&self,_:&str)->Result<(),String>{Ok(())} fn key(&self,_:&str)->Result<(),String>{Ok(())} }
         let cap=C; let auto=A;
         let mut evs=vec![]; m.start(&mut evs);

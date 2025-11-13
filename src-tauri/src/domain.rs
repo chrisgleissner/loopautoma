@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 // Basic geometry and region types
@@ -15,6 +16,28 @@ pub struct Region {
     pub id: String,
     pub rect: Rect,
     pub name: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplayInfo {
+    pub id: u32,
+    pub name: Option<String>,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub scale_factor: f32,
+    pub is_primary: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ScreenFrame {
+    pub display: DisplayInfo,
+    pub width: u32,
+    pub height: u32,
+    pub stride: u32,
+    pub bytes: Vec<u8>,
+    pub timestamp_ms: u64,
 }
 
 // Events flowing through the system (minimal for MVP)
@@ -41,6 +64,8 @@ pub trait Trigger {
 pub trait ScreenCapture {
     // A fast hash of a region (already downscaled by the impl as appropriate)
     fn hash_region(&self, region: &Region, downscale: u32) -> u64;
+    fn capture_region(&self, region: &Region) -> Result<ScreenFrame, BackendError>;
+    fn displays(&self) -> Result<Vec<DisplayInfo>, BackendError>;
 }
 
 pub trait Condition {
@@ -55,6 +80,17 @@ pub trait Automation {
     fn click(&self, button: MouseButton) -> Result<(), String>;
     fn type_text(&self, text: &str) -> Result<(), String>;
     fn key(&self, key: &str) -> Result<(), String>;
+    fn mouse_down(&self, button: MouseButton) -> Result<(), String> { self.click(button) }
+    fn mouse_up(&self, _button: MouseButton) -> Result<(), String> { Ok(()) }
+    fn key_down(&self, key: &str) -> Result<(), String> { self.key(key) }
+    fn key_up(&self, _key: &str) -> Result<(), String> { Ok(()) }
+}
+
+pub type InputEventCallback = Arc<dyn Fn(InputEvent) + Send + Sync>;
+
+pub trait InputCapture: Send {
+    fn start(&mut self, callback: InputEventCallback) -> Result<(), BackendError>;
+    fn stop(&mut self) -> Result<(), BackendError>;
 }
 
 pub trait Action {
@@ -129,3 +165,78 @@ pub enum ActionConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GuardrailsConfig { pub max_runtime_ms: Option<u64>, pub max_activations_per_hour: Option<u32>, pub cooldown_ms: u64 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum InputEvent {
+    Mouse(MouseEvent),
+    Keyboard(KeyboardEvent),
+    Scroll(ScrollEvent),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MouseEvent {
+    pub event_type: MouseEventType,
+    pub x: f64,
+    pub y: f64,
+    pub modifiers: Modifiers,
+    pub timestamp_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MouseEventType {
+    Move,
+    ButtonDown(MouseButton),
+    ButtonUp(MouseButton),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Modifiers {
+    pub shift: bool,
+    pub control: bool,
+    pub alt: bool,
+    pub meta: bool,
+}
+
+impl Default for Modifiers {
+    fn default() -> Self { Self { shift: false, control: false, alt: false, meta: false } }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct KeyboardEvent {
+    pub state: KeyState,
+    pub key: String,
+    pub code: u32,
+    pub text: Option<String>,
+    pub modifiers: Modifiers,
+    pub timestamp_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyState { Down, Up }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ScrollEvent {
+    pub delta_x: f64,
+    pub delta_y: f64,
+    pub modifiers: Modifiers,
+    pub timestamp_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BackendError {
+    pub code: &'static str,
+    pub message: String,
+}
+
+impl BackendError {
+    pub fn new(code: &'static str, message: impl Into<String>) -> Self { Self { code, message: message.into() } }
+}
+
+impl std::fmt::Display for BackendError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{}: {}", self.code, self.message) }
+}
+
+impl std::error::Error for BackendError {}

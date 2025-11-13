@@ -91,45 +91,28 @@ The MVP targets Ubuntu 24.04 running an X11 session. Wayland is not supported fo
   ```
 ```
 
-### Linux capture backends (defaults and options)
+### Linux capture backend (xcap by default)
 
-Default on Linux is the `screenshots` backend for the smoothest local setup (no PipeWire/SPA headers required). If you want to try the newer `xcap` backend, it requires PipeWire/SPA headers and Clang toolchain (installed in the CI image).
-
-Install the extra packages:
+Linux now uses the `xcap` crate by default for screen capture and hashing. It relies on PipeWire/SPA headers plus a modern Clang/LLVM toolchain (already present in the CI container). Make sure these packages are installed locally:
 
 ```bash
 sudo apt install -y libpipewire-0.3-dev libspa-0.2-dev clang llvm-dev libc6-dev
 ```
 
-Build explicitly with xcap capture feature:
+`cargo build` (or `bun run dev`) already enables the `os-linux-capture-xcap` feature via the default feature set. If you disable defaults for custom builds, remember to re-enable the capture feature explicitly:
 
 ```bash
 # from src-tauri/
 cargo build --no-default-features --features os-linux-capture-xcap
+
+# run tauri dev with capture + input backends
+TAURI_TRIPLE="" bun run tauri dev -- --no-default-features --features os-linux-capture-xcap,os-linux-input
 ```
 
-Run the app in dev mode with xcap capture:
+If you are missing system headers or simply want to run the UI without native capture, use the fake backend override instead of compiling out xcap:
 
 ```bash
-# from project root
-TAURI_TRIPLE="" bun run tauri dev -- --no-default-features --features os-linux-capture-xcap
-```
-
-Opt back into the `screenshots` backend (may emit warnings):
-
-```bash
-# from src-tauri/
-cargo build --no-default-features --features os-linux-capture
-
-# or run dev from project root
-TAURI_TRIPLE="" bun run tauri dev -- --no-default-features --features os-linux-capture
-```
-
-Then retry:
-
-```bash
-source "$HOME/.cargo/env"
-bun run dev
+LOOPAUTOMA_BACKEND=fake bun run dev
 ```
 
 #### Troubleshooting: libspa/pipewire bindgen error ("stdbool.h not found")
@@ -177,11 +160,10 @@ Fix on Ubuntu/Debian:
   cargo build --no-default-features --features os-linux-capture-xcap
   ```
 
-- Quick workaround: run with the screenshots backend instead of xcap:
+- Quick workaround: temporarily fall back to the fake backend (no real capture):
 
   ```bash
-  # from project root
-  bun run dev:screenshots
+  LOOPAUTOMA_BACKEND=fake bun run dev
   ```
 
 ## Scripts and common tasks

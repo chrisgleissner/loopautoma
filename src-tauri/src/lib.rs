@@ -6,10 +6,16 @@ mod action;
 mod monitor;
 #[cfg(test)]
 mod tests;
-#[cfg(any(feature = "os-linux-capture", feature = "os-linux-input", feature = "os-macos", feature = "os-windows"))]
+#[cfg(any(
+    feature = "os-linux-capture-xcap",
+    feature = "os-linux-input",
+    feature = "os-macos",
+    feature = "os-windows"
+))]
 mod os;
 
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use domain::*;
@@ -17,6 +23,19 @@ use tauri::Emitter; // for Window.emit
 mod fakes;
 use fakes::{FakeAutomation, FakeCapture};
 use std::env;
+#[cfg(feature = "os-linux-input")]
+use crate::os::linux::LinuxInputCapture;
+
+struct StreamHandle {
+    cancel: Arc<AtomicBool>,
+    handle: std::thread::JoinHandle<()>,
+}
+
+#[derive(Default)]
+struct AuthoringState {
+    screen_stream: Mutex<Option<StreamHandle>>,
+    input_capture: Mutex<Option<Box<dyn InputCapture + Send>>>,
+}
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -27,10 +46,11 @@ fn greet(name: &str) -> String {
 struct AppState {
     profiles: Mutex<Vec<Profile>>, // in-memory MVP
     runner: Mutex<Option<MonitorRunner>>, // current monitor runner
+    authoring: AuthoringState,
 }
 
 struct MonitorRunner {
-    cancel: Arc<std::sync::atomic::AtomicBool>,
+    cancel: Arc<AtomicBool>,
     #[allow(dead_code)]
     handle: std::thread::JoinHandle<()>,
 }
@@ -71,31 +91,78 @@ pub(crate) fn build_monitor_from_profile<'a>(p: &Profile) -> (monitor::Monitor<'
     (monitor::Monitor::new(trig, cond, seq, gr), regions)
 }
 
-fn select_backends() -> (
-    Box<dyn ScreenCapture + Send + Sync>,
-    Box<dyn Automation + Send + Sync>,
-) {
+fn make_capture() -> Box<dyn ScreenCapture + Send + Sync> {
     if env::var("LOOPAUTOMA_BACKEND").ok().as_deref() == Some("fake") {
-        return (Box::new(FakeCapture), Box::new(FakeAutomation));
+        return Box::new(FakeCapture);
     }
-    #[cfg(feature = "os-linux-capture")]
+    #[cfg(feature = "os-linux-capture-xcap")]
     {
-        #[cfg(feature = "os-linux-input")]
-        { (Box::new(crate::os::linux::LinuxCapture), Box::new(crate::os::linux::LinuxAutomation)) }
-        #[cfg(not(feature = "os-linux-input"))]
-        { (Box::new(crate::os::linux::LinuxCapture), Box::new(FakeAutomation)) }
+        return Box::new(crate::os::linux::LinuxCapture);
     }
-    #[cfg(all(not(feature = "os-linux-capture"), feature = "os-macos"))]
+    #[cfg(all(not(feature = "os-linux-capture-xcap"), feature = "os-macos"))]
     {
-        (Box::new(crate::os::macos::MacCapture), Box::new(crate::os::macos::MacAutomation))
+        return Box::new(crate::os::macos::MacCapture);
     }
-    #[cfg(all(not(feature = "os-linux-capture"), not(feature = "os-macos"), feature = "os-windows"))]
+    #[cfg(all(
+        not(feature = "os-linux-capture-xcap"),
+        not(feature = "os-macos"),
+        feature = "os-windows"
+    ))]
     {
-        (Box::new(crate::os::windows::WinCapture), Box::new(crate::os::windows::WinAutomation))
+        return Box::new(crate::os::windows::WinCapture);
     }
-    #[cfg(all(not(feature = "os-linux-capture"), not(feature = "os-macos"), not(feature = "os-windows")))]
+    #[cfg(all(
+        not(feature = "os-linux-capture-xcap"),
+        not(feature = "os-macos"),
+        not(feature = "os-windows")
+    ))]
     {
-        (Box::new(FakeCapture), Box::new(FakeAutomation))
+        Box::new(FakeCapture)
+    }
+}
+
+fn make_automation() -> Box<dyn Automation + Send + Sync> {
+    if env::var("LOOPAUTOMA_BACKEND").ok().as_deref() == Some("fake") {
+        return Box::new(FakeAutomation);
+    }
+    #[cfg(feature = "os-linux-input")]
+    {
+        return Box::new(crate::os::linux::LinuxAutomation);
+    }
+    #[cfg(all(not(feature = "os-linux-input"), feature = "os-macos"))]
+    {
+        return Box::new(crate::os::macos::MacAutomation);
+    }
+    #[cfg(all(not(feature = "os-linux-input"), not(feature = "os-macos"), feature = "os-windows"))]
+    {
+        return Box::new(crate::os::windows::WinAutomation);
+    }
+    #[cfg(all(not(feature = "os-linux-input"), not(feature = "os-macos"), not(feature = "os-windows")))]
+    {
+        Box::new(FakeAutomation)
+    }
+}
+
+fn make_input_capture() -> Option<Box<dyn InputCapture + Send>> {
+    if env::var("LOOPAUTOMA_BACKEND").ok().as_deref() == Some("fake") {
+        return None;
+    }
+    #[cfg(feature = "os-linux-input")]
+    {
+        return Some(Box::new(LinuxInputCapture::default()));
+    }
+    #[cfg(all(not(feature = "os-linux-input"), feature = "os-macos"))]
+    {
+        // macOS backend placeholder
+        return None;
+    }
+    #[cfg(all(not(feature = "os-linux-input"), not(feature = "os-macos"), feature = "os-windows"))]
+    {
+        return None;
+    }
+    #[cfg(all(not(feature = "os-linux-input"), not(feature = "os-macos"), not(feature = "os-windows")))]
+    {
+        None
     }
 }
 
@@ -118,11 +185,12 @@ fn monitor_start(profile_id: String, window: tauri::Window, state: tauri::State<
     let profiles = state.profiles.lock().unwrap().clone();
     let profile = profiles.into_iter().find(|p| p.id == profile_id).ok_or_else(|| "profile not found".to_string())?;
     let (mut mon, regions) = build_monitor_from_profile(&profile);
-    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let cancel = Arc::new(AtomicBool::new(false));
     let cancel_clone = cancel.clone();
 
     // backends: OS adapters by default; set LOOPAUTOMA_BACKEND=fake to force fakes
-    let (cap, auto) = select_backends();
+    let cap = make_capture();
+    let auto = make_automation();
     let mut events = vec![];
     mon.start(&mut events);
     for e in events.drain(..) { let _ = window.emit("loopautoma://event", &e); }
@@ -131,7 +199,7 @@ fn monitor_start(profile_id: String, window: tauri::Window, state: tauri::State<
         let win = window;
         // Small scheduler tick; Trigger decides whether to fire
         loop {
-            if cancel_clone.load(std::sync::atomic::Ordering::Relaxed) { break; }
+            if cancel_clone.load(Ordering::Relaxed) { break; }
             let now = Instant::now();
             let mut evs = vec![];
             mon.tick(now, &regions, &*cap, &*auto, &mut evs);
@@ -146,7 +214,7 @@ fn monitor_start(profile_id: String, window: tauri::Window, state: tauri::State<
 
 fn monitor_stop_impl(state: &tauri::State<AppState>) {
     if let Some(r) = state.runner.lock().unwrap().take() {
-        r.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+    r.cancel.store(true, Ordering::Relaxed);
         // Detach: the loop will exit shortly; no need to await in command
     }
 }
@@ -154,6 +222,91 @@ fn monitor_stop_impl(state: &tauri::State<AppState>) {
 #[tauri::command]
 fn monitor_stop(state: tauri::State<AppState>) -> Result<(), String> {
     monitor_stop_impl(&state);
+    Ok(())
+}
+
+#[tauri::command]
+fn start_screen_stream(window: tauri::Window, state: tauri::State<AppState>, fps: Option<u32>) -> Result<(), String> {
+    let mut guard = state.authoring.screen_stream.lock().unwrap();
+    if guard.is_some() { return Ok(()); }
+    let capture = make_capture();
+    let running = Arc::new(AtomicBool::new(true));
+    let runner = running.clone();
+    let win = window.clone();
+    let delay = Duration::from_millis(1000 / fps.unwrap_or(5).clamp(1, 15) as u64);
+    let handle = std::thread::spawn(move || {
+        while runner.load(Ordering::Relaxed) {
+            if let Ok(displays) = capture.displays() {
+                if let Some(display) = displays.first() {
+                    if display.width == 0 || display.height == 0 { std::thread::sleep(delay); continue; }
+                    let region = Region {
+                        id: format!("display-{}", display.id),
+                        rect: Rect { x: display.x.max(0) as u32, y: display.y.max(0) as u32, width: display.width, height: display.height },
+                        name: display.name.clone(),
+                    };
+                    if let Ok(frame) = capture.capture_region(&region) {
+                        let _ = win.emit("loopautoma://screen_frame", &frame);
+                    }
+                }
+            }
+            std::thread::sleep(delay);
+        }
+    });
+    *guard = Some(StreamHandle { cancel: running, handle });
+    Ok(())
+}
+
+#[tauri::command]
+fn stop_screen_stream(state: tauri::State<AppState>) -> Result<(), String> {
+    let mut guard = state.authoring.screen_stream.lock().unwrap();
+    if let Some(handle) = guard.take() {
+        handle.cancel.store(false, Ordering::Relaxed);
+        let _ = handle.handle.join();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn start_input_recording(window: tauri::Window, state: tauri::State<AppState>) -> Result<(), String> {
+    let mut guard = state.authoring.input_capture.lock().unwrap();
+    if guard.is_some() { return Ok(()); }
+    let mut capture = make_input_capture().ok_or_else(|| "input capture unavailable on this platform".to_string())?;
+    let win = window.clone();
+    let callback = Arc::new(move |event: InputEvent| {
+        let _ = win.emit("loopautoma://input_event", &event);
+    });
+    capture.start(callback).map_err(|e| e.to_string())?;
+    *guard = Some(capture);
+    Ok(())
+}
+
+#[tauri::command]
+fn stop_input_recording(state: tauri::State<AppState>) -> Result<(), String> {
+    let mut guard = state.authoring.input_capture.lock().unwrap();
+    if let Some(mut capture) = guard.take() {
+        capture.stop().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn inject_mouse_event(event: MouseEvent) -> Result<(), String> {
+    let automation = make_automation();
+    match event.event_type {
+        MouseEventType::Move => automation.move_cursor(event.x as u32, event.y as u32)?,
+        MouseEventType::ButtonDown(button) => automation.mouse_down(button)?,
+        MouseEventType::ButtonUp(button) => automation.mouse_up(button)?,
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn inject_keyboard_event(event: KeyboardEvent) -> Result<(), String> {
+    let automation = make_automation();
+    match event.state {
+        KeyState::Down => automation.key_down(&event.key)?,
+        KeyState::Up => automation.key_up(&event.key)?,
+    }
     Ok(())
 }
 
@@ -168,6 +321,12 @@ pub fn run() {
             profiles_save,
             monitor_start,
             monitor_stop,
+            start_screen_stream,
+            stop_screen_stream,
+            start_input_recording,
+            stop_input_recording,
+            inject_mouse_event,
+            inject_keyboard_event,
             window_info,
             window_position,
             region_pick
