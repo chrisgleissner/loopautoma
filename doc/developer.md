@@ -246,7 +246,7 @@ Coverage:
 
 ## Backend selection (fakes vs. OS adapters)
 
-Backends implement the traits `ScreenCapture` and `Automation`.
+Backends implement the traits `ScreenCapture`, `Automation` (input replay), and `InputCapture` (global keyboard/mouse recording).
 
 - Default: OS adapters (feature-gated). On Linux, `os-linux` is enabled by default.
 - Force fakes (safe/dev mode):
@@ -257,9 +257,9 @@ LOOPAUTOMA_BACKEND=fake bun run tauri dev
 
 Notes (Linux backend):
 
-- The `enigo` crate may require X11 capabilities; on Wayland, behavior can vary by compositor.
-- We link libxdo via enigo’s backend; ensure `libxdo-dev` is installed.
-- If input synthesis is blocked by the environment (e.g., Wayland restrictions), use `LOOPAUTOMA_BACKEND=fake` for safe development.
+- MVP requires an X11 session. On Wayland, global input capture and injection are typically restricted and may not work.
+- Ensure X11 development libraries are installed (see the Ubuntu X11 section above).
+- If input capture/injection is blocked by the environment (e.g., Wayland), use `LOOPAUTOMA_BACKEND=fake` to run safely with stubbed backends.
 
 Feature flags (Rust crate):
 
