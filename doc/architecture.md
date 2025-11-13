@@ -188,10 +188,10 @@ Profile schema (minimal contract):
 ## Platform implementations (per OS, behind traits)
 
 Ubuntu/X11 MVP (primary focus):
-- ScreenCapture: X11 + XShm (MIT‑SHM) for fast frames; Xrandr for display enumeration; fallback to XGetImage if SHM unavailable.
-- InputCapture: XInput2 for raw keyboard/mouse events; XKB for layout/modifier normalization.
-- Automation (Input replay): XTest extension for pointer/keyboard injection.
-- Note: requires X11 session; not compatible with Wayland for MVP.
+- ScreenCapture: `xcap` crate (PipeWire + SPA + Xorg helpers) provides monitor/region capture, hashing, and display enumeration. Requires PipeWire/SPA headers and clang/LLVM for bindgen; hashes are computed directly on captured RGBA buffers.
+- InputCapture: XInput2 + XKB remain the long‑term target; interim builds rely on the `device_query` crate to unblock authoring tooling until native X11 hooks land.
+- Automation (Input replay): XTest extension is still the target abstraction; interim builds use `enigo` as a placeholder while we wire XTest for deterministic pointer/keyboard synthesis.
+- Note: requires an X11 session for MVP; Wayland remains out of scope.
 
 macOS (post‑MVP):
 - ScreenCapture via CGDisplayStream; Automation via Quartz Events; InputCapture via event taps.

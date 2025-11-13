@@ -19,14 +19,27 @@ Required reading: doc/architecture.md for contracts and OS abstraction; this fil
 
 Deliverables: working unattended app on Ubuntu/X11 with first‑class backend support and authoring helpers.
 
-- [ ] Backend traits finalized (domain): ScreenCapture, Automation (replay), InputCapture (recording). Unified types: InputEvent, MouseEvent, KeyboardEvent, ScreenFrame, DisplayInfo, BackendError.
+- [x] Backend traits finalized (domain): ScreenCapture, Automation (replay), InputCapture (recording). Unified types: InputEvent, MouseEvent, KeyboardEvent, ScreenFrame, DisplayInfo, BackendError.
 - [ ] X11 screen capture (XShm + Xrandr; fallback XGetImage): multi‑monitor, ARGB32 conversion, downscale + hash utilities.
 - [ ] X11 input capture (XInput2 + XKB): raw motion, buttons, wheel; key down/up with modifiers; background thread; reconnect logic.
 - [ ] X11 input replay (XTest): absolute pointer move, button up/down, key down/up; layout translation via XKB.
-- [ ] Tauri commands for authoring flows: start_screen_stream/stop_screen_stream, start_input_recording/stop_input_recording, inject_mouse_event/inject_keyboard_event (throttled; dev‑only by default).
+- [x] Tauri commands for authoring flows: start_screen_stream/stop_screen_stream, start_input_recording/stop_input_recording, inject_mouse_event/inject_keyboard_event (throttled; dev-only by default).
 - [ ] UI authoring helpers: region selection overlay, recording bar (start/stop), optional low‑FPS screen preview, simple event timeline.
 - [ ] Tests: unit + integration around backends (where feasible), Monitor loop with fakes; UI component/contract tests; one end‑to‑end happy path.
 - [ ] Packaging: Ubuntu bundle(s) produced; documented Wayland limitation (X11 required).
+
+### Phase 1 status — 2025-11-13 snapshot
+
+- [x] Domain now defines DisplayInfo, ScreenFrame, InputCapture, InputEvent, and BackendError across contracts.
+- [x] Linux ScreenCapture uses `xcap` (PipeWire + SPA + clang) by default with feature-gated input and automation fakes (`device_query`, `enigo`) until XInput2/XTest ship.
+- [x] Authoring Tauri commands (screen stream, input recorder, input injection) are scaffolded; UI wiring pending.
+- [ ] Outstanding: native X11 input capture/replay implementations, UI authoring overlay/timeline, guardrail hardening, Ubuntu bundling, integration/E2E coverage at ≥90%.
+
+#### Execution order (next steps)
+1. Replace the interim `device_query`/`enigo` shims with real X11 backends (XI2 listener + XKB mapping for recording; XTest/xtst for replay) plus targeted integration tests.
+2. Wire UI authoring helpers to the backend streams: start/stop commands, live screen preview, global input timeline, and a region picker overlay.
+3. Harden the monitor runtime (guardrail enforcement, cooldown watchdog, panic stop UX) and add fakes/integration tests that exercise hash stability, rate limits, and panic recovery.
+4. Package Ubuntu bundles via `bun run build`, document the installation (X11 requirement), and capture a smoke/regression checklist; keep overall coverage ≥90%.
 
 Gate: all tasks done on Ubuntu/X11, tests green, coverage ≥90%, Ubuntu package produced.
 

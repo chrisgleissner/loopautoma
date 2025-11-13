@@ -115,6 +115,8 @@ If you are missing system headers or simply want to run the UI without native ca
 LOOPAUTOMA_BACKEND=fake bun run dev
 ```
 
+`src-tauri/.cargo/config.toml` exports `BINDGEN_EXTRA_CLANG_ARGS="--sysroot=/usr -I/usr/lib/llvm-18/lib/clang/18/include -I/usr/include/x86_64-linux-gnu"` so local `cargo` invocations automatically pick up the right headers. Override it per-shell only if you need a different clang toolchain.
+
 #### Troubleshooting: libspa/pipewire bindgen error ("stdbool.h not found")
 
 Symptom during `xcap` build (libspa-sys/pipewire-sys):
