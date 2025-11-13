@@ -60,6 +60,17 @@ sudo apt install -y pkg-config build-essential libssl-dev libgtk-3-dev libwebkit
 - On push/PR: installs Linux deps, sets up Bun and Rust, then runs UI tests (if `package.json` exists) and Rust tests (if `src-tauri/` exists).
 - Coverage reporting/gating: required at ≥90% per doc; wire up Codecov as soon as tests exist. For now, CI runs tests and can emit coverage if configured.
 
+## Testing approach (idiomatic, no Xvfb)
+
+- Rust unit/integration: test core contracts with fake backends; avoid OS dependencies. Run with `LOOPAUTOMA_BACKEND=fake`.
+- UI component/contract tests: Vitest + React Testing Library; mock Tauri commands/events.
+- Optional web-mode E2E: Playwright against Vite/`dist/` with a minimal Tauri shim; no desktop window.
+- Defer real desktop E2E (Tauri window + X server) until post‑MVP. Keep one smoke only when added.
+
+CI defaults:
+- Run Rust tests under `src-tauri/` with `LOOPAUTOMA_BACKEND=fake` to keep tests deterministic.
+- Run UI tests via Vitest with coverage; upload both UI and Rust coverage to Codecov.
+
 ## Monitor semantics
 
 - On each Trigger tick, evaluate Condition across Regions.
