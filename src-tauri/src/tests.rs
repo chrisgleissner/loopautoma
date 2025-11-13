@@ -233,4 +233,29 @@ mod tests {
         assert!(idx_condition_true <= idx_action_start, "Condition true precedes first action start");
         assert!(idx_action_start <= idx_action_done, "Action start precedes completed");
     }
+
+    #[test]
+    fn soak_run_time_dilated_with_guardrails_stable() {
+        // Long-ish loop with small cooldown to simulate ongoing operation.
+        let mut m = Monitor::new(
+            Box::new(AlwaysTrigger),
+            Box::new(RegionCondition::new(Duration::from_millis(0), 1)),
+            ActionSequence::new(vec![Box::new(TypeText { text: "tick".into() }) as Box<dyn Action + Send + Sync>]),
+            Guardrails { cooldown: Duration::from_millis(1), max_runtime: Some(Duration::from_millis(5)), max_activations_per_hour: Some(1_000_000) },
+        );
+        let r = Region { id: "r1".into(), rect: Rect { x: 0, y: 0, width: 1, height: 1 }, name: None };
+        struct C; impl ScreenCapture for C { fn hash_region(&self, _r:&Region,_d:u32)->u64{0} }
+        struct A; impl Automation for A{ fn move_cursor(&self,_:u32,_:u32)->Result<(),String>{Ok(())} fn click(&self,_:MouseButton)->Result<(),String>{Ok(())} fn type_text(&self,_:&str)->Result<(),String>{Ok(())} fn key(&self,_:&str)->Result<(),String>{Ok(())} }
+        let cap=C; let auto=A;
+        let mut evs=vec![]; m.start(&mut evs);
+        let t0=Instant::now();
+        // Run ~100 ticks in a few ms of simulated time; guardrail should trip and stop early.
+        for i in 0..100 {
+            m.tick(t0 + Duration::from_millis(i.min(10) as u64), &[r.clone()], &cap, &auto, &mut evs);
+        }
+        // Ensure we tripped max_runtime and transitioned to Stopped at least once.
+        assert!(evs.iter().any(|e| matches!(e, crate::domain::Event::WatchdogTripped{reason} if reason == "max_runtime")));
+        // No panics, and last state is stopped
+        assert!(evs.iter().rev().any(|e| matches!(e, crate::domain::Event::MonitorStateChanged{ state } if *state == crate::domain::MonitorState::Stopped)));
+    }
 }
