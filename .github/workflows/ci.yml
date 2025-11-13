@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    # Run on pushes to any branch
+    branches: [ '**' ]
   pull_request:
 
 jobs:
@@ -78,8 +79,8 @@ jobs:
           flags: rust
           fail_ci_if_error: false
 
-      - name: Upload UI coverage to Codecov (if found)
-        if: ${{ always() && hashFiles('coverage/lcov.info') != '' }}
+      - name: Upload UI coverage to Codecov (best-effort)
+        if: ${{ always() }}
         uses: codecov/codecov-action@v4
         with:
           files: coverage/lcov.info
