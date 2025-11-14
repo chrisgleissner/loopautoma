@@ -17,6 +17,10 @@ export async function monitorStop(): Promise<void> {
   await invoke("monitor_stop");
 }
 
+export async function monitorPanicStop(): Promise<void> {
+  await invoke("monitor_panic_stop");
+}
+
 export async function windowPosition(): Promise<{ x: number; y: number }> {
   const [x, y] = (await invoke("window_position")) as [number, number];
   return { x, y };

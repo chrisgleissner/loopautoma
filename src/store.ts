@@ -26,5 +26,18 @@ export function useEventStream() {
 
 export function useRunState() {
   const [runningProfileId, setRunningProfileId] = useState<string | null>(null);
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<Event>("loopautoma://event", (evt) => {
+      if (evt.payload?.type === "MonitorStateChanged" && evt.payload.state !== "Running") {
+        setRunningProfileId(null);
+      }
+    }).then((off) => (unlisten = off));
+    return () => {
+      try {
+        unlisten?.();
+      } catch {}
+    };
+  }, []);
   return { runningProfileId, setRunningProfileId };
 }

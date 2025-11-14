@@ -9,7 +9,7 @@ import { ScreenPreview } from "./components/ScreenPreview";
 import { GraphComposer } from "./components/GraphComposer";
 import { useEventStream, useProfiles, useRunState } from "./store";
 import { defaultPresetProfile, Profile } from "./types";
-import { monitorStart, monitorStop, profilesLoad, profilesSave } from "./tauriBridge";
+import { monitorStart, monitorStop, monitorPanicStop, profilesLoad, profilesSave } from "./tauriBridge";
 import logo from "../doc/img/logo.png";
 import { useEffectOnce } from "./hooks/useEffectOnce";
 import { registerBuiltins } from "./plugins/builtins";
@@ -69,6 +69,11 @@ function App() {
 
   const stop = async () => {
     await monitorStop();
+    setRunningProfileId(null);
+  };
+
+  const panicStop = async () => {
+    await monitorPanicStop();
     setRunningProfileId(null);
   };
 
@@ -157,6 +162,14 @@ function App() {
             title={isRunning ? "Stop immediately" : "Start the monitor loop with the selected profile"}
           >
             {isRunning ? "Stop" : "Start"}
+          </button>
+          <button
+            onClick={panicStop}
+            disabled={!isRunning}
+            className="danger"
+            title="Immediate panic stop: halts the monitor and emits a watchdog event"
+          >
+            Panic Stop
           </button>
           {isRunning && (
             <span className="running-chip" aria-live="polite" title="Monitor is running">Running</span>

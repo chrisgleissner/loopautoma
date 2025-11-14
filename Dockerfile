@@ -21,6 +21,8 @@ RUN apt-get update && \
       libdrm-dev \
       libssl-dev \
       libgtk-3-dev \
+      libxkbcommon-x11-dev \
+      libxcb-xkb-dev \
       libwebkit2gtk-4.1-dev \
       libsoup-3.0-dev \
       librsvg2-dev \

@@ -205,6 +205,27 @@ button {
 button:hover { border-color: var(--brand-accent); }
 button:active { border-color: var(--brand-accent); background-color: rgba(89,208,255,0.08); }
 
+button.danger {
+  background: rgba(255, 87, 87, 0.12);
+  border-color: rgba(255, 87, 87, 0.35);
+  color: #ffb4b4;
+}
+
+[data-theme="light"] button.danger {
+  color: #b11212;
+  background: rgba(255, 87, 87, 0.1);
+  border-color: rgba(177, 18, 18, 0.35);
+}
+
+button.danger:hover {
+  border-color: rgba(255, 87, 87, 0.7);
+  background: rgba(255, 87, 87, 0.2);
+}
+
+button.danger:active {
+  background: rgba(255, 87, 87, 0.28);
+}
+
 input,
 button,
 select { outline: none; }

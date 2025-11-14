@@ -54,6 +54,11 @@ jobs:
       - name: Bun version
         run: bun --version || true
 
+      - name: Install system dependencies (X11 input)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends libxkbcommon-x11-dev libxcb-xkb-dev
+
       - name: Install dependencies (UI)
         run: |
           if [ -f package.json ]; then bun install --frozen-lockfile || bun install; else echo "No package.json"; fi
