@@ -53,7 +53,8 @@ ENV PATH=/root/.cargo/bin:$PATH
 ENV CARGO_TARGET_DIR=/workspace/target
 ENV BINDGEN_EXTRA_CLANG_ARGS="--sysroot=/usr -I/usr/lib/llvm-18/lib/clang/18/include -I/usr/include/x86_64-linux-gnu"
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && \
-    rustup default stable
+    rustup default stable && \
+    rustup component add llvm-tools-preview --toolchain stable
 
 # Install Bun
 ENV BUN_INSTALL=/root/.bun

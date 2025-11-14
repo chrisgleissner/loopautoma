@@ -25,7 +25,22 @@ export function ScreenPreview({ regions, disabled, onRegionAdd }: ScreenPreviewP
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamingRef = useRef(false);
   const canvasDimensionsRef = useRef<{ width: number; height: number } | null>(null);
+  const frameBufferRef = useRef<Uint8ClampedArray | null>(null);
+  const imageDataRef = useRef<ImageData | null>(null);
+  const lastFrameMetaRef = useRef<{ checksum: number; drawnAt: number } | null>(null);
   const regionCount = regions?.length ?? 0;
+
+  const sampleChecksum = useCallback((bytes: number[]) => {
+    if (!bytes.length) return 0;
+    const step = Math.max(1, Math.floor(bytes.length / 2048));
+    let acc = 0;
+    let visited = 0;
+    for (let i = 0; i < bytes.length && visited < 4096; i += step) {
+      acc = (acc + (bytes[i] ?? 0)) >>> 0;
+      visited += 1;
+    }
+    return acc;
+  }, []);
 
   const computeCanvasBounds = useCallback(
     (element: HTMLCanvasElement) => {
@@ -113,10 +128,47 @@ export function ScreenPreview({ regions, disabled, onRegionAdd }: ScreenPreviewP
       console.warn("screen_frame bytes shorter than expected", { expected, actual: frame.bytes.length });
       return;
     }
-    const bytes = new Uint8ClampedArray(frame.bytes.slice(0, expected));
-    const imageData = new ImageData(bytes, frame.width, frame.height);
-    ctx.putImageData(imageData, 0, 0);
-  }, [frame]);
+
+    const checksum = sampleChecksum(frame.bytes);
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const last = lastFrameMetaRef.current;
+    if (last && last.checksum === checksum && now - last.drawnAt < 300) {
+      return;
+    }
+
+    let imageData = imageDataRef.current;
+    if (!imageData || imageData.width !== frame.width || imageData.height !== frame.height) {
+      imageData = (() => {
+        if (typeof ctx.createImageData === "function") {
+          return ctx.createImageData(frame.width, frame.height);
+        }
+        if (typeof ImageData !== "undefined") {
+          try {
+            return new ImageData(frame.width, frame.height);
+          } catch {
+            return new ImageData(new Uint8ClampedArray(frame.width * frame.height * 4), frame.width, frame.height);
+          }
+        }
+        return {
+          width: frame.width,
+          height: frame.height,
+          data: new Uint8ClampedArray(frame.width * frame.height * 4),
+        } as ImageData;
+      })();
+      imageDataRef.current = imageData;
+      frameBufferRef.current = imageData.data;
+    }
+    const buffer = frameBufferRef.current ?? imageData!.data;
+    const limit = Math.min(buffer.length, frame.bytes.length);
+    for (let i = 0; i < limit; i += 1) {
+      buffer[i] = frame.bytes[i] ?? 0;
+    }
+    if (limit < buffer.length) {
+      buffer.fill(0, limit);
+    }
+    ctx.putImageData(imageDataRef.current!, 0, 0);
+    lastFrameMetaRef.current = { checksum, drawnAt: now };
+  }, [frame, sampleChecksum]);
 
   const startStream = useCallback(async () => {
     if (streamingRef.current) return;

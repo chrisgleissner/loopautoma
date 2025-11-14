@@ -78,18 +78,32 @@ jobs:
             cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
           ); fi
 
-      - name: Upload coverage to Codecov (Rust)
+      - name: Collect coverage artifacts
+        id: coverage
         if: ${{ always() }}
-        uses: codecov/codecov-action@v4
-        with:
-          files: src-tauri/lcov.info
-          flags: rust
-          fail_ci_if_error: false
+        run: |
+          set -euo pipefail
+          mkdir -p coverage-artifacts
+          if [ -f src-tauri/lcov.info ]; then
+            cp src-tauri/lcov.info coverage-artifacts/rust.lcov
+          fi
+          if [ -f coverage/lcov.info ]; then
+            cp coverage/lcov.info coverage-artifacts/ui.lcov
+          fi
+          shopt -s nullglob
+          declare -a files=()
+          for f in coverage-artifacts/*.lcov; do
+            files+=("$f")
+          done
+          if [ "${#files[@]}" -gt 0 ]; then
+            (IFS=','; echo "files=${files[*]}" >> "$GITHUB_OUTPUT")
+          else
+            echo "files=" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Upload UI coverage to Codecov (best-effort)
-        if: ${{ always() }}
+      - name: Upload coverage to Codecov
+        if: ${{ always() && steps.coverage.outputs.files != '' }}
         uses: codecov/codecov-action@v4
         with:
-          files: coverage/lcov.info
-          flags: ui
+          files: ${{ steps.coverage.outputs.files }}
           fail_ci_if_error: false

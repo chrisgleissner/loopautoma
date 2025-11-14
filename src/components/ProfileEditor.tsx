@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Profile } from "../types";
+import { auditProfile } from "../utils/profileHealth";
 
 export function ProfileEditor({ profile, onChange }: { profile: Profile | null; onChange: (p: Profile) => void }) {
   const [text, setText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [validationIssues, setValidationIssues] = useState<string[]>([]);
 
   useEffect(() => {
     if (profile) setText(JSON.stringify(profile, null, 2));
@@ -12,13 +14,20 @@ export function ProfileEditor({ profile, onChange }: { profile: Profile | null; 
   const save = () => {
     try {
       const parsed = JSON.parse(text);
-      // very light validation
       if (!parsed || typeof parsed.id !== "string" || !Array.isArray(parsed.actions)) {
         throw new Error("Invalid profile shape");
       }
+      const issues = auditProfile(parsed as Profile);
+      if (issues.errors.length) {
+        setValidationIssues(issues.errors);
+        setError(null);
+        return;
+      }
+      setValidationIssues([]);
       setError(null);
-      onChange(parsed);
+      onChange(parsed as Profile);
     } catch (e: any) {
+      setValidationIssues([]);
       setError(e?.message ?? String(e));
     }
   };
@@ -39,6 +48,13 @@ export function ProfileEditor({ profile, onChange }: { profile: Profile | null; 
         <button onClick={save}>Save Profile</button>
         {error && <span style={{ color: "#e33" }}>{error}</span>}
       </div>
+      {validationIssues.length > 0 && (
+        <ul className="validation-errors" role="alert">
+          {validationIssues.map((msg) => (
+            <li key={msg}>{msg}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

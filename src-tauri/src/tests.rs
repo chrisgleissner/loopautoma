@@ -6,6 +6,7 @@ mod tests {
     use crate::condition::RegionCondition;
     use crate::domain::{Action, ActionSequence, Automation, BackendError, Condition, DisplayInfo, Guardrails, MouseButton, Rect, Region, ScreenCapture, ScreenFrame, Trigger};
     use crate::monitor::Monitor;
+    use crate::finalize_monitor_shutdown;
     use crate::trigger::IntervalTrigger;
     use crate::domain::{ActionConfig, ConditionConfig, GuardrailsConfig, Profile, TriggerConfig};
     use crate::build_monitor_from_profile;
@@ -317,6 +318,26 @@ mod tests {
         assert!(evs.iter().any(|e| matches!(e, crate::domain::Event::WatchdogTripped{reason} if reason == "max_runtime")));
         // No panics, and last state is stopped
         assert!(evs.iter().rev().any(|e| matches!(e, crate::domain::Event::MonitorStateChanged{ state } if *state == crate::domain::MonitorState::Stopped)));
+        assert!(m.started_at.is_none(), "monitor should be fully stopped after guardrail trip");
+    }
+
+    #[test]
+    fn panic_stop_helper_emits_watchdog_and_stop_state() {
+        let mut m = Monitor::new(
+            Box::new(AlwaysTrigger),
+            Box::new(RegionCondition::new(Duration::from_millis(0), 1)),
+            ActionSequence::new(vec![]),
+            Guardrails { cooldown: Duration::from_millis(0), max_runtime: None, max_activations_per_hour: None },
+        );
+        let mut evs = vec![];
+        m.start(&mut evs);
+        assert!(m.started_at.is_some());
+        let shutdown_events = finalize_monitor_shutdown(&mut m, true);
+        assert!(shutdown_events.iter().any(|e| matches!(e, crate::domain::Event::WatchdogTripped{reason} if reason == "panic_stop")));
+        assert!(shutdown_events.iter().any(|e| matches!(e, crate::domain::Event::MonitorStateChanged{ state } if *state == crate::domain::MonitorState::Stopped)));
+        assert!(m.started_at.is_none());
+        let graceful_events = finalize_monitor_shutdown(&mut m, false);
+        assert!(graceful_events.iter().all(|e| !matches!(e, crate::domain::Event::WatchdogTripped{..})));
     }
 
     #[test]
@@ -432,5 +453,31 @@ mod tests {
         assert!(auto.click(MouseButton::Left).is_ok());
         assert!(auto.type_text("test").is_ok());
         assert!(auto.key("Enter").is_ok());
+    }
+
+    #[test]
+    fn frame_throttle_backoff_grows_with_failures() {
+        let mut throttle = crate::FrameThrottle::new(15);
+        let initial = throttle.due_in();
+        throttle.record_failure();
+        let after_first = throttle.due_in();
+        throttle.record_failure();
+        let after_second = throttle.due_in();
+        assert!(after_first > initial + Duration::from_millis(50), "first failure should introduce noticeable backoff");
+        assert!(after_second > after_first, "backoff should keep growing while failures accumulate");
+        for _ in 0..20 {
+            throttle.record_failure();
+        }
+        assert_eq!(throttle.failure_count(), 10, "failure counter clamps at 10");
+    }
+
+    #[test]
+    fn sample_checksum_detects_changes() {
+        let mut bytes = vec![0u8; 4096];
+        let a = crate::sample_checksum(&bytes);
+        bytes[100] = 42;
+        let b = crate::sample_checksum(&bytes);
+        assert_ne!(a, b, "checksum should change when sampled bytes change");
+        assert_eq!(crate::sample_checksum(&[]), 0);
     }
 }

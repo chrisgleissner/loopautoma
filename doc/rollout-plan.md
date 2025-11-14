@@ -58,6 +58,15 @@ Gate: all tasks done on Ubuntu/X11, tests green, coverage ≥90%, Ubuntu package
 
 Gate: tests green, coverage ≥90% for domain/runtime/UI; soak stability documented.
 
+### Phase 2 status — 2025-11-15 update
+
+- [x] Screen stream now uses a `FrameThrottle` with adaptive backoff, duplicate-frame suppression via sampled checksums, and error counters so authoring stays under budget.
+- [x] React ScreenPreview reuses ImageData/canvas buffers and suppresses duplicate renders; ProfileInsights panel surfaces guardrail/preset health inline.
+- [x] Panic stop finalizer and soak/monitor regression tests extended to cover guardrail trips plus new throttle helpers.
+- [x] Input injection commands require the explicit `LOOPAUTOMA_ALLOW_INJECT=1` env flag, keeping them dev-only.
+- [x] Profile editor validates JSON via `auditProfile`, rendering actionable errors before persisting, and includes a one-click preset restore CTA.
+- [ ] Remaining: document CPU/memory baselines, add long horizon soak report, and finish permissions review before declaring Phase 2 complete.
+
 ## Phase 3 — Cross‑OS Enablement (post‑MVP)
 
 - [ ] macOS backends behind existing traits: ScreenCapture (CGDisplayStream), Automation (Quartz events), InputCapture (event taps); packaging/signing; smoke.

@@ -31,6 +31,75 @@ struct StreamHandle {
     handle: std::thread::JoinHandle<()>,
 }
 
+struct FrameThrottle {
+    base_delay: Duration,
+    max_delay: Duration,
+    next_due: Instant,
+    consecutive_failures: u32,
+}
+
+impl FrameThrottle {
+    fn new(fps: u32) -> Self {
+        let base_delay = Duration::from_millis(1000 / fps.max(1) as u64);
+        Self {
+            base_delay,
+            max_delay: Duration::from_millis(1_500),
+            next_due: Instant::now(),
+            consecutive_failures: 0,
+        }
+    }
+
+    fn wait(&mut self) {
+        let now = Instant::now();
+        if now < self.next_due {
+            std::thread::sleep(self.next_due - now);
+        }
+    }
+
+    fn record_success(&mut self) {
+        self.consecutive_failures = 0;
+        self.next_due = Instant::now() + self.base_delay;
+    }
+
+    fn record_failure(&mut self) {
+        self.consecutive_failures = (self.consecutive_failures + 1).min(10);
+        let backoff = self.base_delay + Duration::from_millis((self.consecutive_failures as u64) * 200);
+        self.next_due = Instant::now() + backoff.min(self.max_delay);
+    }
+
+    #[cfg(test)]
+    fn failure_count(&self) -> u32 {
+        self.consecutive_failures
+    }
+
+    #[cfg(test)]
+    fn due_in(&self) -> Duration {
+        self.next_due.saturating_duration_since(Instant::now())
+    }
+}
+
+const DUPLICATE_WINDOW: Duration = Duration::from_millis(400);
+
+fn sample_checksum(bytes: &[u8]) -> u64 {
+    if bytes.is_empty() {
+        return 0;
+    }
+    let mut acc = 0u64;
+    let step = (bytes.len() / 1024).max(1);
+    let mut count = 0usize;
+    let limit = bytes.len().min(8_192);
+    let mut idx = 0usize;
+    while idx < limit {
+        acc = acc.wrapping_add(bytes[idx] as u64);
+        count += 1;
+        if count >= 1024 {
+            break;
+        }
+        idx += step;
+    }
+    acc
+}
+
 #[derive(Default)]
 struct AuthoringState {
     screen_stream: Mutex<Option<StreamHandle>>,
@@ -54,6 +123,17 @@ struct MonitorRunner {
     panic: Arc<AtomicBool>,
     #[allow(dead_code)]
     handle: std::thread::JoinHandle<()>,
+}
+
+pub(crate) fn finalize_monitor_shutdown(mon: &mut monitor::Monitor, panic_stop: bool) -> Vec<Event> {
+    let mut events = vec![];
+    if panic_stop {
+        events.push(Event::WatchdogTripped { reason: "panic_stop".into() });
+    }
+    if mon.started_at.is_some() {
+        mon.stop(&mut events);
+    }
+    events
 }
 
 enum StopReason {
@@ -175,6 +255,13 @@ fn make_input_capture() -> Option<Box<dyn InputCapture + Send>> {
     }
 }
 
+fn ensure_dev_injection_allowed() -> Result<(), String> {
+    match env::var("LOOPAUTOMA_ALLOW_INJECT") {
+        Ok(val) if matches!(val.as_str(), "1" | "true" | "TRUE" | "True" | "yes" | "YES" | "on" | "ON") => Ok(()),
+        _ => Err("Input injection commands are disabled. Set LOOPAUTOMA_ALLOW_INJECT=1 to enable dev-only input synthesis.".into()),
+    }
+}
+
 #[tauri::command]
 fn profiles_load(state: tauri::State<AppState>) -> Result<Vec<Profile>, String> {
     Ok(state.profiles.lock().unwrap().clone())
@@ -211,13 +298,7 @@ fn monitor_start(profile_id: String, window: tauri::Window, state: tauri::State<
         // Small scheduler tick; Trigger decides whether to fire
         loop {
             if cancel_clone.load(Ordering::Relaxed) {
-                let mut evs = vec![];
-                if panic_clone.load(Ordering::Relaxed) {
-                    evs.push(Event::WatchdogTripped { reason: "panic_stop".into() });
-                }
-                if mon.started_at.is_some() {
-                    mon.stop(&mut evs);
-                }
+                let evs = finalize_monitor_shutdown(&mut mon, panic_clone.load(Ordering::Relaxed));
                 for e in evs { let _ = win.emit("loopautoma://event", &e); }
                 break;
             }
@@ -271,23 +352,70 @@ fn start_screen_stream(window: tauri::Window, state: tauri::State<AppState>, fps
     let running = Arc::new(AtomicBool::new(true));
     let runner = running.clone();
     let win = window.clone();
-    let delay = Duration::from_millis(1000 / fps.unwrap_or(3).clamp(1, 15) as u64);
+    let target_fps = fps.unwrap_or(3).clamp(1, 15);
     let handle = std::thread::spawn(move || {
+        let mut throttle = FrameThrottle::new(target_fps);
+        let mut last_checksum: Option<u64> = None;
+        let mut last_emit_at = Instant::now() - Duration::from_secs(1);
         while runner.load(Ordering::Relaxed) {
-            if let Ok(displays) = capture.displays() {
-                if let Some(display) = displays.first() {
-                    if display.width == 0 || display.height == 0 { std::thread::sleep(delay); continue; }
-                    let region = Region {
-                        id: format!("display-{}", display.id),
-                        rect: Rect { x: display.x.max(0) as u32, y: display.y.max(0) as u32, width: display.width, height: display.height },
-                        name: display.name.clone(),
-                    };
-                    if let Ok(frame) = capture.capture_region(&region) {
-                        let _ = win.emit("loopautoma://screen_frame", &frame);
+            throttle.wait();
+            if !runner.load(Ordering::Relaxed) { break; }
+
+            let displays = match capture.displays() {
+                Ok(list) => list,
+                Err(err) => {
+                    eprintln!("screen_stream displays error: {err}");
+                    throttle.record_failure();
+                    continue;
+                }
+            };
+            let Some(display) = displays.first() else {
+                throttle.record_failure();
+                continue;
+            };
+            if display.width == 0 || display.height == 0 {
+                throttle.record_failure();
+                continue;
+            }
+
+            let region = Region {
+                id: format!("display-{}", display.id),
+                rect: Rect {
+                    x: display.x.max(0) as u32,
+                    y: display.y.max(0) as u32,
+                    width: display.width,
+                    height: display.height,
+                },
+                name: display.name.clone(),
+            };
+
+            match capture.capture_region(&region) {
+                Ok(frame) => {
+                    let checksum = sample_checksum(&frame.bytes);
+                    let now = Instant::now();
+                    if let Some(prev) = last_checksum {
+                        if prev == checksum && now.duration_since(last_emit_at) < DUPLICATE_WINDOW {
+                            throttle.record_success();
+                            continue;
+                        }
+                    }
+                    match win.emit("loopautoma://screen_frame", &frame) {
+                        Ok(_) => {
+                            last_checksum = Some(checksum);
+                            last_emit_at = now;
+                            throttle.record_success();
+                        }
+                        Err(err) => {
+                            eprintln!("screen_stream emit error: {err}");
+                            throttle.record_failure();
+                        }
                     }
                 }
+                Err(err) => {
+                    eprintln!("screen_stream capture error: {err}");
+                    throttle.record_failure();
+                }
             }
-            std::thread::sleep(delay);
         }
     });
     *guard = Some(StreamHandle { cancel: running, handle });
@@ -338,6 +466,7 @@ fn stop_input_recording(state: tauri::State<AppState>) -> Result<(), String> {
 
 #[tauri::command]
 fn inject_mouse_event(event: MouseEvent) -> Result<(), String> {
+    ensure_dev_injection_allowed()?;
     let automation = make_automation();
     match event.event_type {
         MouseEventType::Move => automation.move_cursor(event.x as u32, event.y as u32)?,
@@ -349,6 +478,7 @@ fn inject_mouse_event(event: MouseEvent) -> Result<(), String> {
 
 #[tauri::command]
 fn inject_keyboard_event(event: KeyboardEvent) -> Result<(), String> {
+    ensure_dev_injection_allowed()?;
     let automation = make_automation();
     match event.state {
         KeyState::Down => automation.key_down(&event.key)?,

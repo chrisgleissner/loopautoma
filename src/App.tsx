@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import reactLogo from "./assets/react.svg";
 import "./App.css";
 import { ProfileSelector } from "./components/ProfileSelector";
@@ -7,6 +7,7 @@ import { ProfileEditor } from "./components/ProfileEditor";
 import { RecordingBar, toActions } from "./components/RecordingBar";
 import { ScreenPreview } from "./components/ScreenPreview";
 import { GraphComposer } from "./components/GraphComposer";
+import { ProfileInsights } from "./components/ProfileInsights";
 import { useEventStream, useProfiles, useRunState } from "./store";
 import { defaultPresetProfile, Profile } from "./types";
 import { monitorStart, monitorStop, monitorPanicStop, profilesLoad, profilesSave } from "./tauriBridge";
@@ -54,6 +55,15 @@ function App() {
   };
   const selectedProfile = profiles.find((p) => p.id === selectedId) ?? null;
   const isRunning = !!runningProfileId;
+
+  const restorePreset = useCallback(async () => {
+    const preset = defaultPresetProfile();
+    const remaining = profiles.filter((p) => p.id !== preset.id);
+    const next = [preset, ...remaining];
+    setProfiles(next);
+    setSelectedId(preset.id);
+    await profilesSave(next);
+  }, [profiles, setProfiles]);
 
   const updateProfile = async (updated: any) => {
     const idx = profiles.findIndex((p) => p.id === updated.id);
@@ -219,6 +229,8 @@ function App() {
             </label>
           </div>
         )}
+
+        <ProfileInsights profile={selectedProfile} onRestorePreset={() => { void restorePreset(); }} />
 
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

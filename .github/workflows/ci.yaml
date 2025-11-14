@@ -30,6 +30,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Fetch previous commit for push diffs
+        if: ${{ github.event_name == 'push' && github.event.before != '' && github.event.before != '0000000000000000000000000000000000000000' }}
+        run: |
+          git fetch origin ${{ github.event.before }} --depth=1 || echo "Previous commit not available"
+
       - name: Filter for Docker-related paths
         id: filter
         uses: dorny/paths-filter@v3

@@ -5,10 +5,10 @@ import { ProfileEditor } from "../src/components/ProfileEditor";
 const sample = {
   id: "p1",
   name: "One",
-  regions: [],
+  regions: [{ id: "r1", rect: { x: 0, y: 0, width: 10, height: 10 } }],
   trigger: { type: "IntervalTrigger", interval_ms: 500 },
   condition: { type: "RegionCondition", stable_ms: 1000, downscale: 4 },
-  actions: [],
+  actions: [{ type: "Type", text: "continue" }],
   guardrails: { cooldown_ms: 0 },
 };
 
@@ -37,12 +37,27 @@ describe("ProfileEditor", () => {
     const textareas2 = screen.getAllByRole("textbox");
     const ta = textareas2[textareas2.length - 1] as HTMLTextAreaElement;
     fireEvent.change(ta, { target: { value: "{" } });
-  fireEvent.click(screen.getByText(/Save Profile/));
-  // Find the error container next to the Save button
-  const errorEls = screen.getAllByText(/JSON/);
-  expect(errorEls.some((el) => el.tagName.toLowerCase() === "span")).toBe(true);
+    fireEvent.click(screen.getByText(/Save Profile/));
+    // Find the error container next to the Save button
+    const errorEls = screen.getAllByText(/JSON/);
+    expect(errorEls.some((el) => el.tagName.toLowerCase() === "span")).toBe(true);
     fireEvent.change(ta, { target: { value: JSON.stringify({ foo: "bar" }) } });
     fireEvent.click(screen.getByText(/Save Profile/));
     expect(screen.getByText(/Invalid profile shape/)).toBeTruthy();
+  });
+
+  it("blocks save when auditProfile reports errors", () => {
+    const onChange = vi.fn();
+    render(<ProfileEditor profile={sample as any} onChange={onChange} />);
+  const textareas = screen.getAllByRole("textbox");
+  const ta = textareas[textareas.length - 1] as HTMLTextAreaElement;
+    const invalid = {
+      ...sample,
+      guardrails: { ...sample.guardrails, cooldown_ms: -50 }
+    };
+    fireEvent.change(ta, { target: { value: JSON.stringify(invalid) } });
+    fireEvent.click(screen.getByText(/Save Profile/));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText(/Cooldown must be ≥ 0 ms/)).toBeTruthy();
   });
 });
