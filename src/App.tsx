@@ -5,7 +5,7 @@ import { ProfileSelector } from "./components/ProfileSelector";
 import { EventLog } from "./components/EventLog";
 import { ProfileEditor } from "./components/ProfileEditor";
 import { RecordingBar, toActions } from "./components/RecordingBar";
-import { ScreenPreview } from "./components/ScreenPreview";
+import { RegionAuthoringPanel } from "./components/RegionAuthoringPanel";
 import { GraphComposer } from "./components/GraphComposer";
 import { ProfileInsights } from "./components/ProfileInsights";
 import { useEventStream, useProfiles, useRunState } from "./store";
@@ -255,8 +255,8 @@ function App() {
         </div>
 
         <div>
-          <h3 style={{ margin: 0 }} title="Preview the desktop stream and capture Regions">Screen preview & Regions</h3>
-          <ScreenPreview
+          <h3 style={{ margin: 0 }} title="Capture on-screen regions via the transparent overlay and review saved areas">Regions</h3>
+          <RegionAuthoringPanel
             regions={selectedProfile?.regions}
             disabled={!selectedProfile}
             onRegionAdd={async (draft) => {
@@ -272,6 +272,13 @@ function App() {
               await updateProfile({
                 ...selectedProfile,
                 regions: [...selectedProfile.regions, region],
+              });
+            }}
+            onRegionRemove={async (regionId) => {
+              if (!selectedProfile) return;
+              await updateProfile({
+                ...selectedProfile,
+                regions: selectedProfile.regions.filter((region) => region.id !== regionId),
               });
             }}
           />

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Profile } from "./types";
+import { Profile, Rect } from "./types";
 
 export async function profilesLoad(): Promise<Profile[]> {
   return (await invoke("profiles_load")) as Profile[];
@@ -31,9 +31,18 @@ export async function windowInfo(): Promise<{ x: number; y: number; scale: numbe
   return { x, y, scale };
 }
 
-export async function regionPick(): Promise<{ x: number; y: number; width: number; height: number }> {
-  const [x, y, width, height] = (await invoke("region_pick")) as [number, number, number, number];
-  return { x, y, width, height };
+export type RegionPickPoint = { x: number; y: number };
+
+export async function regionPickerShow(): Promise<void> {
+  await invoke("region_picker_show");
+}
+
+export async function regionPickerComplete(start: RegionPickPoint, end: RegionPickPoint): Promise<void> {
+  await invoke("region_picker_complete", { submission: { start, end } });
+}
+
+export async function captureRegionThumbnail(rect: Rect): Promise<string | null> {
+  return (await invoke("region_capture_thumbnail", { rect })) as string | null;
 }
 
 export async function startScreenStream(fps?: number): Promise<void> {

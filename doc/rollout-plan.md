@@ -77,6 +77,14 @@ Gate: tests green, coverage ≥90% for domain/runtime/UI; soak stability documen
 
 Gate: smoke runs on each OS; domain/runtime coverage ≥90%; UI unchanged across OSes.
 
+### Phase 3 status — 2025-11-14 update
+
+- [x] macOS ScreenCapture backend implemented with the `screenshots` crate; hashes/thumbnails now mirror the Linux flow for overlays.
+- [ ] macOS Automation/InputCapture layers still rely on stubs; event taps + Quartz wiring remain outstanding.
+- [x] Windows ScreenCapture backend now uses the Desktop Duplication path via `screenshots`, providing capture_region/hash/displays for the overlay workflow.
+- [ ] Windows Automation/InputCapture layers remain fake implementations until SendInput/Raw Input support lands.
+- [ ] Cross-OS smoke tests, signing, and documentation updates are still in flight.
+
 ## Backlog / Future
 
 - [ ] Focus‑binding Condition to restrict actions to an app/window.

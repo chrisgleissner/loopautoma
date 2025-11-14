@@ -15,18 +15,25 @@ mod soak;
 mod tests;
 mod trigger;
 
+use std::io::Cursor;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use domain::*;
+use base64::engine::general_purpose::STANDARD as Base64Standard;
+use base64::Engine as _;
+use image::imageops::FilterType;
+use image::{DynamicImage, ImageOutputFormat, RgbaImage};
 use tauri::Emitter; // for Window.emit
+use tauri::Manager;
 mod fakes;
 #[cfg(feature = "os-linux-input")]
 use crate::os::linux::LinuxInputCapture;
 use fakes::{FakeAutomation, FakeCapture};
 pub use soak::{run_soak, SoakConfig, SoakReport};
 use std::env;
+use serde::{Deserialize, Serialize};
 
 fn env_truthy(name: &str) -> bool {
     matches!(
@@ -593,7 +600,9 @@ pub fn run() {
             inject_keyboard_event,
             window_info,
             window_position,
-            region_pick
+            region_picker_show,
+            region_picker_complete,
+            region_capture_thumbnail
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -615,10 +624,139 @@ fn window_info(window: tauri::Window) -> Result<(i32, i32, f64), String> {
     Ok((pos.x as i32, pos.y as i32, scale))
 }
 
-// Placeholder for a graphical region picker; will be implemented with a transparent overlay window.
+#[derive(Debug, Deserialize)]
+struct PickPoint {
+    x: i32,
+    y: i32,
+}
+
+#[derive(Debug, Deserialize)]
+struct RegionPickSubmission {
+    start: PickPoint,
+    end: PickPoint,
+}
+
+#[derive(Debug, Serialize)]
+struct RegionPickPayload {
+    rect: Rect,
+    thumbnail_png_base64: Option<String>,
+}
+
 #[tauri::command]
-fn region_pick() -> Result<(i32, i32, u32, u32), String> {
-    Err("region_pick not yet implemented".into())
+fn region_picker_show(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("region-overlay") {
+        let _ = win.set_focus();
+        return Ok(());
+    }
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        "region-overlay",
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+        .title("Select region")
+        .fullscreen(true)
+        .decorations(false)
+        .transparent(true)
+        .always_on_top(true)
+        .resizable(false)
+        .skip_taskbar(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn region_picker_complete(
+    app: tauri::AppHandle,
+    submission: RegionPickSubmission,
+) -> Result<(), String> {
+    let rect = normalize_rect(&submission.start, &submission.end)
+        .ok_or_else(|| "Region must have a non-zero area".to_string())?;
+    let preview = capture_thumbnail(&rect).map_err(|e| e.to_string())?;
+    let payload = RegionPickPayload {
+        rect,
+        thumbnail_png_base64: preview,
+    };
+    app.emit("loopautoma://region_pick_complete", &payload)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn region_capture_thumbnail(rect: Rect) -> Result<Option<String>, String> {
+    capture_thumbnail(&rect).map_err(|e| e.to_string())
+}
+
+fn normalize_rect(start: &PickPoint, end: &PickPoint) -> Option<Rect> {
+    let raw_min_x = start.x.min(end.x);
+    let raw_min_y = start.y.min(end.y);
+    let raw_max_x = start.x.max(end.x);
+    let raw_max_y = start.y.max(end.y);
+
+    let clamped_min_x = raw_min_x.max(0);
+    let clamped_min_y = raw_min_y.max(0);
+    let clamped_max_x = raw_max_x.max(clamped_min_x);
+    let clamped_max_y = raw_max_y.max(clamped_min_y);
+
+    let width = (clamped_max_x - clamped_min_x) as u32;
+    let height = (clamped_max_y - clamped_min_y) as u32;
+    if width == 0 || height == 0 {
+        return None;
+    }
+    Some(Rect {
+        x: clamped_min_x as u32,
+        y: clamped_min_y as u32,
+        width,
+        height,
+    })
+}
+
+fn capture_thumbnail(rect: &Rect) -> Result<Option<String>, BackendError> {
+    if rect.width == 0 || rect.height == 0 {
+        return Ok(None);
+    }
+    let capture = make_capture();
+    let region = Region {
+        id: "region-thumbnail".into(),
+        rect: *rect,
+        name: None,
+    };
+    match capture.capture_region(&region) {
+        Ok(frame) => Ok(encode_png_thumbnail(&frame)),
+        Err(err) => {
+            eprintln!("thumbnail capture failed: {err}");
+            Ok(None)
+        }
+    }
+}
+
+fn encode_png_thumbnail(frame: &ScreenFrame) -> Option<String> {
+    if frame.width == 0 || frame.height == 0 || frame.bytes.is_empty() {
+        return None;
+    }
+    let image = match RgbaImage::from_vec(frame.width, frame.height, frame.bytes.clone()) {
+        Some(img) => img,
+        None => return None,
+    };
+    let mut dynamic = DynamicImage::ImageRgba8(image);
+    const MAX_EDGE: u32 = 240;
+    if frame.width > MAX_EDGE || frame.height > MAX_EDGE {
+        let width_f = frame.width as f32;
+        let height_f = frame.height as f32;
+        let scale = (MAX_EDGE as f32 / width_f)
+            .min(MAX_EDGE as f32 / height_f)
+            .min(1.0);
+        let new_w = (width_f * scale).round().max(1.0) as u32;
+        let new_h = (height_f * scale).round().max(1.0) as u32;
+        dynamic = dynamic.resize_exact(new_w.max(1), new_h.max(1), FilterType::Triangle);
+    }
+    let mut buffer = Vec::new();
+    if dynamic
+        .write_to(&mut Cursor::new(&mut buffer), ImageOutputFormat::Png)
+        .is_err()
+    {
+        return None;
+    }
+    Some(Base64Standard.encode(buffer))
 }
 
 #[cfg(test)]

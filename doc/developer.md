@@ -1,318 +1,116 @@
-# Developer Notes — Technical Background
+# Developer Notes
 
-Date: 2025-11-13
+Date: 2025-11-14
 
-This file records environment setup steps already performed locally and offers minimal next steps. It’s not a user guide; it’s a dev scratchpad for context.
+This file is a lightweight scratchpad for contributors. It lists the exact commands to prepare a Linux dev box (Ubuntu 24.04 + X11) and the day-to-day scripts we actually run. For OS-specific behavior, contracts, and roadmap context, defer to `doc/architecture.md` and `doc/rollout-plan.md`.
 
-Project quick facts
+## 1. Linux Setup (Ubuntu 24.04 + X11)
 
-- Desktop shell: Tauri 2 (stable), Rust 2021
-- UI: React + TypeScript, Vite, Bun preferred
-- Tests: Rust (cargo), UI (Vitest + jsdom), Bun-only tests separated
-- Coverage gate (per rollout): ≥90% overall (UI + Rust); enforced in CI
-- OS specifics live behind Rust traits; TypeScript stays platform-agnostic
+### System packages
 
-## Steps performed
-
-- `bun create tauri-app`
-  - Used to scaffold the Tauri v2 project via Bun with React + TypeScript template.
-- `curl https://sh.rustup.rs -sSf | sh`
-  - Installed Rust toolchain (rustup + cargo) via the official installer.
-- `bun run dev` (full Tauri app)
-  - For pure web (no Tauri), use: `bun run dev:web`
-
-## Follow-ups and quick checks (local)
-
-- Load cargo in the current shell session after rustup install:
-  - source "$HOME/.cargo/env"
-- Verify toolchains:
-  - cargo --version
-  - bun --version
-- If you scaffolded into a subfolder (recommended), change into it before running dev:
-  - cd <your-app-folder>
-  - bun install
-  - bun run dev
-
-## Notes
-
-- On Linux, Tauri requires system dependencies (e.g., WebKitGTK, libsoup3, build tools). If missing, the scaffolder/CLI will list required packages. See Tauri prerequisites: https://v2.tauri.app/start/prerequisites/
-- Our doc prefer Bun for UI dev/build/test. If a blocking compatibility issue occurs, fall back to Node.js 20 LTS.
-- Keep the project idiomatic and minimal; follow the contracts in `doc/architecture.md` and acceptance gates in `doc/rollout-plan.md`.
-
-### Linux prerequisites (Ubuntu/Debian)
-
-Install the core system packages required by Tauri 2 (WebKitGTK 4.1, libsoup3, GTK3, etc.). This resolves errors like "The system library `libsoup-3.0` required by crate `soup3-sys` was not found."
-
-Suggested packages:
-
-- pkg-config
-- build-essential
-- libssl-dev
-- libgtk-3-dev
-- libwebkit2gtk-4.1-dev
-- libsoup-3.0-dev
-- librsvg2-dev
-- patchelf
-
-Example (Ubuntu/Debian):
+Run one block to install every native dependency used in CI (matches `Dockerfile`):
 
 ```bash
-sudo apt update
-sudo apt install -y \
-  pkg-config build-essential libssl-dev \
-  libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev patchelf \
+sudo apt update && \
+sudo apt install -y --no-install-recommends \
+  ca-certificates \
+  curl \
+  wget \
+  unzip \
+  git \
+  pkg-config \
+  build-essential \
+  libgbm-dev \
+  libdrm-dev \
+  libssl-dev \
+  libgtk-3-dev \
+  libwebkit2gtk-4.1-dev \
+  libsoup-3.0-dev \
+  librsvg2-dev \
+  patchelf \
+  libayatana-appindicator3-dev \
+  clang \
+  llvm-dev \
+  libpipewire-0.3-dev \
+  libspa-0.2-dev \
+  libclang-dev \
+  libc6-dev \
+  cmake \
+  xz-utils \
+  sudo \
+  libx11-dev \
+  libxext-dev \
+  libxrandr-dev \
+  libxi-dev \
+  libxtst-dev \
+  libxkbcommon-dev \
+  libxkbcommon-x11-dev \
+  libxcb-xkb-dev \
   libxdo-dev
-
-### Ubuntu 24.04 X11 (MVP target)
-
-The MVP targets Ubuntu 24.04 running an X11 session. Wayland is not supported for the MVP.
-
-- Check your session type:
-
-  ```bash
-  echo "$XDG_SESSION_TYPE"   # should print: x11
-  ```
-
-- To switch to X11: at the Ubuntu login screen, click the gear icon and select “Ubuntu on Xorg” (or “GNOME on Xorg”), then log in.
-
-- Install X11 development libraries used by the backends (screen capture, input capture, input replay):
-
-  ```bash
-  sudo apt install -y \
-    libx11-dev libxext-dev libxrandr-dev \
-    libxi-dev libxtst-dev \
-    libxkbcommon-dev libxkbcommon-x11-dev
-  ```
-
-- Optional verification via pkg-config (should print versions, not errors):
-
-  ```bash
-  pkg-config --modversion x11 xext xrandr xi xtst xkbcommon xkbcommon-x11
-  ```
 ```
 
-### Linux capture backend (xcap by default)
-
-Linux now uses the `xcap` crate by default for screen capture and hashing. It relies on PipeWire/SPA headers plus a modern Clang/LLVM toolchain (already present in the CI container). Make sure these packages are installed locally:
+### Toolchains
 
 ```bash
-sudo apt install -y libpipewire-0.3-dev libspa-0.2-dev clang llvm-dev libc6-dev
+# Rust (installs cargo + rustc). Accept defaults, then source the env file.
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+
+# Bun (preferred JS runtime/package manager)
+curl -fsSL https://bun.sh/install | bash
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
 ```
 
-`cargo build` (or `bun run dev`) already enables both the `os-linux-capture-xcap` and `os-linux-input` features via the default feature set. If you disable defaults for custom builds, remember to re-enable the capture + input features explicitly:
+Verify everything once:
 
 ```bash
-# from src-tauri/
-cargo build --no-default-features --features os-linux-capture-xcap,os-linux-input
-
-# run tauri dev with capture + input backends
-TAURI_TRIPLE="" bun run tauri dev -- --no-default-features --features os-linux-capture-xcap,os-linux-input
+rustc -V
+cargo -V
+bun -v
+echo "$XDG_SESSION_TYPE"   # should print x11
 ```
 
-If you are missing system headers or simply want to run the UI without native capture, use the fake backend override instead of compiling out xcap:
+## 2. Daily Commands
 
 ```bash
-LOOPAUTOMA_BACKEND=fake bun run dev
+bun install                # install JS deps
+bun run dev                # launch full Tauri app (X11 only)
+LOOPAUTOMA_BACKEND=fake bun run dev   # safe mode, no real input
+bun run dev:web            # pure web dev server
+bun run build              # desktop bundles (.deb/.rpm/.AppImage under src-tauri/target/release/bundle/)
+bun run build:web          # UI bundle only
+cd src-tauri && cargo test --all --locked                 # Rust tests
+cd src-tauri && cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
 ```
 
-`src-tauri/.cargo/config.toml` exports `BINDGEN_EXTRA_CLANG_ARGS="--sysroot=/usr -I/usr/lib/llvm-18/lib/clang/18/include -I/usr/include/x86_64-linux-gnu"` so local `cargo` invocations automatically pick up the right headers. Override it per-shell only if you need a different clang toolchain.
+## 3. Cross‑OS (macOS + Windows) Preview
 
-#### Troubleshooting: libspa/pipewire bindgen error ("stdbool.h not found")
-
-Symptom during `xcap` build (libspa-sys/pipewire-sys):
-
-```
-fatal error: 'stdbool.h' file not found
-```
-
-Fix on Ubuntu/Debian:
-
-- Ensure core build tools and C headers are installed:
-
-  ```bash
-  sudo apt update
-  sudo apt install -y build-essential libc6-dev pkg-config
-  ```
-
-- Ensure Clang/LLVM and libclang headers are present for bindgen:
-
-  ```bash
-  sudo apt install -y clang llvm-dev libclang-dev
-  ```
-
-- Ensure PipeWire/SPA dev headers are present:
-
-  ```bash
-  sudo apt install -y libpipewire-0.3-dev libspa-0.2-dev
-  ```
-
-- Verify clang can see its resource includes (should contain stdbool.h):
-
-  ```bash
-  clang --version
-  ls "$(clang -print-resource-dir)/include" | grep -E '^stdbool.h$' || echo "stdbool.h missing in clang resource dir"
-  ```
-
-- If clang still can’t resolve headers, provide explicit include hints for bindgen and rebuild:
-
-  ```bash
-  export BINDGEN_EXTRA_CLANG_ARGS="--sysroot=/usr -I$(clang -print-resource-dir)/include"
-  cd src-tauri
-  cargo clean -p libspa-sys -p pipewire-sys
-  cargo build --no-default-features --features os-linux-capture-xcap
-  ```
-
-- Quick workaround: temporarily fall back to the fake backend (no real capture):
-
-  ```bash
-  LOOPAUTOMA_BACKEND=fake bun run dev
-  ```
-
-## Scripts and common tasks
-
-- Dev app window:
+Phase 3 work adds first-party backends for macOS (capture today, input later) and Windows (stubs). These builds are opt-in so the Linux MVP stays lean. Use feature flags to target each OS:
 
 ```bash
-bun run dev
-```
-
-- Pure web dev (no Tauri window):
-
-```bash
-bun run dev:web
-```
-
-- UI build (typecheck + bundle only):
-
-```bash
-bun run build:web
-```
-
-- Packaging (Linux bundles: .deb, .rpm, .AppImage):
-
-```bash
-bun run build
-```
-
-Artifacts land under `src-tauri/target/release/bundle/`.
-
-## Tests and coverage
-
-- Bun unit tests (Bun-only files):
-
-```bash
-bun test
-```
-
-- UI tests with jsdom + coverage (Vitest):
-
-```bash
-bun x vitest run --coverage
-```
-
-- Rust tests:
-
-```bash
+# macOS-only build/test (run on a macOS host for real backends)
 cd src-tauri
-cargo test
+cargo check --no-default-features --features os-macos
+cargo test --no-default-features --features os-macos
+
+# Windows-only build/test (still stubs, but keeps the code compiling)
+cargo check --no-default-features --features os-windows
 ```
 
-- Deterministic soak/profiling runs (fake backends):
-
-```bash
-cd src-tauri
-LOOPAUTOMA_BACKEND=fake cargo run --bin soak_report -- --ticks 20000 --interval-ms 50 --cooldown-ms 50 --max-runtime-ms 2000
-```
-
-Conventions to keep runners separate:
-
-- Vitest files use the pattern: `tests/**/*.vitest.{ts,tsx,js,jsx}`.
-- Bun-only tests use `*.bun.*` (e.g., `hello.bun.test.ts`).
-- Avoid `*.vitest.test.tsx` duplicates; if present, keep as stubs so Bun does not execute jsdom tests.
-
-Coverage:
-
-- UI coverage (istanbul) is computed by Vitest.
-- Rust coverage runs in CI via `cargo llvm-cov`. Local Rust coverage is optional and not required for day-to-day dev.
-
-## Backend selection (fakes vs. OS adapters)
-
-Backends implement the traits `ScreenCapture`, `Automation` (input replay), and `InputCapture` (global keyboard/mouse recording).
-
-- Default: OS adapters (feature-gated). On Linux, `os-linux` is enabled by default.
-- Force fakes (safe/dev mode):
-
-```bash
-LOOPAUTOMA_BACKEND=fake bun run tauri dev
-```
-
-Notes (Linux backend):
-
-- MVP requires an X11 session. On Wayland, global input capture and injection are typically restricted and may not work.
-- Ensure X11 development libraries are installed (see the Ubuntu X11 section above).
-- If input capture/injection is blocked by the environment (e.g., Wayland), use `LOOPAUTOMA_BACKEND=fake` to run safely with stubbed backends.
-
-Feature flags (Rust crate):
-
-- Defined in `src-tauri/Cargo.toml`:
-  - `default = ["os-linux"]`
-  - `os-linux`, `os-macos`, `os-windows`
-
-You can compile with a specific target feature set when building the Rust crate directly, e.g.:
-
-```bash
-# Build without defaults and enable macOS adapters (example)
-cargo build --no-default-features --features os-macos
-```
-
-Modules:
-
-- `src-tauri/src/os/linux.rs` → `LinuxCapture`, `LinuxAutomation` (stubs)
-- `src-tauri/src/os/macos.rs` → `MacCapture`, `MacAutomation` (stubs)
-- `src-tauri/src/os/windows.rs` → `WinCapture`, `WinAutomation` (stubs)
-
-At runtime, selection occurs in `src-tauri/src/lib.rs::select_backends()` using feature gates, with `LOOPAUTOMA_BACKEND=fake` as an override.
-
-## Security + dev-only helpers
-
-Authoring helpers that synthesize input (`inject_mouse_event`, `inject_keyboard_event`) are disabled by default and only available in debug/dev builds:
-
-- Enable locally by exporting `LOOPAUTOMA_ALLOW_INJECT=1` in the shell that launches `bun run tauri dev` or `cargo test`:
+- `bun run tauri dev`/`bun run tauri build` forward extra cargo args. Example (macOS capture preview):
 
   ```bash
-  export LOOPAUTOMA_ALLOW_INJECT=1
-  bun run tauri dev
+  bun run tauri dev -- --no-default-features --features os-macos
+  bun run tauri build -- --no-default-features --features os-macos
   ```
 
-- Packaged/release builds ignore the flag and always return an error so end users cannot inject input accidentally.
-- To simulate a release build without producing installers, set `LOOPAUTOMA_TREAT_AS_RELEASE=1` before running the binary; the guard will behave as if `debug_assertions` were disabled.
-- The guard logic lives in `ensure_dev_injection_allowed` and is documented in `doc/securityReview.md` alongside the permissions checklist.
+- macOS capture uses the `screenshots` crate, which triggers the Screen Recording permission prompt. Accept it or enable it manually under **System Settings → Privacy & Security → Screen Recording**.
+- Windows builds are still headless stubs (automation/input pending). Keep `LOOPAUTOMA_BACKEND=fake` when running UI flows there.
+- Cross-compiling desktop bundles still requires building on the target OS (or the official Tauri cross images/signing pipelines). The Linux CI job only publishes Linux artifacts today.
 
+## 4. Tips & Troubleshooting
 
-## E2E and soak
-
-- E2E happy path test: validates event ordering across start → trigger → condition true → action start → action done.
-- Soak test (time-dilated): runs many ticks with short `max_runtime` and asserts watchdog trips and monitor stops cleanly.
-
-Both live in `src-tauri/src/tests.rs` and run via `cargo test`.
-
-## CI basics
-
-- Container-native CI:
-  - A reusable workflow builds a GHCR image (loopautoma-ci) keyed by a dependency hash (Dockerfile, Cargo.* and bun lockfiles).
-  - Downstream jobs run inside that image via `jobs.<name>.container.image` (no repeated `docker run`).
-  - The Dockerfile prewarms Bun cache and compiles Rust dependencies so tests don’t re-download crates on each CI run.
-- The CI runs UI tests with coverage and Rust tests/coverage, then uploads to Codecov.
-- Coverage gate targeted at ≥90% (see rollout plan).
-
-## Troubleshooting
-
-- `document is not defined` while running Bun tests:
-  - Cause: Bun discovered jsdom-based Vitest files.
-  - Fix: Ensure Vitest tests use `*.vitest.*` and Bun tests use `*.bun.*`. Keep any `*.vitest.test.tsx` as stubs or rename away from Bun discovery.
-
-- Missing Linux system libraries during Tauri build:
-  - Install the packages listed above (WebKitGTK 4.1, libsoup3, GTK3, etc.).
-
-- Rust toolchain not available in current shell:
-  - `source "$HOME/.cargo/env"`
+- `src-tauri/.cargo/config.toml` already exports `BINDGEN_EXTRA_CLANG_ARGS=--sysroot=/usr -I/usr/lib/llvm-18/lib/clang/18/include -I/usr/include/x86_64-linux-gnu`, so local `cargo` picks up the same headers as CI.
+- If the hardware capture/input crates fail to build, re-run the apt block above and confirm you are on an X11 session. To unblock development without native hooks, use `LOOPAUTOMA_BACKEND=fake bun run dev`.
+- Want reproducible tooling without touching the host? Build the CI image locally (`docker build -t loopautoma/ci:local .`) and run commands inside: `docker run --rm -v "$PWD:/workspace" -w /workspace loopautoma/ci:local bash -lc 'bun install && bun run dev'`.

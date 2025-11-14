@@ -30,11 +30,14 @@ xcap = { version = "0.7.1", optional = true }
 ahash = { version = "0.8", optional = true }
 x11rb = { version = "0.13.2", optional = true, features = ["xinput", "xtest", "xkb", "allow-unsafe-code"] }
 xkbcommon = { version = "0.9.0", optional = true, features = ["x11"] }
+screenshots = { version = "0.8.10", optional = true }
+image = { version = "0.24", default-features = false, features = ["png"] }
+base64 = "0.21"
  
 [features]
 default = ["os-linux-capture-xcap", "os-linux-input"]
 os-linux-capture-xcap = ["xcap", "ahash"]
 os-linux-input = ["x11rb", "xkbcommon"]
-os-macos = []
-os-windows = []
+os-macos = ["screenshots"]
+os-windows = ["screenshots"]
 
