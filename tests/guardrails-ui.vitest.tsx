@@ -11,6 +11,7 @@ describe("Guardrails UI", () => {
     const saveSpy = vi.spyOn(bridge, "profilesSave").mockResolvedValue();
     vi.spyOn(bridge, "monitorStart").mockResolvedValue();
     vi.spyOn(bridge, "monitorStop").mockResolvedValue();
+    vi.spyOn(bridge, "captureRegionThumbnail").mockResolvedValue(null);
 
     render(<App />);
     const cooldown = await screen.findByLabelText(/Cooldown \(ms\)/);

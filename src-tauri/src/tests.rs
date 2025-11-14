@@ -997,4 +997,76 @@ mod tests {
             .any(|reason| reason == "max_runtime"));
         assert_eq!(report.action_failures, 0);
     }
+
+    /// Tests for UI command helpers (normalize_rect, thumbnail capture)
+    mod ui_commands {
+        use crate::{normalize_rect, PickPoint};
+
+        #[test]
+        fn normalize_rect_basic() {
+            let start = PickPoint { x: 10, y: 20 };
+            let end = PickPoint { x: 50, y: 60 };
+            let rect = normalize_rect(&start, &end).unwrap();
+            assert_eq!(rect.x, 10);
+            assert_eq!(rect.y, 20);
+            assert_eq!(rect.width, 40);
+            assert_eq!(rect.height, 40);
+        }
+
+        #[test]
+        fn normalize_rect_reversed_coordinates() {
+            let start = PickPoint { x: 50, y: 60 };
+            let end = PickPoint { x: 10, y: 20 };
+            let rect = normalize_rect(&start, &end).unwrap();
+            assert_eq!(rect.x, 10);
+            assert_eq!(rect.y, 20);
+            assert_eq!(rect.width, 40);
+            assert_eq!(rect.height, 40);
+        }
+
+        #[test]
+        fn normalize_rect_negative_coordinates_clamped() {
+            let start = PickPoint { x: -10, y: -5 };
+            let end = PickPoint { x: 30, y: 40 };
+            let rect = normalize_rect(&start, &end).unwrap();
+            // Negative coordinates clamped to 0
+            assert_eq!(rect.x, 0);
+            assert_eq!(rect.y, 0);
+            assert_eq!(rect.width, 30);
+            assert_eq!(rect.height, 40);
+        }
+
+        #[test]
+        fn normalize_rect_zero_size_rejected() {
+            let start = PickPoint { x: 10, y: 20 };
+            let end = PickPoint { x: 10, y: 20 };
+            let rect = normalize_rect(&start, &end);
+            // Zero-width or zero-height regions rejected
+            assert!(rect.is_none());
+        }
+
+        #[test]
+        fn normalize_rect_minimum_size() {
+            let start = PickPoint { x: 10, y: 20 };
+            let end = PickPoint { x: 11, y: 21 };
+            let rect = normalize_rect(&start, &end).unwrap();
+            assert_eq!(rect.width, 1);
+            assert_eq!(rect.height, 1);
+        }
+
+        #[test]
+        fn normalize_rect_all_negative_coordinates() {
+            let start = PickPoint { x: -100, y: -200 };
+            let end = PickPoint { x: -50, y: -150 };
+            let rect = normalize_rect(&start, &end);
+            // All coordinates negative → clamped to 0 → zero size → rejected
+            assert!(rect.is_none());
+        }
+    }
+
+    // Note: app_quit command behavior is tested via UI tests (tests/quit-button.vitest.tsx)
+    // since it requires a Tauri AppHandle mock. The command:
+    // 1. Closes region-overlay window if open
+    // 2. Closes main window
+    // 3. Calls app.exit(0) to terminate the process
 }

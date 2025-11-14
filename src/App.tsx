@@ -89,7 +89,9 @@ function App() {
         return;
       }
       if (typeof window !== "undefined") {
-        window.close();
+        // In web-only dev mode most browsers will ignore window.close() for
+        // tabs not opened via script, so treat Quit as a no-op with a log.
+        console.info("Quit requested in web dev mode; close the tab/window manually.");
       }
     } catch (err) {
       console.error("Unable to quit Loop Automa:", err);

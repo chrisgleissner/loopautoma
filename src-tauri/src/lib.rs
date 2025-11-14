@@ -450,9 +450,9 @@ fn window_info(window: tauri::Window) -> Result<(i32, i32, f64), String> {
 }
 
 #[derive(Debug, Deserialize)]
-struct PickPoint {
-    x: i32,
-    y: i32,
+pub(crate) struct PickPoint {
+    pub(crate) x: i32,
+    pub(crate) y: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -546,7 +546,7 @@ fn region_capture_thumbnail(rect: Rect) -> Result<Option<String>, String> {
     capture_thumbnail(&rect).map_err(|e| e.to_string())
 }
 
-fn normalize_rect(start: &PickPoint, end: &PickPoint) -> Option<Rect> {
+pub(crate) fn normalize_rect(start: &PickPoint, end: &PickPoint) -> Option<Rect> {
     let raw_min_x = start.x.min(end.x);
     let raw_min_y = start.y.min(end.y);
     let raw_max_x = start.x.max(end.x);

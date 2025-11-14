@@ -31,9 +31,9 @@ describe("GraphComposer", () => {
 
     const triggerSelect = screen.getByTitle(/Choose how often/i) as HTMLSelectElement;
     fireEvent.change(triggerSelect, { target: { value: "IntervalTrigger" } });
-    const intervalInput = screen.getByLabelText(/Interval \(ms\)/i) as HTMLInputElement;
-    fireEvent.change(intervalInput, { target: { value: "2500" } });
-    expect(intervalInput.value).toBe("2500");
+    const intervalInput = screen.getByLabelText(/Check interval/i) as HTMLInputElement;
+    fireEvent.change(intervalInput, { target: { value: "2.5" } });
+    expect(intervalInput.value).toBe("2.5");
 
     const conditionSelect = screen.getByTitle(/RegionCondition detects/i) as HTMLSelectElement;
     fireEvent.change(conditionSelect, { target: { value: "RegionCondition" } });
