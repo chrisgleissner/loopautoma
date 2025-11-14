@@ -28,7 +28,7 @@ describe("Store hooks", () => {
           id: "test-1",
           name: "Test Profile",
           regions: [],
-          trigger: { type: "IntervalTrigger", interval_ms: 500 },
+          trigger: { type: "IntervalTrigger", check_interval_sec: 60 },
           condition: { type: "RegionCondition", stable_ms: 1000, downscale: 4 },
           actions: [],
         },

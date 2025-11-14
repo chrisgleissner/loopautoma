@@ -10,10 +10,11 @@ import { GraphComposer } from "./components/GraphComposer";
 import { ProfileInsights } from "./components/ProfileInsights";
 import { useEventStream, useProfiles, useRunState } from "./store";
 import { defaultPresetProfile, Profile } from "./types";
-import { monitorStart, monitorStop, monitorPanicStop, profilesLoad, profilesSave } from "./tauriBridge";
+import { monitorStart, monitorStop, profilesLoad, profilesSave } from "./tauriBridge";
 import logo from "../doc/img/logo.png";
 import { useEffectOnce } from "./hooks/useEffectOnce";
 import { registerBuiltins } from "./plugins/builtins";
+import { appWindow } from "@tauri-apps/api/window";
 
 function App() {
   const { profiles, setProfiles } = useProfiles();
@@ -82,10 +83,17 @@ function App() {
     setRunningProfileId(null);
   };
 
-  const panicStop = async () => {
-    await monitorPanicStop();
-    setRunningProfileId(null);
-  };
+  const quitApp = useCallback(async () => {
+    try {
+      if (typeof window !== "undefined" && (window as any).__TAURI_IPC__) {
+        await appWindow.close();
+      } else {
+        window.close();
+      }
+    } catch (err) {
+      console.error("Unable to quit Loop Automa:", err);
+    }
+  }, []);
 
   // theme handling: apply data-theme attribute; system is default via CSS
   const themeAttr = theme === "system" ? undefined : theme;
@@ -156,6 +164,13 @@ function App() {
               <img src={reactLogo} className="badge" alt="React" />
             </a>
           </div>
+          <button
+            className="danger"
+            onClick={quitApp}
+            title="Quit LoopAutoma"
+          >
+            Quit
+          </button>
         </div>
       </div>
       <section style={{ display: "grid", gap: 12 }}>
@@ -172,14 +187,6 @@ function App() {
             title={isRunning ? "Stop immediately" : "Start the monitor loop with the selected profile"}
           >
             {isRunning ? "Stop" : "Start"}
-          </button>
-          <button
-            onClick={panicStop}
-            disabled={!isRunning}
-            className="danger"
-            title="Immediate panic stop: halts the monitor and emits a watchdog event"
-          >
-            Panic Stop
           </button>
           {isRunning && (
             <span className="running-chip" aria-live="polite" title="Monitor is running">Running</span>

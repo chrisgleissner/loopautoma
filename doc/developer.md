@@ -84,7 +84,7 @@ cd src-tauri && cargo test --all --locked                 # Rust tests
 cd src-tauri && cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
 ```
 
-## 3. Cross‑OS (macOS + Windows) Preview
+## 3. Cross‑OS (macOS + Windows) Backends
 
 Phase 3 work adds first-party backends for macOS (capture today, input later) and Windows (stubs). These builds are opt-in so the Linux MVP stays lean. Use feature flags to target each OS:
 
@@ -98,7 +98,7 @@ cargo test --no-default-features --features os-macos
 cargo check --no-default-features --features os-windows
 ```
 
-- `bun run tauri dev`/`bun run tauri build` forward extra cargo args. Example (macOS capture preview):
+- `bun run tauri dev`/`bun run tauri build` forward extra cargo args. Example (macOS capture build):
 
   ```bash
   bun run tauri dev -- --no-default-features --features os-macos

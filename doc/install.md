@@ -237,7 +237,7 @@ If the problem persists, run in safe mode to verify other functionality:
 LOOPAUTOMA_BACKEND=fake loopautoma
 ```
 
-### "Screen preview unavailable" or capture errors
+### "Screen capture unavailable" errors
 
 **Cause**: Missing PipeWire/screen capture libraries.
 
@@ -245,14 +245,6 @@ LOOPAUTOMA_BACKEND=fake loopautoma
 ```bash
 sudo apt install -y libpipewire-0.3-0 libspa-0.2-modules
 ```
-
-### High CPU usage during screen preview
-
-**Expected behavior**: The screen preview is throttled to 3 FPS by default. If CPU usage is high:
-
-1. Stop the screen preview when not actively authoring regions
-2. The preview FPS is set to 3 fps for optimal performance
-3. Close regions you're not monitoring
 
 ### AppImage won't run
 
@@ -299,7 +291,7 @@ bun run tauri clean
 
 - **Ubuntu 24.04 Only**: The MVP is tested and supported on Ubuntu 24.04 LTS. Other Linux distributions may work but are not officially supported yet.
 
-- **Single Monitor Preference**: While multi-monitor setups are detected, the screen preview currently shows only the primary display. You can still define regions on any monitor by entering coordinates manually.
+- **Single Monitor Preference**: The region picker overlay launches on the currently focused display; if you're authoring on a secondary monitor, move the app window there before starting the picker.
 
 ## Security and Privacy
 

@@ -164,11 +164,18 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
   return (
     <div className="region-panel">
       <div className="region-panel-toolbar">
-        <button type="button" onClick={launchOverlay} disabled={disabled}>
+        <button
+          type="button"
+          onClick={launchOverlay}
+          disabled={disabled}
+          title="Click to temporarily hide this window, then drag with the left mouse button over the desktop area to watch. Release to capture the region and return here with a thumbnail."
+        >
           Define watch region
         </button>
         <div className="region-overlay-hint">
-          {overlayActive ? "Overlay active — follow the instructions on the desktop overlay." : "Opens the full-screen overlay so you can click upper-left and lower-right points."}
+          {overlayActive
+            ? "Overlay active — drag with the left mouse button, then release to capture the region and return to LoopAutoma."
+            : "Temporarily hides this app so you can drag over the desktop; releasing the mouse will capture the region and show a thumbnail here."}
         </div>
       </div>
       {status && <p className="region-status">{status}</p>}

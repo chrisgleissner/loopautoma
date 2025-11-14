@@ -11,13 +11,21 @@ import {
 // Trigger: IntervalTrigger
 function IntervalTriggerEditor({ value, onChange }: TriggerEditorProps) {
   return (
-    <label title="How often the loop ticks to evaluate the condition">
-      Interval (ms)
+    <label title="How often the loop evaluates the trigger/condition (seconds)">
+      Check interval (s)
       <input
         type="number"
-        value={value.interval_ms}
-        onChange={(e) => onChange({ ...value, type: "IntervalTrigger", interval_ms: Number(e.target.value || 0) })}
-        style={{ width: 120, marginLeft: 6 }}
+        min="0.1"
+        step="0.1"
+        value={value.check_interval_sec}
+        onChange={(e) =>
+          onChange({
+            ...value,
+            type: "IntervalTrigger",
+            check_interval_sec: Number(e.target.value || 0),
+          })
+        }
+        style={{ width: 140, marginLeft: 6 }}
       />
     </label>
   );

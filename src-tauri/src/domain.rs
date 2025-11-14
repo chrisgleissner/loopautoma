@@ -168,7 +168,7 @@ impl Default for Guardrails {
 }
 
 // Minimal Profile model for JSON persistence
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Profile {
     pub id: String,
     pub name: String,
@@ -180,10 +180,10 @@ pub struct Profile {
     pub guardrails: Option<GuardrailsConfig>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TriggerConfig {
     pub r#type: String,
-    pub interval_ms: u64,
+    pub check_interval_sec: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

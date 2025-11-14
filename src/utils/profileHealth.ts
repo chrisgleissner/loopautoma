@@ -5,7 +5,7 @@ export type ProfileHealth = {
   warnings: string[];
 };
 
-const MIN_INTERVAL_MS = 100;
+const MIN_CHECK_INTERVAL_SEC = 0.1;
 const MIN_STABLE_MS = 500;
 const MIN_COOLDOWN_MS = 500;
 
@@ -34,8 +34,8 @@ export function auditProfile(profile: Profile | null): ProfileHealth {
     });
   }
 
-  if (!profile.trigger || profile.trigger.interval_ms < MIN_INTERVAL_MS) {
-    errors.push(`Trigger interval must be ≥ ${MIN_INTERVAL_MS} ms.`);
+  if (!profile.trigger || profile.trigger.check_interval_sec < MIN_CHECK_INTERVAL_SEC) {
+    errors.push(`Trigger interval must be ≥ ${MIN_CHECK_INTERVAL_SEC} seconds.`);
   }
 
   if (!profile.condition) {

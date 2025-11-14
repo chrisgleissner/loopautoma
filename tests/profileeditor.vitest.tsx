@@ -6,7 +6,7 @@ const sample = {
   id: "p1",
   name: "One",
   regions: [{ id: "r1", rect: { x: 0, y: 0, width: 10, height: 10 } }],
-  trigger: { type: "IntervalTrigger", interval_ms: 500 },
+  trigger: { type: "IntervalTrigger", check_interval_sec: 60 },
   condition: { type: "RegionCondition", stable_ms: 1000, downscale: 4 },
   actions: [{ type: "Type", text: "continue" }],
   guardrails: { cooldown_ms: 0 },

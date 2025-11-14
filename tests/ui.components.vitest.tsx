@@ -12,7 +12,7 @@ describe("UI components", () => {
   it("ProfileSelector lists options", () => {
     render(
       <ProfileSelector
-        profiles={[{ id: "p1", name: "One", regions: [], trigger: { type: "IntervalTrigger", interval_ms: 500 }, condition: { type: "RegionCondition", stable_ms: 1000, downscale: 4 }, actions: [] }]}
+        profiles={[{ id: "p1", name: "One", regions: [], trigger: { type: "IntervalTrigger", check_interval_sec: 60 }, condition: { type: "RegionCondition", stable_ms: 1000, downscale: 4 }, actions: [] }]}
         value={"p1"}
         onChange={() => {}}
       />
@@ -26,8 +26,8 @@ describe("UI components", () => {
     render(
       <ProfileSelector
         profiles={[
-          { id: "p1", name: "Primary", regions: [], trigger: { type: "IntervalTrigger", interval_ms: 500 }, condition: { type: "RegionCondition", stable_ms: 1000, downscale: 4 }, actions: [] },
-          { id: "p2", name: "Secondary", regions: [], trigger: { type: "IntervalTrigger", interval_ms: 250 }, condition: { type: "RegionCondition", stable_ms: 500, downscale: 2 }, actions: [] },
+          { id: "p1", name: "Primary", regions: [], trigger: { type: "IntervalTrigger", check_interval_sec: 60 }, condition: { type: "RegionCondition", stable_ms: 1000, downscale: 4 }, actions: [] },
+          { id: "p2", name: "Secondary", regions: [], trigger: { type: "IntervalTrigger", check_interval_sec: 30 }, condition: { type: "RegionCondition", stable_ms: 500, downscale: 2 }, actions: [] },
         ]}
         value={null}
         onChange={onChange}

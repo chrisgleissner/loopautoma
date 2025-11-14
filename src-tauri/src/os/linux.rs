@@ -446,7 +446,7 @@ struct KeyboardLookup {
 impl KeyboardLookup {
     fn from_connection(conn: &XCBConnection) -> Result<Self, BackendError> {
         let context = Context::new(xkb::CONTEXT_NO_FLAGS);
-        let device_id = xkb::x11::get_core_keyboard_device_id(conn);
+        let device_id = core_keyboard_device_id(conn)?;
         let keymap = xkb::x11::keymap_new_from_device(
             &context,
             conn,
@@ -537,7 +537,7 @@ impl XkbStateBundle {
             ));
         }
         let context = Context::new(xkb::CONTEXT_NO_FLAGS);
-        let device_id = xkb::x11::get_core_keyboard_device_id(conn);
+        let device_id = core_keyboard_device_id(conn)?;
         let keymap = xkb::x11::keymap_new_from_device(
             &context,
             conn,
@@ -556,6 +556,19 @@ impl XkbStateBundle {
 #[cfg(feature = "os-linux-input")]
 fn open_xcb_connection() -> Result<(XCBConnection, usize), BackendError> {
     XCBConnection::connect(None).map_err(|e| BackendError::new("x11_connect_failed", e.to_string()))
+}
+
+#[cfg(feature = "os-linux-input")]
+fn core_keyboard_device_id(conn: &XCBConnection) -> Result<i32, BackendError> {
+    let device_id = xkb::x11::get_core_keyboard_device_id(conn);
+    if device_id == -1 {
+        Err(BackendError::new(
+            "x11_device_missing",
+            "XKB could not find a core keyboard (is the app running in an X11 session with $DISPLAY set?).",
+        ))
+    } else {
+        Ok(device_id)
+    }
 }
 
 #[cfg(feature = "os-linux-input")]

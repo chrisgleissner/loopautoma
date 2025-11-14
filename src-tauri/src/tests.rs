@@ -227,7 +227,7 @@ mod tests {
             }],
             trigger: TriggerConfig {
                 r#type: "IntervalTrigger".into(),
-                interval_ms: 10,
+                check_interval_sec: 0.1,
             },
             condition: ConditionConfig {
                 r#type: "RegionCondition".into(),
@@ -292,14 +292,14 @@ mod tests {
         // tick until stable
         mon.tick(t0, &regions, &cap, &auto, &mut events);
         mon.tick(
-            t0 + Duration::from_millis(20),
+            t0 + Duration::from_millis(200),
             &regions,
             &cap,
             &auto,
             &mut events,
         );
         mon.tick(
-            t0 + Duration::from_millis(40),
+            t0 + Duration::from_millis(400),
             &regions,
             &cap,
             &auto,
@@ -307,7 +307,7 @@ mod tests {
         );
         // After cooldown, second activation still rate-limited by max/hour and cooldown
         mon.tick(
-            t0 + Duration::from_millis(50),
+            t0 + Duration::from_millis(700),
             &regions,
             &cap,
             &auto,
@@ -579,7 +579,7 @@ mod tests {
             }],
             trigger: TriggerConfig {
                 r#type: "IntervalTrigger".into(),
-                interval_ms: 1,
+                check_interval_sec: 0.1,
             },
             condition: ConditionConfig {
                 r#type: "RegionCondition".into(),
@@ -640,7 +640,7 @@ mod tests {
         // Run a few ticks to allow condition to stabilize and one activation to occur
         mon.tick(t0, &regions, &cap, &auto, &mut events);
         mon.tick(
-            t0 + Duration::from_millis(1),
+            t0 + Duration::from_millis(200),
             &regions,
             &cap,
             &auto,
@@ -987,7 +987,7 @@ mod tests {
     fn soak_runner_reports_guardrail_trip() {
         let mut cfg = crate::SoakConfig::default();
         cfg.ticks = 5_000;
-        cfg.interval_ms = 25;
+        cfg.check_interval_sec = 0.25;
         cfg.max_runtime_ms = 200;
         let report = crate::run_soak(&cfg);
         assert!(report.ticks_executed <= cfg.ticks);
@@ -996,37 +996,5 @@ mod tests {
             .iter()
             .any(|reason| reason == "max_runtime"));
         assert_eq!(report.action_failures, 0);
-    }
-
-    #[test]
-    fn frame_throttle_backoff_grows_with_failures() {
-        let mut throttle = crate::FrameThrottle::new(15);
-        let initial = throttle.due_in();
-        throttle.record_failure();
-        let after_first = throttle.due_in();
-        throttle.record_failure();
-        let after_second = throttle.due_in();
-        assert!(
-            after_first > initial + Duration::from_millis(50),
-            "first failure should introduce noticeable backoff"
-        );
-        assert!(
-            after_second > after_first,
-            "backoff should keep growing while failures accumulate"
-        );
-        for _ in 0..20 {
-            throttle.record_failure();
-        }
-        assert_eq!(throttle.failure_count(), 10, "failure counter clamps at 10");
-    }
-
-    #[test]
-    fn sample_checksum_detects_changes() {
-        let mut bytes = vec![0u8; 4096];
-        let a = crate::sample_checksum(&bytes);
-        bytes[100] = 42;
-        let b = crate::sample_checksum(&bytes);
-        assert_ne!(a, b, "checksum should change when sampled bytes change");
-        assert_eq!(crate::sample_checksum(&[]), 0);
     }
 }

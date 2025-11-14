@@ -9,7 +9,7 @@ fn main() -> ExitCode {
         Ok(_) => ExitCode::SUCCESS,
         Err(err) => {
             eprintln!("{err}");
-            eprintln!("Usage: cargo run --bin soak_report -- [--ticks N] [--interval-ms N] [--stable-ms N] [--cooldown-ms N] [--max-runtime-ms N] [--downscale N]");
+            eprintln!("Usage: cargo run --bin soak_report -- [--ticks N] [--check-interval-sec N] [--stable-ms N] [--cooldown-ms N] [--max-runtime-ms N] [--downscale N]");
             ExitCode::FAILURE
         }
     }
@@ -25,7 +25,7 @@ fn run_with_args(args: &[String]) -> Result<(), String> {
             .ok_or_else(|| format!("Missing value for {flag}"))?;
         match flag.as_str() {
             "--ticks" => cfg.ticks = parse_u64(value, flag)?,
-            "--interval-ms" => cfg.interval_ms = parse_u64(value, flag)?,
+            "--check-interval-sec" => cfg.check_interval_sec = parse_f64(value, flag)?,
             "--stable-ms" => cfg.stable_ms = parse_u64(value, flag)?,
             "--cooldown-ms" => cfg.cooldown_ms = parse_u64(value, flag)?,
             "--max-runtime-ms" => cfg.max_runtime_ms = parse_u64(value, flag)?,
@@ -50,5 +50,10 @@ fn parse_u64(value: &str, flag: &str) -> Result<u64, String> {
 fn parse_u32(value: &str, flag: &str) -> Result<u32, String> {
     value
         .parse::<u32>()
+        .map_err(|_| format!("Invalid numeric value for {flag}: {value}"))
+}
+fn parse_f64(value: &str, flag: &str) -> Result<f64, String> {
+    value
+        .parse::<f64>()
         .map_err(|_| format!("Invalid numeric value for {flag}: {value}"))
 }

@@ -49,84 +49,8 @@ fn is_release_runtime() -> bool {
     !cfg!(debug_assertions)
 }
 
-struct StreamHandle {
-    cancel: Arc<AtomicBool>,
-    handle: std::thread::JoinHandle<()>,
-}
-
-struct FrameThrottle {
-    base_delay: Duration,
-    max_delay: Duration,
-    next_due: Instant,
-    consecutive_failures: u32,
-}
-
-impl FrameThrottle {
-    fn new(fps: u32) -> Self {
-        let base_delay = Duration::from_millis(1000 / fps.max(1) as u64);
-        Self {
-            base_delay,
-            max_delay: Duration::from_millis(1_500),
-            next_due: Instant::now(),
-            consecutive_failures: 0,
-        }
-    }
-
-    fn wait(&mut self) {
-        let now = Instant::now();
-        if now < self.next_due {
-            std::thread::sleep(self.next_due - now);
-        }
-    }
-
-    fn record_success(&mut self) {
-        self.consecutive_failures = 0;
-        self.next_due = Instant::now() + self.base_delay;
-    }
-
-    fn record_failure(&mut self) {
-        self.consecutive_failures = (self.consecutive_failures + 1).min(10);
-        let backoff =
-            self.base_delay + Duration::from_millis((self.consecutive_failures as u64) * 200);
-        self.next_due = Instant::now() + backoff.min(self.max_delay);
-    }
-
-    #[cfg(test)]
-    fn failure_count(&self) -> u32 {
-        self.consecutive_failures
-    }
-
-    #[cfg(test)]
-    fn due_in(&self) -> Duration {
-        self.next_due.saturating_duration_since(Instant::now())
-    }
-}
-
-const DUPLICATE_WINDOW: Duration = Duration::from_millis(400);
-
-fn sample_checksum(bytes: &[u8]) -> u64 {
-    if bytes.is_empty() {
-        return 0;
-    }
-    let mut acc = 0u64;
-    let step = (bytes.len() / 1024).max(1);
-    let mut count = 0usize;
-    let limit = bytes.len().min(8_192);
-    let mut idx = 0usize;
-    while idx < limit {
-        acc = acc.wrapping_add(bytes[idx] as u64);
-        count += 1;
-        if count >= 1024 {
-            break;
-        }
-        idx += step;
-    }
-    acc
-}
-
 #[derive(Default)]
 struct AuthoringState {
-    screen_stream: Mutex<Option<StreamHandle>>,
     input_capture: Mutex<Option<Box<dyn InputCapture + Send>>>,
 }
 
@@ -169,8 +93,11 @@ enum StopReason {
 
 pub fn build_monitor_from_profile<'a>(p: &Profile) -> (monitor::Monitor<'a>, Vec<Region>) {
     // Trigger
-    let interval = Duration::from_millis(p.trigger.interval_ms);
-    let trig = Box::new(trigger::IntervalTrigger::new(interval));
+    let secs = p
+        .trigger
+        .check_interval_sec
+        .clamp(0.1, 86_400.0);
+    let trig = Box::new(trigger::IntervalTrigger::new(Duration::from_secs_f64(secs)));
 
     // Condition
     let cond = Box::new(condition::RegionCondition::new(
@@ -422,105 +349,6 @@ fn monitor_panic_stop(state: tauri::State<AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn start_screen_stream(
-    window: tauri::Window,
-    state: tauri::State<AppState>,
-    fps: Option<u32>,
-) -> Result<(), String> {
-    let mut guard = state.authoring.screen_stream.lock().unwrap();
-    if guard.is_some() {
-        return Ok(());
-    }
-    let capture = make_capture();
-    let running = Arc::new(AtomicBool::new(true));
-    let runner = running.clone();
-    let win = window.clone();
-    let target_fps = fps.unwrap_or(3).clamp(1, 15);
-    let handle = std::thread::spawn(move || {
-        let mut throttle = FrameThrottle::new(target_fps);
-        let mut last_checksum: Option<u64> = None;
-        let mut last_emit_at = Instant::now() - Duration::from_secs(1);
-        while runner.load(Ordering::Relaxed) {
-            throttle.wait();
-            if !runner.load(Ordering::Relaxed) {
-                break;
-            }
-
-            let displays = match capture.displays() {
-                Ok(list) => list,
-                Err(err) => {
-                    eprintln!("screen_stream displays error: {err}");
-                    throttle.record_failure();
-                    continue;
-                }
-            };
-            let Some(display) = displays.first() else {
-                throttle.record_failure();
-                continue;
-            };
-            if display.width == 0 || display.height == 0 {
-                throttle.record_failure();
-                continue;
-            }
-
-            let region = Region {
-                id: format!("display-{}", display.id),
-                rect: Rect {
-                    x: display.x.max(0) as u32,
-                    y: display.y.max(0) as u32,
-                    width: display.width,
-                    height: display.height,
-                },
-                name: display.name.clone(),
-            };
-
-            match capture.capture_region(&region) {
-                Ok(frame) => {
-                    let checksum = sample_checksum(&frame.bytes);
-                    let now = Instant::now();
-                    if let Some(prev) = last_checksum {
-                        if prev == checksum && now.duration_since(last_emit_at) < DUPLICATE_WINDOW {
-                            throttle.record_success();
-                            continue;
-                        }
-                    }
-                    match win.emit("loopautoma://screen_frame", &frame) {
-                        Ok(_) => {
-                            last_checksum = Some(checksum);
-                            last_emit_at = now;
-                            throttle.record_success();
-                        }
-                        Err(err) => {
-                            eprintln!("screen_stream emit error: {err}");
-                            throttle.record_failure();
-                        }
-                    }
-                }
-                Err(err) => {
-                    eprintln!("screen_stream capture error: {err}");
-                    throttle.record_failure();
-                }
-            }
-        }
-    });
-    *guard = Some(StreamHandle {
-        cancel: running,
-        handle,
-    });
-    Ok(())
-}
-
-#[tauri::command]
-fn stop_screen_stream(state: tauri::State<AppState>) -> Result<(), String> {
-    let mut guard = state.authoring.screen_stream.lock().unwrap();
-    if let Some(handle) = guard.take() {
-        handle.cancel.store(false, Ordering::Relaxed);
-        let _ = handle.handle.join();
-    }
-    Ok(())
-}
-
-#[tauri::command]
 fn start_input_recording(
     window: tauri::Window,
     state: tauri::State<AppState>,
@@ -592,8 +420,6 @@ pub fn run() {
             monitor_start,
             monitor_stop,
             monitor_panic_stop,
-            start_screen_stream,
-            stop_screen_stream,
             start_input_recording,
             stop_input_recording,
             inject_mouse_event,

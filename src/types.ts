@@ -2,7 +2,7 @@
 export type Rect = { x: number; y: number; width: number; height: number };
 export type Region = { id: string; rect: Rect; name?: string };
 
-export type TriggerConfig = { type: string; interval_ms: number };
+export type TriggerConfig = { type: string; check_interval_sec: number };
 export type ConditionConfig = { type: string; stable_ms: number; downscale: number };
 
 export type MouseButton = "Left" | "Right" | "Middle";
@@ -96,7 +96,7 @@ export const defaultPresetProfile = (): Profile => ({
     { id: "chat-out", rect: { x: 80, y: 120, width: 1200, height: 600 }, name: "Agent Output" },
     { id: "progress", rect: { x: 80, y: 740, width: 1200, height: 200 }, name: "Progress Area" },
   ],
-  trigger: { type: "IntervalTrigger", interval_ms: 750 },
+  trigger: { type: "IntervalTrigger", check_interval_sec: 60 },
   condition: { type: "RegionCondition", stable_ms: 8000, downscale: 4 },
   actions: [
     { type: "MoveCursor", x: 960, y: 980 },

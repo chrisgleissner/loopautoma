@@ -10,7 +10,7 @@ describe("Types and defaults", () => {
     expect(profile.regions[0].id).toBe("chat-out");
     expect(profile.regions[1].id).toBe("progress");
     expect(profile.trigger.type).toBe("IntervalTrigger");
-    expect(profile.trigger.interval_ms).toBeGreaterThan(0);
+    expect(profile.trigger.check_interval_sec).toBeGreaterThan(0);
     expect(profile.condition.type).toBe("RegionCondition");
     expect(profile.condition.stable_ms).toBeGreaterThan(0);
     expect(profile.condition.downscale).toBeGreaterThan(0);

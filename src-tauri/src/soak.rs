@@ -9,7 +9,7 @@ use crate::fakes::{FakeAutomation, FakeCapture};
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct SoakConfig {
     pub ticks: u64,
-    pub interval_ms: u64,
+    pub check_interval_sec: f64,
     pub stable_ms: u64,
     pub cooldown_ms: u64,
     pub max_runtime_ms: u64,
@@ -20,7 +20,7 @@ impl Default for SoakConfig {
     fn default() -> Self {
         Self {
             ticks: 25_000,
-            interval_ms: 100,
+            check_interval_sec: 0.1,
             stable_ms: 80,
             cooldown_ms: 50,
             max_runtime_ms: 2_000,
@@ -74,7 +74,7 @@ pub fn run_soak(config: &SoakConfig) -> SoakReport {
         if monitor.started_at.is_none() {
             break;
         }
-        now += Duration::from_millis(config.interval_ms);
+        now += Duration::from_secs_f64(config.check_interval_sec);
     }
 
     if monitor.started_at.is_some() {
@@ -83,7 +83,8 @@ pub fn run_soak(config: &SoakConfig) -> SoakReport {
     }
 
     report.activations = monitor.activations;
-    report.runtime_ms_simulated = (report.ticks_executed as u128) * (config.interval_ms as u128);
+    let total_ms = (report.ticks_executed as f64) * config.check_interval_sec * 1000.0;
+    report.runtime_ms_simulated = total_ms.round() as u128;
     report
 }
 
@@ -103,7 +104,7 @@ fn build_profile(config: &SoakConfig) -> Profile {
         }],
         trigger: TriggerConfig {
             r#type: "IntervalTrigger".into(),
-            interval_ms: config.interval_ms,
+            check_interval_sec: config.check_interval_sec,
         },
         condition: ConditionConfig {
             r#type: "RegionCondition".into(),

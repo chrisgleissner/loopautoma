@@ -45,14 +45,6 @@ export async function captureRegionThumbnail(rect: Rect): Promise<string | null>
   return (await invoke("region_capture_thumbnail", { rect })) as string | null;
 }
 
-export async function startScreenStream(fps?: number): Promise<void> {
-  await invoke("start_screen_stream", { fps });
-}
-
-export async function stopScreenStream(): Promise<void> {
-  await invoke("stop_screen_stream");
-}
-
 export async function startInputRecording(): Promise<void> {
   await invoke("start_input_recording");
 }

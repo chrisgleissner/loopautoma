@@ -39,7 +39,7 @@ Top to bottom layers; arrows indicate primary call/flow direction.
    ↓
 2) Adapter layer (tauri-bridge)
    - Exposes Rust commands to UI (start/stop Monitor, create/update Profiles, Region selection, etc.)
-   - Forwards Events to UI via Tauri event stream
+   - Forwards Events to UI via a Tauri event channel
    ↓
 3) Application layer (runtime)
   - Monitor: orchestrates Trigger → Condition evaluation → ActionSequence execution → Event emission
@@ -61,10 +61,10 @@ Top to bottom layers; arrows indicate primary call/flow direction.
    - Separate modules per OS; compiled conditionally; never surfaced to UI
 
 Event flow (runtime):
-Trigger fires → Event(trigger_fired) → Condition evaluates Regions (via ScreenCapture/RegionSource) → Event(condition_evaluated) → if true, execute ActionSequence via Automation → Event(action_executed) → all Events streamed to UI.
+Trigger fires → Event(trigger_fired) → Condition evaluates Regions (via ScreenCapture/RegionSource) → Event(condition_evaluated) → if true, execute ActionSequence via Automation → Event(action_executed) → all Events are emitted to the UI over the event channel.
 
-Recording/authoring flow (MVP helpers):
-- Optional screen stream (for region picking/preview) and input recorder feed UI with ScreenFrame and InputEvent messages; these are not required for unattended operation but support profile authoring.
+Recording/authoring flow (helpers):
+- Region picker overlay, thumbnail capture, and the input recorder feed the UI with lightweight data during authoring; these helpers are not required for unattended operation but support profile setup and validation.
 
 ## Core abstractions (Rust traits)
 
@@ -73,6 +73,7 @@ Interfaces are intentionally minimal; implementations can extend via associated 
 - Trigger
   - Purpose: determines when/how a Condition is evaluated.
   - Contract: async tick() produces a signal; e.g., IntervalTrigger with user‑defined cadence.
+  - Configuration: IntervalTrigger exposes `check_interval_sec`, the time between evaluations of the Trigger/Condition pair. Profiles may choose any value between 0.1 seconds and 86 400 seconds (24 hours). For the RegionCondition “no change in Regions” preset, the default is 60 seconds.
 - Condition
   - Purpose: abstract predicate on environment/system state.
   - MVP: RegionCondition detects no visual change in multiple Regions for a configured duration (stableMs).
@@ -113,7 +114,7 @@ Example Profile (conceptual):
     { "id": "r1", "rect": { "x": 100, "y": 120, "width": 640, "height": 200 } },
     { "id": "r2", "rect": { "x": 860, "y": 120, "width": 640, "height": 200 } }
   ],
-  "trigger": { "type": "IntervalTrigger", "intervalMs": 500 },
+  "trigger": { "type": "IntervalTrigger", "check_interval_sec": 60 },
   "condition": { "type": "RegionCondition", "stableMs": 5000, "downscale": 4, "hash": "xxh3" },
   "actions": [
     { "type": "MoveCursor", "x": 1000, "y": 700 },
@@ -134,7 +135,7 @@ Example Profile (conceptual):
     { "id": "chat-out", "rect": { "x": 80, "y": 120, "width": 1200, "height": 600 }, "name": "Agent Output" },
     { "id": "progress", "rect": { "x": 80, "y": 740, "width": 1200, "height": 200 }, "name": "Progress Area" }
   ],
-  "trigger": { "type": "IntervalTrigger", "intervalMs": 750 },
+  "trigger": { "type": "IntervalTrigger", "check_interval_sec": 60 },
   "condition": { "type": "RegionCondition", "stableMs": 8000, "downscale": 4, "hash": "xxh3" },
   "actions": [
     { "type": "MoveCursor", "x": 960, "y": 980 },
@@ -151,7 +152,7 @@ Profile schema (minimal contract):
 - profile.id: string (non‑empty)
 - profile.name: string
 - regions: Region[] where Region = { id: string, rect: { x: number>=0, y: number>=0, width: number>0, height: number>0 }, name?: string }
-- trigger: { type: "IntervalTrigger", intervalMs: number>0 }
+- trigger: { type: "IntervalTrigger", check_interval_sec: number in [0.1, 86400] }
 - condition: { type: "RegionCondition", stableMs: number>0, downscale: number>=1, hash: "xxh3" }
 - actions: Action[] (order significant) where
   - MoveCursor { type: "MoveCursor", x: number>=0, y: number>=0 }
@@ -167,14 +168,15 @@ Profile schema (minimal contract):
   - profiles_save(profiles: Profile[]) -> Result<(), Error>
   - monitor_start(profileId: String) -> Result<(), Error>
   - monitor_stop() -> Result<(), Error>
-  - region_pick() -> Result<Region, Error> (optional helper using overlay)
-  - start_screen_stream() / stop_screen_stream() -> control an optional low‑FPS screen stream for authoring
+  - monitor_panic_stop() -> Result<(), Error>
+  - region_picker_show() / region_picker_complete(submission) -> manage full-screen overlay selection and emit Region + thumbnail
+  - region_capture_thumbnail(rect) -> Result<Option<Base64Png>, Error>
   - start_input_recording() / stop_input_recording() -> control global input recorder (authoring)
   - inject_mouse_event(event: MouseEvent) / inject_keyboard_event(event: KeyboardEvent) -> direct input replay for tooling
 - Events to UI:
   - Channel: "loopautoma://event"; payload = Event (JSON)
   - Backpressure: events may be batched ≤100ms; if buffer >10_000, drop oldest and emit Error { message: "event_backpressure_drop" }
-  - Authoring streams: ScreenFrame (throttled) and InputEvent are emitted on dedicated channels or with a `kind` discriminator; apply strict throttling and backpressure.
+  - Authoring helpers: InputEvent messages are emitted on dedicated channels or with a `kind` discriminator; apply strict throttling and backpressure.
 
 ## UI responsibilities (React/TypeScript, no OS logic)
 
@@ -183,7 +185,7 @@ Profile schema (minimal contract):
 - Unattended mode: toggle to enable guardrails (max runtime/activations, cooldowns) and a prominent Panic Stop button; preset selector (e.g., “Copilot Keep‑Alive”).
 - State management: Zustand store; React Query optional for command calls; types mirror Rust models.
 - Serialization: JSON round‑trip to/from backend; validation errors surfaced inline.
- - Authoring helpers (Ubuntu/X11 MVP): recording bar to start/stop input capture, region selection overlay, and an optional screen preview; future OSes reuse the same UI.
+- Authoring helpers: recording bar to start/stop input capture plus the region selection overlay with thumbnail refresh; all OSes reuse the same UI over OS-specific backends.
 
 ## Platform implementations (per OS, behind traits)
 
@@ -202,24 +204,19 @@ Windows 11 (post‑MVP):
 All backends are hidden behind ScreenCapture, Automation, and InputCapture traits; selected via cfg(target_os) and feature flags.
 
 
-## Authoring helpers: screen stream + input recorder
+## Authoring helpers: regions and input recorder
 
-Ubuntu/X11 authoring flows rely on two optional helpers that expose extra context to the UI while keeping runtime logic OS-agnostic:
+Authoring flows are supported by two helpers that expose extra context to the UI while keeping runtime logic OS-agnostic:
 
-- **Screen stream** — low-FPS (1–15 fps) snapshots of the active display delivered via the `loopautoma://screen_frame` event channel. Started/stopped through the `start_screen_stream` / `stop_screen_stream` commands. Frames contain both raw RGBA bytes and the originating `DisplayInfo`, which the React UI uses to render the desktop inside the Screen Preview canvas and to map user drags back to absolute screen coordinates.
-- **Input recorder** — global keyboard/mouse hooks exposed through `start_input_recording` / `stop_input_recording`, emitting `loopautoma://input_event`. These events populate the Recording Bar timeline and let authors transform real input into `ActionSequence` steps.
-
-Why we stream the screen:
-
-1. **Region authoring** — The React preview mirrors the desktop so authors can drag-select rectangles without guessing coordinates. The helper converts canvas-space drags into `Rect` objects that slot directly into a profile.
-2. **Profile validation** — With live pixels visible, it’s easy to confirm that regions still target the right UI element after layout changes before deploying to unattended mode.
-3. **Future overlay** — The same feed will back the transparent region picker overlay (planned in Phase 1) so we can highlight regions while capturing input via XI2.
+- **Region overlay** — a full-screen transparent window used to define Rects and to highlight existing Regions:
+  - For selection, it maps pointer drags (upper-left → lower-right) to global screen coordinates and submits them to the backend as a RegionPickSubmission.
+  - For validation, it can briefly outline an existing Region on top of the desktop so authors can confirm the target area.
+- **Input recorder** — global keyboard/mouse hooks exposed through `start_input_recording` / `stop_input_recording`, emitting `loopautoma://input_event`. These events populate the Recording Bar timeline and are transformed into ActionSequence steps.
 
 Implementation notes:
 
-- The stream is intentionally throttled; it is **not** meant for continuous monitoring or playback. Only enable it while actively authoring to avoid unnecessary capture load.
-- If `LOOPAUTOMA_BACKEND=fake` is set, the commands still succeed but emit synthetic frames/events so UI flows remain testable.
-- When you close the authoring UI or switch profiles, always call `stop_screen_stream` / `stop_input_recording` to release XI2/XTest resources; the React components do this automatically via `useEffect` cleanup.
+- If `LOOPAUTOMA_BACKEND=fake` is set, the commands succeed but emit synthetic events so UI flows remain testable.
+- When the authoring UI closes or profiles change, the UI calls `stop_input_recording` to release backend resources.
 
 ## Performance strategy (MVP)
 
@@ -228,7 +225,7 @@ Implementation notes:
 - IntervalTrigger uses a monotonic timer; jitter acceptable but bounded.
 - Minimal allocations in hot paths; reuse buffers per Region.
  - Guardrails avoid runaway loops (cooldowns/rate limits) to reduce CPU and unintended behavior when conditions flap.
- - Authoring streams (screen/input) are strictly throttled and disabled in unattended runs.
+ - Authoring helpers (screen snapshots/input recorder) are strictly throttled and disabled in unattended runs.
 
 ## Testing strategy and coverage
 
