@@ -34,6 +34,12 @@ if (typeof window !== "undefined") {
     writable: true,
     value: PointerEventPolyfill,
   });
+  
+  // Mock setPointerCapture and releasePointerCapture for jsdom
+  if (typeof Element !== "undefined") {
+    Element.prototype.setPointerCapture = Element.prototype.setPointerCapture || function() {};
+    Element.prototype.releasePointerCapture = Element.prototype.releasePointerCapture || function() {};
+  }
 }
 
 afterEach(() => {

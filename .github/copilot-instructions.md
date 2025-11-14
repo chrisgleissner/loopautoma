@@ -2,13 +2,17 @@
 
 This repository is designed for automated implementation by an LLM agent. Follow these rules strictly.
 
+These instructions extend and complement `AGENTS.md` and `PLANS.md` in the repo root. Copilot agents must treat all three as required reading.
+
 ## Required reading
 
+- README.md — Project overview and entry points
 - doc/architecture.md — Target architecture and exact contracts
 - doc/rollout-plan.md — Lean rollout plan and acceptance gates
 - doc/developer.md — Local setup notes, Linux prerequisites, and troubleshooting
+- PLANS.md — Long‑lived, checklist‑style plans for multi‑hour tasks
 
-You must read both before writing code. If in doubt, re-open and re-read.
+You must read these before writing code. If in doubt, re-open and re-read.
 
 ## Tooling (MVP)
 
@@ -98,3 +102,16 @@ CI defaults:
 
 - All Markdown documentation files in the `doc/` folder must use camelCase filenames (e.g., `install.md`, `phase1Completion.md`, not `INSTALL.md` or `PHASE1-COMPLETION.md`).
 - Only exception: `README.md` in the root follows standard naming.
+
+## Planning and persistence (Codex exec plans)
+
+Copilot agents should follow the PLANS.md pattern used by Codex for multi‑hour problem solving:
+
+- At the start of a substantial task, open `PLANS.md` and either create a new Task section or update the relevant existing one.
+- Maintain a concrete, ordered checklist of steps in `PLANS.md` that mirrors your internal Copilot “plan” or workspace.
+- Keep the checklist and `Progress log` entries in `PLANS.md` in sync with your actual changes (code, tests, docs).
+- Prefer deciding and acting over repeatedly asking the user small clarifying questions; when you make a reasonable assumption, record it under **Assumptions and open questions** for that task.
+- Continue working autonomously through your checklist until the task is complete or you hit a hard external limit (e.g., sandbox or approvals).
+- When a task is done, mark its checklist items as complete, summarize the outcome, and, if needed, add follow‑up items under **Follow‑ups / future work**.
+
+This planning pattern is required for long‑running changes; do not treat `PLANS.md` as optional.

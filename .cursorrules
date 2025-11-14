@@ -1,0 +1,35 @@
+# Cursor Rules for loopautoma
+
+This repository is configured for long‑running, largely autonomous LLM work. Cursor agents must follow these rules when operating in this repo.
+
+## Required reading
+
+Before making non‑trivial changes, always open and read:
+
+1. `AGENTS.md` — Cross‑tool agent instructions and conventions.
+2. `PLANS.md` — Long‑lived, checklist‑style plans for multi‑hour tasks.
+3. `README.md` — Project overview and entry points.
+4. `doc/architecture.md` — Core contracts and intended design.
+5. `doc/rollout-plan.md` — Phases and acceptance gates.
+6. `doc/developer.md` — Local setup, commands, and troubleshooting.
+
+Re‑open `PLANS.md` whenever you start a new user request or resume work after a pause.
+
+## Planning and persistence
+
+- Use `PLANS.md` as the canonical, shared plan for multi‑step work.
+- When you begin a substantial task, create or update a Task section in `PLANS.md` with:
+  - A short summary of the user request.
+  - A concrete, ordered checklist of steps.
+  - A brief progress log as you complete steps.
+  - Any important assumptions or open questions.
+- Keep Cursor’s inline “Plan” or “Agent” view synchronized with the checklist in `PLANS.md`.
+- Default to autonomous, end‑to‑end execution: continue implementing, testing, and updating `PLANS.md` until the task is complete, within the limits of your environment.
+- Avoid repeatedly asking the user for minor clarifications; instead, make reasonable assumptions based on the docs and codebase, and record them under the task’s **Assumptions and open questions**.
+
+## Coding and safety
+
+- Match the existing Rust and TypeScript/React style; keep changes focused and aligned with `doc/architecture.md`.
+- Prefer adding or updating tests for non‑trivial changes and run them when possible using the commands in `doc/developer.md`.
+- Respect any sandboxing, network, or approval constraints imposed by your host environment.
+
