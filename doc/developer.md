@@ -217,6 +217,13 @@ cd src-tauri
 cargo test
 ```
 
+- Deterministic soak/profiling runs (fake backends):
+
+```bash
+cd src-tauri
+LOOPAUTOMA_BACKEND=fake cargo run --bin soak_report -- --ticks 20000 --interval-ms 50 --cooldown-ms 50 --max-runtime-ms 2000
+```
+
 Conventions to keep runners separate:
 
 - Vitest files use the pattern: `tests/**/*.vitest.{ts,tsx,js,jsx}`.

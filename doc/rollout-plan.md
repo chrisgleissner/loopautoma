@@ -51,10 +51,10 @@ Gate: all tasks done on Ubuntu/X11, tests green, coverage ≥90%, Ubuntu package
 
 ## Phase 2 — Hardening on Ubuntu/X11
 
-- [ ] Performance pass: throttle authoring streams; buffer reuse; enforce cooldowns/backoff; document CPU/memory baselines.
-- [ ] Soak test: long‑running unattended loops validate guardrails and clean Panic Stop; memory/cpu bounds checked.
-- [ ] Security basics: input‑synthesis safety, permissions review; dev‑only flags locked down for production builds.
-- [ ] UX polish: clearer preset(s) like “Copilot Keep‑Alive”; improved profile validation feedback.
+- [x] Performance pass: throttle authoring streams; buffer reuse; enforce cooldowns/backoff; document CPU/memory baselines.
+- [x] Soak test: long-running unattended loops validate guardrails and clean Panic Stop; memory/cpu bounds checked.
+- [ ] Security basics: input-synthesis safety, permissions review; dev-only flags locked down for production builds.
+- [x] UX polish: clearer preset(s) like “Copilot Keep-Alive”; improved profile validation feedback.
 
 Gate: tests green, coverage ≥90% for domain/runtime/UI; soak stability documented.
 
@@ -65,7 +65,8 @@ Gate: tests green, coverage ≥90% for domain/runtime/UI; soak stability documen
 - [x] Panic stop finalizer and soak/monitor regression tests extended to cover guardrail trips plus new throttle helpers.
 - [x] Input injection commands require the explicit `LOOPAUTOMA_ALLOW_INJECT=1` env flag, keeping them dev-only.
 - [x] Profile editor validates JSON via `auditProfile`, rendering actionable errors before persisting, and includes a one-click preset restore CTA.
-- [ ] Remaining: document CPU/memory baselines, add long horizon soak report, and finish permissions review before declaring Phase 2 complete.
+- [x] Added `src-tauri/src/bin/soak_report.rs` plus `doc/perfBaseline.md` so we can regenerate soak JSON/CPU baselines on demand (fake backends today, hardware next).
+- [ ] Remaining: finalize the permissions review + live hardware measurements before declaring Phase 2 complete.
 
 ## Phase 3 — Cross‑OS Enablement (post‑MVP)
 
