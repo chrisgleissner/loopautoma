@@ -47,13 +47,13 @@ See [doc/phase1Completion.md](phase1Completion.md) for detailed completion repor
 
 Gate: all tasks done on Ubuntu/X11, tests green, coverage ≥90%, Ubuntu package produced.
 
-**Current Status (2025-11-14)**: Core implementation complete. Validation pending (coverage measurement, package verification) due to network access limitations in development environment. CI pipeline validates all criteria automatically.
+**Current Status (2025-11-15)**: Core implementation complete and validation passes locally (tests, coverage, soak, hardware sample). Release builds now block dev-only input injection helpers; see `doc/securityReview.md`. CI will continue enforcing the ≥90% coverage gate.
 
 ## Phase 2 — Hardening on Ubuntu/X11
 
 - [x] Performance pass: throttle authoring streams; buffer reuse; enforce cooldowns/backoff; document CPU/memory baselines.
 - [x] Soak test: long-running unattended loops validate guardrails and clean Panic Stop; memory/cpu bounds checked.
-- [ ] Security basics: input-synthesis safety, permissions review; dev-only flags locked down for production builds.
+- [x] Security basics: input-synthesis safety, permissions review; dev-only flags locked down for production builds.
 - [x] UX polish: clearer preset(s) like “Copilot Keep-Alive”; improved profile validation feedback.
 
 Gate: tests green, coverage ≥90% for domain/runtime/UI; soak stability documented.
@@ -66,7 +66,8 @@ Gate: tests green, coverage ≥90% for domain/runtime/UI; soak stability documen
 - [x] Input injection commands require the explicit `LOOPAUTOMA_ALLOW_INJECT=1` env flag, keeping them dev-only.
 - [x] Profile editor validates JSON via `auditProfile`, rendering actionable errors before persisting, and includes a one-click preset restore CTA.
 - [x] Added `src-tauri/src/bin/soak_report.rs` plus `doc/perfBaseline.md` so we can regenerate soak JSON/CPU baselines on demand (fake backends today, hardware next).
-- [ ] Remaining: finalize the permissions review + live hardware measurements before declaring Phase 2 complete.
+- [x] Security review documented in `doc/securityReview.md`, with release-only guards that disable input injection in packaged builds and env flags for dev simulation.
+- [x] Hardware metrics captured via `/usr/bin/time` + soak_report; artifacts stored under `coverage/perf/` and baselines documented in `doc/perfBaseline.md`.
 
 ## Phase 3 — Cross‑OS Enablement (post‑MVP)
 

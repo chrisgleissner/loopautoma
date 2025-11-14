@@ -28,6 +28,20 @@ use fakes::{FakeAutomation, FakeCapture};
 pub use soak::{run_soak, SoakConfig, SoakReport};
 use std::env;
 
+fn env_truthy(name: &str) -> bool {
+    matches!(
+        env::var(name).ok().as_deref(),
+        Some("1" | "true" | "TRUE" | "True" | "yes" | "YES" | "on" | "ON" | "y" | "Y")
+    )
+}
+
+fn is_release_runtime() -> bool {
+    if env_truthy("LOOPAUTOMA_TREAT_AS_RELEASE") {
+        return true;
+    }
+    !cfg!(debug_assertions)
+}
+
 struct StreamHandle {
     cancel: Arc<AtomicBool>,
     handle: std::thread::JoinHandle<()>,
@@ -286,10 +300,18 @@ fn make_input_capture() -> Option<Box<dyn InputCapture + Send>> {
     }
 }
 
-fn ensure_dev_injection_allowed() -> Result<(), String> {
-    match env::var("LOOPAUTOMA_ALLOW_INJECT") {
-        Ok(val) if matches!(val.as_str(), "1" | "true" | "TRUE" | "True" | "yes" | "YES" | "on" | "ON") => Ok(()),
-        _ => Err("Input injection commands are disabled. Set LOOPAUTOMA_ALLOW_INJECT=1 to enable dev-only input synthesis.".into()),
+pub(crate) fn ensure_dev_injection_allowed(command: &str) -> Result<(), String> {
+    if is_release_runtime() {
+        return Err(format!(
+            "{command} is disabled in production builds. Input synthesis helpers only run in debug/dev builds; see doc/security.md for details."
+        ));
+    }
+    if env_truthy("LOOPAUTOMA_ALLOW_INJECT") {
+        Ok(())
+    } else {
+        Err(
+            "Input injection commands are disabled. Set LOOPAUTOMA_ALLOW_INJECT=1 while developing to enable dev-only input synthesis.".into(),
+        )
     }
 }
 
@@ -530,7 +552,7 @@ fn stop_input_recording(state: tauri::State<AppState>) -> Result<(), String> {
 
 #[tauri::command]
 fn inject_mouse_event(event: MouseEvent) -> Result<(), String> {
-    ensure_dev_injection_allowed()?;
+    ensure_dev_injection_allowed("inject_mouse_event")?;
     let automation = make_automation();
     match event.event_type {
         MouseEventType::Move => automation.move_cursor(event.x as u32, event.y as u32)?,
@@ -542,7 +564,7 @@ fn inject_mouse_event(event: MouseEvent) -> Result<(), String> {
 
 #[tauri::command]
 fn inject_keyboard_event(event: KeyboardEvent) -> Result<(), String> {
-    ensure_dev_injection_allowed()?;
+    ensure_dev_injection_allowed("inject_keyboard_event")?;
     let automation = make_automation();
     match event.state {
         KeyState::Down => automation.key_down(&event.key)?,
@@ -597,4 +619,48 @@ fn window_info(window: tauri::Window) -> Result<(i32, i32, f64), String> {
 #[tauri::command]
 fn region_pick() -> Result<(i32, i32, u32, u32), String> {
     Err("region_pick not yet implemented".into())
+}
+
+#[cfg(test)]
+mod dev_guard_tests {
+    use super::*;
+    use std::env;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
+
+    fn clear_env() {
+        env::remove_var("LOOPAUTOMA_ALLOW_INJECT");
+        env::remove_var("LOOPAUTOMA_TREAT_AS_RELEASE");
+    }
+
+    #[test]
+    fn rejects_without_flag() {
+        let _guard = env_lock();
+        clear_env();
+        assert!(ensure_dev_injection_allowed("test").is_err());
+    }
+
+    #[test]
+    fn rejects_release_mode_even_with_flag() {
+        let _guard = env_lock();
+        clear_env();
+        env::set_var("LOOPAUTOMA_ALLOW_INJECT", "1");
+        env::set_var("LOOPAUTOMA_TREAT_AS_RELEASE", "1");
+        let err = ensure_dev_injection_allowed("test").unwrap_err();
+        assert!(err.contains("production"));
+        clear_env();
+    }
+
+    #[test]
+    fn allows_with_flag_in_debug() {
+        let _guard = env_lock();
+        clear_env();
+        env::set_var("LOOPAUTOMA_ALLOW_INJECT", "1");
+        ensure_dev_injection_allowed("test").expect("flag should allow dev helper");
+        clear_env();
+    }
 }

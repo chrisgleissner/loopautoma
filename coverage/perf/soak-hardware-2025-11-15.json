@@ -1,0 +1,11 @@
+{
+  "tick_budget": 50000,
+  "ticks_executed": 25001,
+  "activations": 5000,
+  "guardrail_trips": [
+    "max_runtime"
+  ],
+  "error_events": [],
+  "action_failures": 0,
+  "runtime_ms_simulated": 1000040
+}

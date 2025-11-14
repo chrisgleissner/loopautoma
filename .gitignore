@@ -9,6 +9,8 @@ lerna-debug.log*
 
 # Coverage
 coverage/*
+!coverage/perf/
+!coverage/perf/**
 src-tauri/coverage/*
 
 node_modules

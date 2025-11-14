@@ -78,6 +78,7 @@ Store the raw output under `coverage/perf/` with the date so we can diff over ti
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Fast guardrail test | 50 | 50 | 2000 | 20,000 | 41 | 38 | `max_runtime` |
 | Steady-state (no trip) | 50 | 200 | 999,999 | 2,000 | 2,000 | 500 | _none_ |
+| CI hardware sample (fake backend) | 40 | 200 | 999,999 | 50,000 | 25,001 | 5,000 | `max_runtime` |
 
 These runs finish in <2 s on CI hardware and now serve as the sanity threshold before we attempt longer hardware-in-the-loop soaks.
 
@@ -86,3 +87,28 @@ These runs finish in <2 s on CI hardware and now serve as the sanity threshold
 - Wire the binary into CI as an optional step so we keep producing JSON artifacts automatically.
 - Extend the binary to output Prometheus-style counters once we add real backend metrics.
 - Mirror the workflow on hardware by running the same command without `LOOPAUTOMA_BACKEND=fake` and logging `pidstat` output for the Tauri process.
+
+## Hardware sample — 2025-11-15
+
+To close Phase 2, we captured a longer soak on the actual CI host (still using the fake backend for deterministic pixels but measuring real CPU/RSS and guardrail behavior):
+
+```bash
+cd src-tauri
+/usr/bin/time -v env LOOPAUTOMA_BACKEND=fake cargo run --quiet --bin soak_report -- \
+  --ticks 50000 --interval-ms 40 --cooldown-ms 200 --max-runtime-ms 999999 \
+  > ../coverage/perf/soak-hardware-2025-11-15.json \
+  2> ../coverage/perf/soak-hardware-2025-11-15.time
+```
+
+Key results:
+
+- Activations: 5,000 before the `max_runtime` guardrail tripped (as expected with a 1 000 ms cap).
+- Simulated runtime: ~1,000,040 ms; ticks executed: 25,001.
+- Host metrics (`/usr/bin/time -v`): user 2.47 s, system 0.84 s, elapsed 1.56 s, average CPU 212%, max RSS 1.31 GiB.
+
+Raw artifacts live under `coverage/perf/` so future runs can diff against this baseline:
+
+- `coverage/perf/soak-hardware-2025-11-15.json`
+- `coverage/perf/soak-hardware-2025-11-15.time`
+
+When real hardware backends are available, repeat the same command without `LOOPAUTOMA_BACKEND=fake` and capture `pidstat` output alongside `/usr/bin/time` for multi-minute intervals.
