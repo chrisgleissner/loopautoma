@@ -92,7 +92,7 @@ Features:
 **Location**: `src-tauri/src/lib.rs`
 
 Implemented commands:
-- `start_screen_stream(fps: Option<u32>)` - Low-FPS screen preview (1-15 fps, default 5)
+- `start_screen_stream(fps: Option<u32>)` - Low-FPS screen preview (1-15 fps, default 3)
 - `stop_screen_stream()` - Stop preview stream
 - `start_input_recording()` - Global input capture for authoring
 - `stop_input_recording()` - Stop input capture
@@ -116,7 +116,7 @@ Implemented commands:
 #### ScreenPreview Component (`src/components/ScreenPreview.tsx`)
 
 Features:
-- Live desktop preview at 5 FPS
+- Live desktop preview at 3 FPS
 - Canvas-based rendering with RGBA data from `screen_frame` events
 - Drag-to-select region capture
 - Coordinate scaling for HiDPI displays
@@ -223,7 +223,7 @@ Features:
 
 **Status**: Complete
 
-#### Installation Guide (`doc/INSTALL.md`)
+#### Installation Guide (`doc/install.md`)
 
 **Sections**:
 - System requirements (Ubuntu 24.04, X11 mandatory)
@@ -242,7 +242,7 @@ Features:
 
 #### Updated Documentation
 
-- **README.md**: Added installation section linking to INSTALL.md, reorganized quick start
+- **README.md**: Added installation section linking to install.md, reorganized quick start
 - **doc/developer.md**: Already comprehensive; no changes needed
 - **doc/architecture.md**: Already comprehensive; no changes needed
 

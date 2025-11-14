@@ -12,7 +12,7 @@ This PR completes all remaining Phase 1 deliverables from `doc/rollout-plan.md`.
 
 ### 1. Installation Documentation 📚
 
-**File**: `doc/INSTALL.md` (305 lines, NEW)
+**File**: `doc/install.md` (305 lines, NEW)
 
 Complete Ubuntu installation guide covering:
 - System requirements (Ubuntu 24.04, X11 mandatory)
@@ -26,7 +26,7 @@ Complete Ubuntu installation guide covering:
 
 ### 2. Phase 1 Completion Report 📋
 
-**File**: `doc/PHASE1-COMPLETION.md` (339 lines, NEW)
+**File**: `doc/phase1Completion.md` (339 lines, NEW)
 
 Detailed status report documenting:
 - All completed deliverables with implementation details
@@ -158,9 +158,9 @@ All of these will be handled by CI when the PR is merged.
 
 When reviewing this PR, please focus on:
 
-1. **Documentation Quality**: Is `doc/INSTALL.md` clear and comprehensive?
+1. **Documentation Quality**: Is `doc/install.md` clear and comprehensive?
 2. **Test Coverage**: Do the new tests cover important edge cases?
-3. **Documentation Accuracy**: Is `doc/PHASE1-COMPLETION.md` accurate?
+3. **Documentation Accuracy**: Is `doc/phase1Completion.md` accurate?
 4. **Rollout Plan Updates**: Is the status in `doc/rollout-plan.md` correct?
 
 ## Next Steps After Merge
@@ -173,4 +173,4 @@ When reviewing this PR, please focus on:
 
 ## Questions?
 
-See `doc/PHASE1-COMPLETION.md` for detailed implementation status and rationale.
+See `doc/phase1Completion.md` for detailed implementation status and rationale.

@@ -61,7 +61,7 @@ export function ScreenPreview({ regions, disabled, onRegionAdd }: ScreenPreviewP
     if (streamingRef.current) return;
     setError(null);
     try {
-      await startScreenStream(5);
+      await startScreenStream(3);
       streamingRef.current = true;
       setStreaming(true);
     } catch (err) {

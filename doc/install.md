@@ -229,10 +229,10 @@ sudo apt install -y libpipewire-0.3-0 libspa-0.2-modules
 
 ### High CPU usage during screen preview
 
-**Expected behavior**: The screen preview is throttled to 5 FPS by default. If CPU usage is high:
+**Expected behavior**: The screen preview is throttled to 3 FPS by default. If CPU usage is high:
 
 1. Stop the screen preview when not actively authoring regions
-2. Reduce the preview FPS (currently fixed at 5 fps)
+2. The preview FPS is set to 3 fps for optimal performance
 3. Close regions you're not monitoring
 
 ### AppImage won't run

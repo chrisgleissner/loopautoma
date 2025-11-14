@@ -25,7 +25,7 @@ Cross‑platform desktop automation to keep AI agents working indefinitely. Watc
 
 ### Installation
 
-See the **[Installation Guide](doc/INSTALL.md)** for detailed instructions on:
+See the **[Installation Guide](doc/install.md)** for detailed instructions on:
 - Installing pre-built packages (.deb, .rpm, AppImage)
 - System requirements and X11 setup
 - Building from source
@@ -91,7 +91,7 @@ Our CI uses this same image and uploads coverage to Codecov.
 
 CI is container-native: jobs run inside the prebuilt image (no repeated `docker run` wrappers). The image prewarms Bun and compiles Rust dependencies so test jobs don’t re-download crates on each run.
 ## Docs 📚
-- **Installation**: [doc/INSTALL.md](doc/INSTALL.md) — System requirements, packages, and troubleshooting
+- **Installation**: [doc/install.md](doc/install.md) — System requirements, packages, and troubleshooting
 - **Architecture**: [doc/architecture.md](doc/architecture.md) — Technical design and contracts
 - **Rollout plan**: [doc/rollout-plan.md](doc/rollout-plan.md) — Development roadmap and phases
 - **Dev setup**: [doc/developer.md](doc/developer.md) — Building and testing from source

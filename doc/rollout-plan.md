@@ -24,9 +24,9 @@ Deliverables: working unattended app on Ubuntu/X11 with first‑class backend su
 - [x] X11 input capture (XInput2 + XKB): raw motion, buttons, wheel; key down/up with modifiers; background thread; reconnect logic.
 - [x] X11 input replay (XTest): absolute pointer move, button up/down, key down/up; layout translation via XKB.
 - [x] Tauri commands for authoring flows: start_screen_stream/stop_screen_stream, start_input_recording/stop_input_recording, inject_mouse_event/inject_keyboard_event (throttled; dev-only by default).
-- [x] UI authoring helpers: ScreenPreview with region selection (drag-to-select), RecordingBar with timeline (start/stop), live screen preview (5 FPS).
+- [x] UI authoring helpers: ScreenPreview with region selection (drag-to-select), RecordingBar with timeline (start/stop), live screen preview (3 FPS).
 - [x] Tests: 16 Rust unit/integration tests (Monitor, Trigger, Condition, Action, Guardrails, E2E, soak); 13 UI test files (components, hooks, integration); coverage measurement pending network access.
-- [x] Packaging: Build configuration complete (tauri.conf.json); CI validates bundling; doc/INSTALL.md documents Ubuntu packages and X11 requirement.
+- [x] Packaging: Build configuration complete (tauri.conf.json); CI validates bundling; doc/install.md documents Ubuntu packages and X11 requirement.
 
 ### Phase 1 status — 2025-11-14 update
 
@@ -36,14 +36,14 @@ Deliverables: working unattended app on Ubuntu/X11 with first‑class backend su
 - [x] UI authoring helpers complete: ScreenPreview with region selection, RecordingBar with live timeline.
 - [x] Monitor runtime hardened: guardrail enforcement (cooldown, max_runtime, max_activations_per_hour), panic stop UX.
 - [x] Comprehensive test suite: 16 Rust tests + 13 UI test files covering units, integration, edge cases, and E2E happy path.
-- [x] Installation documentation created (doc/INSTALL.md) with Ubuntu package instructions, X11 requirements, troubleshooting.
+- [x] Installation documentation created (doc/install.md) with Ubuntu package instructions, X11 requirements, troubleshooting.
 - [ ] Outstanding: Coverage measurement (≥90%), Ubuntu bundling verification, CI validation (blocked by network access in current environment).
 
 #### Status Summary
 **Core implementation: COMPLETE**  
 **Validation: PENDING** (requires network for cargo/bun dependencies)
 
-See [doc/PHASE1-COMPLETION.md](PHASE1-COMPLETION.md) for detailed completion report.
+See [doc/phase1Completion.md](phase1Completion.md) for detailed completion report.
 
 Gate: all tasks done on Ubuntu/X11, tests green, coverage ≥90%, Ubuntu package produced.
 

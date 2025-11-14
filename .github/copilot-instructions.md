@@ -93,3 +93,8 @@ CI defaults:
 
 - Do not persist raw pixel buffers by default. Hashes only for change detection.
 - Expose an obvious Panic Stop in the UI; monitor watchdog Events.
+
+## Documentation conventions
+
+- All Markdown documentation files in the `doc/` folder must use camelCase filenames (e.g., `install.md`, `phase1Completion.md`, not `INSTALL.md` or `PHASE1-COMPLETION.md`).
+- Only exception: `README.md` in the root follows standard naming.

@@ -13,7 +13,7 @@ RUN apt-get update && \
       ca-certificates \
       curl \
       wget \
-    unzip \
+      unzip \
       git \
       pkg-config \
       build-essential \
@@ -21,8 +21,6 @@ RUN apt-get update && \
       libdrm-dev \
       libssl-dev \
       libgtk-3-dev \
-      libxkbcommon-x11-dev \
-      libxcb-xkb-dev \
       libwebkit2gtk-4.1-dev \
       libsoup-3.0-dev \
       librsvg2-dev \
@@ -33,9 +31,19 @@ RUN apt-get update && \
       libpipewire-0.3-dev \
       libspa-0.2-dev \
       libclang-dev \
+      libc6-dev \
       cmake \
       xz-utils \
       sudo \
+      libx11-dev \
+      libxext-dev \
+      libxrandr-dev \
+      libxi-dev \
+      libxtst-dev \
+      libxkbcommon-dev \
+      libxkbcommon-x11-dev \
+      libxcb-xkb-dev \
+      libxdo-dev \
       && rm -rf /var/lib/apt/lists/*
 
 # Install Rust (stable) via rustup

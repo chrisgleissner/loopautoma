@@ -271,7 +271,7 @@ fn start_screen_stream(window: tauri::Window, state: tauri::State<AppState>, fps
     let running = Arc::new(AtomicBool::new(true));
     let runner = running.clone();
     let win = window.clone();
-    let delay = Duration::from_millis(1000 / fps.unwrap_or(5).clamp(1, 15) as u64);
+    let delay = Duration::from_millis(1000 / fps.unwrap_or(3).clamp(1, 15) as u64);
     let handle = std::thread::spawn(move || {
         while runner.load(Ordering::Relaxed) {
             if let Ok(displays) = capture.displays() {
