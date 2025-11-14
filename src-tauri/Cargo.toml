@@ -8,6 +8,7 @@ license = "GPL-2.0-only"
 repository = "https://github.com/chrisgleissner/loopautoma"
 homepage = "https://github.com/chrisgleissner/loopautoma"
 readme = "../README.md"
+default-run = "loopautoma"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
