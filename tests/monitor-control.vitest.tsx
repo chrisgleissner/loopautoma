@@ -2,32 +2,33 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import App from "../src/App";
 
-// Mock Tauri bridge
-const mockProfilesLoad = vi.fn();
-const mockProfilesSave = vi.fn();
-const mockMonitorStart = vi.fn();
-const mockMonitorStop = vi.fn();
-const mockMonitorPanicStop = vi.fn();
-const mockStartScreenStream = vi.fn();
-const mockStopScreenStream = vi.fn();
-const mockStartInputRecording = vi.fn();
-const mockStopInputRecording = vi.fn();
-const mockWindowPosition = vi.fn();
-const mockWindowInfo = vi.fn();
-
-vi.mock("../src/tauriBridge", () => ({
-  profilesLoad: () => mockProfilesLoad(),
-  profilesSave: (profiles: any) => mockProfilesSave(profiles),
-  monitorStart: (profileId: string) => mockMonitorStart(profileId),
-  monitorStop: () => mockMonitorStop(),
-  monitorPanicStop: () => mockMonitorPanicStop(),
-  startScreenStream: (fps?: number) => mockStartScreenStream(fps),
-  stopScreenStream: () => mockStopScreenStream(),
-  startInputRecording: () => mockStartInputRecording(),
-  stopInputRecording: () => mockStopInputRecording(),
-  windowPosition: () => mockWindowPosition(),
-  windowInfo: () => mockWindowInfo(),
+const tauriBridgeMocks = vi.hoisted(() => ({
+  profilesLoad: vi.fn(),
+  profilesSave: vi.fn(),
+  monitorStart: vi.fn(),
+  monitorStop: vi.fn(),
+  monitorPanicStop: vi.fn(),
+  startScreenStream: vi.fn(),
+  stopScreenStream: vi.fn(),
+  startInputRecording: vi.fn(),
+  stopInputRecording: vi.fn(),
+  windowPosition: vi.fn(),
+  windowInfo: vi.fn(),
 }));
+
+vi.mock("../src/tauriBridge", () => tauriBridgeMocks);
+
+const mockProfilesLoad = tauriBridgeMocks.profilesLoad;
+const mockProfilesSave = tauriBridgeMocks.profilesSave;
+const mockMonitorStart = tauriBridgeMocks.monitorStart;
+const mockMonitorStop = tauriBridgeMocks.monitorStop;
+const mockMonitorPanicStop = tauriBridgeMocks.monitorPanicStop;
+const mockStartScreenStream = tauriBridgeMocks.startScreenStream;
+const mockStopScreenStream = tauriBridgeMocks.stopScreenStream;
+const mockStartInputRecording = tauriBridgeMocks.startInputRecording;
+const mockStopInputRecording = tauriBridgeMocks.stopInputRecording;
+const mockWindowPosition = tauriBridgeMocks.windowPosition;
+const mockWindowInfo = tauriBridgeMocks.windowInfo;
 
 // Mock Tauri event listener
 vi.mock("@tauri-apps/api/event", () => ({
@@ -37,17 +38,17 @@ vi.mock("@tauri-apps/api/event", () => ({
 describe("Monitor control", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockProfilesLoad.mockResolvedValue([]);
-    mockProfilesSave.mockResolvedValue(undefined);
-    mockMonitorStart.mockResolvedValue(undefined);
-    mockMonitorStop.mockResolvedValue(undefined);
-    mockMonitorPanicStop.mockResolvedValue(undefined);
-    mockStartScreenStream.mockResolvedValue(undefined);
-    mockStopScreenStream.mockResolvedValue(undefined);
-    mockStartInputRecording.mockResolvedValue(undefined);
-    mockStopInputRecording.mockResolvedValue(undefined);
-    mockWindowPosition.mockResolvedValue({ x: 0, y: 0 });
-    mockWindowInfo.mockResolvedValue({ x: 0, y: 0, scale: 1 });
+    mockProfilesLoad.mockReset().mockResolvedValue([]);
+    mockProfilesSave.mockReset().mockResolvedValue(undefined);
+    mockMonitorStart.mockReset().mockResolvedValue(undefined);
+    mockMonitorStop.mockReset().mockResolvedValue(undefined);
+    mockMonitorPanicStop.mockReset().mockResolvedValue(undefined);
+    mockStartScreenStream.mockReset().mockResolvedValue(undefined);
+    mockStopScreenStream.mockReset().mockResolvedValue(undefined);
+    mockStartInputRecording.mockReset().mockResolvedValue(undefined);
+    mockStopInputRecording.mockReset().mockResolvedValue(undefined);
+    mockWindowPosition.mockReset().mockResolvedValue({ x: 0, y: 0 });
+    mockWindowInfo.mockReset().mockResolvedValue({ x: 0, y: 0, scale: 1 });
   });
 
   it("loads profiles on mount", async () => {

@@ -3,16 +3,19 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { RecordingBar, toActions } from "../src/components/RecordingBar";
 import type { InputEvent } from "../src/types";
 
-const mockStartInputRecording = vi.fn();
-const mockStopInputRecording = vi.fn();
-const inputListeners: Array<(payload: { payload: InputEvent }) => void> = [];
-
-vi.mock("../src/tauriBridge", () => ({
-  startInputRecording: () => mockStartInputRecording(),
-  stopInputRecording: () => mockStopInputRecording(),
-  windowPosition: async () => ({ x: 0, y: 0 }),
-  windowInfo: async () => ({ x: 0, y: 0, scale: 1 }),
+const tauriBridgeMocks = vi.hoisted(() => ({
+  startInputRecording: vi.fn(),
+  stopInputRecording: vi.fn(),
+  windowPosition: vi.fn().mockResolvedValue({ x: 0, y: 0 }),
+  windowInfo: vi.fn().mockResolvedValue({ x: 0, y: 0, scale: 1 }),
 }));
+
+vi.mock("../src/tauriBridge", () => tauriBridgeMocks);
+
+const mockStartInputRecording = tauriBridgeMocks.startInputRecording;
+const mockStopInputRecording = tauriBridgeMocks.stopInputRecording;
+
+const inputListeners: Array<(payload: { payload: InputEvent }) => void> = [];
 
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn().mockImplementation((_name, handler) => {
@@ -94,6 +97,8 @@ const emitScrollEvent = (deltaX: number, deltaY: number) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockStartInputRecording.mockReset();
+  mockStopInputRecording.mockReset();
   mockStartInputRecording.mockResolvedValue(undefined);
   mockStopInputRecording.mockResolvedValue(undefined);
   inputListeners.length = 0;

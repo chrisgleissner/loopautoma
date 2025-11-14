@@ -127,19 +127,38 @@ bun run build
 
 # Find the packages in:
 ls -lh src-tauri/target/release/bundle/
+
+# Build a web-only bundle (no desktop shell)
+bun run build:web
 ```
 
-#### Development Mode
+#### Development Workflows
 
-For development or testing without creating packages:
+- **Install JS deps**: `bun install`
+- **Full desktop app with hot reload**: `bun run dev`
+- **Safe mode (no real automation)**: `LOOPAUTOMA_BACKEND=fake bun run dev`
+- **Pure web UI (no Tauri shell)**: `bun run dev:web`
+- **Rust tests**: `cd src-tauri && cargo test --all --locked`
+- **Rust coverage**: `cd src-tauri && cargo llvm-cov --workspace --locked --lcov --output-path lcov.info`
+
+### Containerized Dev/Test
+
+Loop Automa ships with a reproducible Docker image (see `Dockerfile`) that bundles all Linux dependencies, Rust, Bun, and the tooling used in CI. Build it once, then reuse it locally or in CI:
 
 ```bash
-# Run in development mode with hot reload
-bun run dev
+# Build the CI/dev image locally
+docker build -t loopautoma/ci:local .
 
-# Run in safe mode (no real input automation)
-LOOPAUTOMA_BACKEND=fake bun run dev
+# Run UI tests inside the container
+docker run --rm -v "$PWD:/workspace" -w /workspace loopautoma/ci:local \
+  bash -lc 'bun install && bun run test:ui:cov'
+
+# Run Rust tests inside the container
+docker run --rm -v "$PWD:/workspace" -w /workspace loopautoma/ci:local \
+  bash -lc 'cd src-tauri && cargo test --all --locked'
 ```
+
+> The GitHub Actions pipeline reuses this same image, so local runs mirror CI exactly.
 
 ## System Dependencies
 
