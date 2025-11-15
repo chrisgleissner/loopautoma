@@ -127,6 +127,7 @@ libayatana-appindicator3-dev
 libpipewire-0.3-dev
 libspa-0.2-dev
 libgbm-dev
+libdrm-dev
 libx11-dev
 libxext-dev
 libxrandr-dev
