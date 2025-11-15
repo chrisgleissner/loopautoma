@@ -253,6 +253,10 @@ pub struct GuardrailsConfig {
 }
 
 /// Response from LLM for prompt generation
+///
+/// Note: This struct derives `PartialEq` but not `Eq` because it contains a floating-point
+/// field (`risk: f64`). Floating-point comparisons are intentionally partial rather than
+/// total equality, as per Rust best practices.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LLMPromptResponse {
     /// The generated prompt text (max ~200 characters)
