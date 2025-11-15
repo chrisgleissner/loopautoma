@@ -51,6 +51,107 @@ Guidelines:
 
 ## Active tasks
 
+### Task: LLM Prompt Generation Action
+
+**Started:** 2025-11-15
+
+**User request (summary)**
+- Add new LLM Prompt Generation action to trigger → condition → action sequence
+- Capture screenshot regions and send to LLM (GPT-5.1 with vision)
+- Implement risk threshold validation (0.0–1.0)
+- Populate global variable `$prompt` if risk acceptable
+- Abort with audible alarm if risk exceeds threshold
+- Allow subsequent actions to reference `$prompt`
+
+**Context and constraints**
+- Must follow existing Action trait pattern in doc/architecture.md
+- Risk levels: Low (0.0–0.33), Medium (0.34–0.66), High (0.67–1.0)
+- LLM response must be strict JSON: `{ "prompt": string, "risk": float }`
+- Prompt max length: ~200 characters
+- Must integrate cleanly with Monitor execution flow
+- Coverage target: ≥90% for all new code
+
+**Plan (checklist)**
+
+**Phase 1: Core Backend Implementation**
+- [x] 1.1 — Design ActionContext for global variables
+- [x] 1.2 — Update Action trait to accept ActionContext
+- [x] 1.3 — Add LLMPromptGeneration to ActionConfig enum
+- [x] 1.4 — Create LLMPromptResponse struct (prompt, risk)
+- [x] 1.5 — Implement LLMPromptGenerationAction with mock LLM
+- [x] 1.6 — Add risk threshold validation logic
+- [x] 1.7 — Implement alarm mechanism for risk violations
+- [x] 1.8 — Update existing actions (TypeText) for variable expansion
+- [x] 1.9 — Update Monitor to manage ActionContext lifecycle
+- [x] 1.10 — Update build_monitor_from_profile to handle new action
+- [x] 1.11 — Fix all existing tests (29 → 39 tests)
+- [x] 1.12 — Add comprehensive unit tests for LLM action (10 tests)
+
+**Phase 2: LLM Integration (Real API)**
+- [ ] 2.1 — Design LLM client trait for testability
+- [ ] 2.2 — Implement real LLM API integration (GPT-5.1 vision)
+- [ ] 2.3 — Add screen capture to LLM action (use ScreenCapture trait)
+- [ ] 2.4 — Convert captured regions to base64 images
+- [ ] 2.5 — Build LLM request with system prompt and risk guidance
+- [ ] 2.6 — Parse and validate JSON response
+- [ ] 2.7 — Add error handling for API failures
+- [ ] 2.8 — Add configurable API key/endpoint via env vars
+- [ ] 2.9 — Add tests with mock HTTP client
+
+**Phase 3: UI Integration**
+- [ ] 3.1 — Update TypeScript types (ActionConfig, etc.)
+- [ ] 3.2 — Add LLM action editor in ProfileEditor component
+- [ ] 3.3 — Add region selector for LLM action
+- [ ] 3.4 — Add risk threshold slider (0.0–1.0)
+- [ ] 3.5 — Add system prompt text area
+- [ ] 3.6 — Add variable name input field
+- [ ] 3.7 — Display LLM-generated prompts in EventLog
+- [ ] 3.8 — Show risk warnings in UI
+- [ ] 3.9 — Add UI tests for LLM action configuration
+
+**Phase 4: Documentation & Examples**
+- [ ] 4.1 — Update doc/architecture.md with LLM action details
+- [ ] 4.2 — Document risk guide rails (Low/Medium/High definitions)
+- [ ] 4.3 — Add example profile with LLM action to README
+- [ ] 4.4 — Create preset profile using LLM action
+- [ ] 4.5 — Document LLM API setup instructions
+- [ ] 4.6 — Add troubleshooting guide
+
+**Phase 5: E2E Testing & Validation**
+- [ ] 5.1 — Add E2E tests for complete LLM workflow
+- [ ] 5.2 — Test variable substitution in action sequences
+- [ ] 5.3 — Test risk threshold enforcement end-to-end
+- [ ] 5.4 — Test alarm playback on risk violation
+- [ ] 5.5 — Verify coverage ≥90% (Rust + UI combined)
+- [ ] 5.6 — Run code_review tool
+- [ ] 5.7 — Run codeql_checker for security
+- [ ] 5.8 — Manual smoke testing with real LLM
+
+**Progress log**
+- 2025-11-15 — Started task, analyzed existing architecture
+- 2025-11-15 — Completed Phase 1 (1.1–1.12): Core backend implementation with ActionContext, variable expansion, and 10 new tests
+- 2025-11-15 — All 39 Rust tests passing (29 existing + 10 new LLM tests)
+- 2025-11-15 — TypeScript types updated for LLMPromptGeneration ActionConfig
+
+**Assumptions and open questions**
+- Assumption: GPT-5.1 vision API will be available for production use
+- Assumption: Mock LLM implementation sufficient for Phase 1 testing
+- Assumption: Risk levels can be hardcoded as Low (0.0–0.33), Medium (0.34–0.66), High (0.67–1.0)
+- Assumption: Audible alarm via stderr print acceptable for MVP; platform-specific audio deferred
+- Assumption: Screen capture already available via ScreenCapture trait
+- Open question: Should LLM API key be per-profile or global config?
+- Open question: Should we cache LLM responses for identical region hashes?
+
+**Follow‑ups / future work**
+- Platform-specific audible alarm implementation (Linux: aplay, macOS: afplay, Windows: Windows API)
+- LLM response caching to reduce API costs
+- Support for multiple LLM providers (OpenAI, Anthropic, local models)
+- Streaming LLM responses for immediate feedback
+- LLM prompt templates library
+- Risk level customization per profile
+
+---
+
 ### Task: Fix Release Build Failures (0.1.0 → 0.1.1)
 
 **Started:** 2025-11-15
