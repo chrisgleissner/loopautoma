@@ -137,7 +137,7 @@ Guidelines:
   - libpipewire-0.3-dev (also installs libspa-0.2-dev)
   - libxkbcommon-x11-dev, libgbm-dev
 - 2025-11-15 — Fixed release.yaml if condition: ubuntu-22.04 → ubuntu-24.04
-- 2025-11-15 — Added comprehensive package list (35 packages total)
+- 2025-11-15 — Added comprehensive package list (32 packages total)
 - 2025-11-15 — Added validation step to check for required .pc files
 - 2025-11-15 — Verified local build succeeds in 31 seconds
 - 2025-11-15 — Created doc/ubuntuReleaseBuildFix.md with comprehensive documentation
