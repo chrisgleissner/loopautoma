@@ -119,7 +119,8 @@ mod tests {
             }),
         ]);
         let mut events = vec![];
-        let ok = seq.run(&auto, &mut events);
+        let mut context = crate::domain::ActionContext::new();
+        let ok = seq.run(&auto, &mut context, &mut events);
         assert!(ok);
         let calls = auto.calls.lock().unwrap().clone();
         assert_eq!(
@@ -860,7 +861,7 @@ mod tests {
             fn name(&self) -> &'static str {
                 "Fail"
             }
-            fn execute(&self, _: &dyn Automation) -> Result<(), String> {
+            fn execute(&self, _: &dyn Automation, _context: &mut crate::domain::ActionContext) -> Result<(), String> {
                 Err("intentional failure".into())
             }
         }
@@ -874,7 +875,8 @@ mod tests {
             }),
         ]);
         let mut events = vec![];
-        let ok = seq.run(&auto, &mut events);
+        let mut context = crate::domain::ActionContext::new();
+        let ok = seq.run(&auto, &mut context, &mut events);
         assert!(!ok);
         let calls = auto.calls.lock().unwrap().clone();
         // "before" should execute, "after" should not
@@ -1117,6 +1119,327 @@ mod tests {
                 // Feature is available; recording can proceed if env permits
                 assert!(true);
             }
+        }
+    }
+
+    mod llm_prompt_generation {
+        use super::*;
+        use crate::action::LLMPromptGenerationAction;
+        use crate::domain::ActionContext;
+        use crate::llm::MockLLMClient;
+        use std::sync::Arc;
+
+        struct TestCapture;
+        impl ScreenCapture for TestCapture {
+            fn hash_region(&self, _region: &Region, _downscale: u32) -> u64 {
+                42
+            }
+            fn capture_region(&self, region: &Region) -> Result<ScreenFrame, BackendError> {
+                // Create a simple test image (10x10 pixels, all white)
+                let width = region.rect.width.min(10);
+                let height = region.rect.height.min(10);
+                let bytes = vec![255u8; (width * height * 4) as usize]; // RGBA white
+                Ok(ScreenFrame {
+                    display: DisplayInfo {
+                        id: 0,
+                        name: Some("Test Display".to_string()),
+                        x: 0,
+                        y: 0,
+                        width: 1920,
+                        height: 1080,
+                        scale_factor: 1.0,
+                        is_primary: true,
+                    },
+                    width,
+                    height,
+                    stride: width * 4,
+                    bytes,
+                    timestamp_ms: 0,
+                })
+            }
+            fn displays(&self) -> Result<Vec<DisplayInfo>, BackendError> {
+                Ok(vec![])
+            }
+        }
+
+        fn make_test_capture() -> Arc<dyn ScreenCapture + Send + Sync> {
+            Arc::new(TestCapture)
+        }
+
+        fn make_test_llm_client() -> Arc<dyn crate::llm::LLMClient + Send + Sync> {
+            Arc::new(MockLLMClient::new())
+        }
+
+        #[test]
+        fn llm_action_sets_prompt_variable_on_success() {
+            let auto = FakeAuto::new();
+            let regions = vec![
+                Region {
+                    id: "r1".to_string(),
+                    rect: Rect {
+                        x: 0,
+                        y: 0,
+                        width: 100,
+                        height: 100,
+                    },
+                    name: Some("Test Region".to_string()),
+                },
+            ];
+
+            let action = LLMPromptGenerationAction {
+                region_ids: vec!["r1".to_string()],
+                risk_threshold: 0.5,
+                system_prompt: None,
+                variable_name: "prompt".to_string(),
+                all_regions: regions,
+                capture: make_test_capture(),
+                llm_client: make_test_llm_client(),
+            };
+
+            let mut context = ActionContext::new();
+            let result = action.execute(&auto, &mut context);
+
+            assert!(result.is_ok(), "Action should succeed");
+            assert_eq!(
+                context.get("prompt"),
+                Some("continue"),
+                "Should set the prompt variable"
+            );
+        }
+
+        #[test]
+        fn llm_action_fails_on_missing_region() {
+            let auto = FakeAuto::new();
+            let regions = vec![
+                Region {
+                    id: "r1".to_string(),
+                    rect: Rect {
+                        x: 0,
+                        y: 0,
+                        width: 100,
+                        height: 100,
+                    },
+                    name: None,
+                },
+            ];
+
+            let action = LLMPromptGenerationAction {
+                region_ids: vec!["nonexistent".to_string()],
+                risk_threshold: 0.5,
+                system_prompt: None,
+                variable_name: "prompt".to_string(),
+                all_regions: regions,
+                capture: make_test_capture(),
+                llm_client: make_test_llm_client(),
+            };
+
+            let mut context = ActionContext::new();
+            let result = action.execute(&auto, &mut context);
+
+            assert!(result.is_err(), "Should fail on missing region");
+            assert!(result.unwrap_err().contains("not found"));
+        }
+
+        #[test]
+        fn llm_action_respects_risk_threshold() {
+            let auto = FakeAuto::new();
+            let regions = vec![
+                Region {
+                    id: "r1".to_string(),
+                    rect: Rect {
+                        x: 0,
+                        y: 0,
+                        width: 100,
+                        height: 100,
+                    },
+                    name: None,
+                },
+            ];
+
+            // Test with high-risk LLM response
+            let high_risk_client = Arc::new(MockLLMClient::with_response(
+                "dangerous command".to_string(),
+                0.8, // High risk
+            ));
+
+            let action = LLMPromptGenerationAction {
+                region_ids: vec!["r1".to_string()],
+                risk_threshold: 0.5, // Lower than response's 0.8
+                system_prompt: None,
+                variable_name: "prompt".to_string(),
+                all_regions: regions,
+                capture: make_test_capture(),
+                llm_client: high_risk_client,
+            };
+
+            let mut context = ActionContext::new();
+            let result = action.execute(&auto, &mut context);
+
+            // Should fail because risk (0.8) > threshold (0.5)
+            assert!(result.is_err(), "Should fail on high risk");
+            assert!(result.unwrap_err().contains("Risk threshold exceeded"));
+        }
+
+        #[test]
+        fn type_action_expands_variables() {
+            let auto = FakeAuto::new();
+            let mut context = ActionContext::new();
+            context.set("prompt", "test value");
+
+            let action = TypeText {
+                text: "$prompt".to_string(),
+            };
+
+            let result = action.execute(&auto, &mut context);
+            assert!(result.is_ok());
+
+            let calls = auto.calls.lock().unwrap().clone();
+            assert_eq!(calls, vec!["type:test value"]);
+        }
+
+        #[test]
+        fn type_action_expands_multiple_variables() {
+            let auto = FakeAuto::new();
+            let mut context = ActionContext::new();
+            context.set("prompt", "hello");
+            context.set("suffix", "world");
+
+            let action = TypeText {
+                text: "$prompt $suffix".to_string(),
+            };
+
+            let result = action.execute(&auto, &mut context);
+            assert!(result.is_ok());
+
+            let calls = auto.calls.lock().unwrap().clone();
+            assert_eq!(calls, vec!["type:hello world"]);
+        }
+
+        #[test]
+        fn action_context_stores_and_retrieves_variables() {
+            let mut context = ActionContext::new();
+            
+            context.set("prompt", "test prompt");
+            context.set("risk", "0.5");
+
+            assert_eq!(context.get("prompt"), Some("test prompt"));
+            assert_eq!(context.get("risk"), Some("0.5"));
+            assert_eq!(context.get("nonexistent"), None);
+        }
+
+        #[test]
+        fn action_context_expand_handles_missing_variables() {
+            let context = ActionContext::new();
+            let result = context.expand("Hello $prompt world");
+            // Variables not set remain as-is
+            assert_eq!(result, "Hello $prompt world");
+        }
+
+        #[test]
+        fn llm_action_with_custom_variable_name() {
+            let auto = FakeAuto::new();
+            let regions = vec![
+                Region {
+                    id: "r1".to_string(),
+                    rect: Rect {
+                        x: 0,
+                        y: 0,
+                        width: 100,
+                        height: 100,
+                    },
+                    name: None,
+                },
+            ];
+
+            let action = LLMPromptGenerationAction {
+                region_ids: vec!["r1".to_string()],
+                risk_threshold: 0.5,
+                system_prompt: None,
+                variable_name: "custom_var".to_string(),
+                all_regions: regions,
+                capture: make_test_capture(),
+                llm_client: make_test_llm_client(),
+            };
+
+            let mut context = ActionContext::new();
+            let result = action.execute(&auto, &mut context);
+
+            assert!(result.is_ok());
+            assert_eq!(context.get("custom_var"), Some("continue"));
+            assert_eq!(context.get("prompt"), None);
+        }
+
+        #[test]
+        fn monitor_resets_context_on_start() {
+            let trig = Box::new(IntervalTrigger::new(Duration::from_secs(1)));
+            let cond = Box::new(RegionCondition::new(Duration::from_millis(100), 1));
+            let seq = ActionSequence::new(vec![]);
+            let guardrails = Guardrails::default();
+
+            let mut mon = Monitor::new(trig, cond, seq, guardrails);
+            
+            // Set a variable before starting
+            mon.context.set("test", "value");
+            assert_eq!(mon.context.get("test"), Some("value"));
+
+            // Start should reset context
+            let mut events = vec![];
+            mon.start(&mut events);
+            
+            assert_eq!(mon.context.get("test"), None, "Context should be reset on start");
+        }
+
+        #[test]
+        fn llm_action_in_profile_builds_correctly() {
+            let profile = Profile {
+                id: "test-llm".to_string(),
+                name: "LLM Test Profile".to_string(),
+                regions: vec![
+                    Region {
+                        id: "r1".to_string(),
+                        rect: Rect {
+                            x: 100,
+                            y: 100,
+                            width: 200,
+                            height: 200,
+                        },
+                        name: Some("Chat Area".to_string()),
+                    },
+                ],
+                trigger: TriggerConfig {
+                    r#type: "IntervalTrigger".to_string(),
+                    check_interval_sec: 60.0,
+                },
+                condition: ConditionConfig {
+                    r#type: "RegionCondition".to_string(),
+                    stable_ms: 5000,
+                    downscale: 4,
+                },
+                actions: vec![
+                    ActionConfig::LLMPromptGeneration {
+                        region_ids: vec!["r1".to_string()],
+                        risk_threshold: 0.5,
+                        system_prompt: Some("Generate a safe prompt".to_string()),
+                        variable_name: Some("prompt".to_string()),
+                    },
+                    ActionConfig::Type {
+                        text: "$prompt".to_string(),
+                    },
+                    ActionConfig::Key {
+                        key: "Enter".to_string(),
+                    },
+                ],
+                guardrails: Some(GuardrailsConfig {
+                    max_runtime_ms: Some(3600000),
+                    max_activations_per_hour: Some(60),
+                    cooldown_ms: 5000,
+                }),
+            };
+
+            let (monitor, regions) = build_monitor_from_profile(&profile);
+            
+            assert_eq!(regions.len(), 1);
+            assert_eq!(monitor.actions.actions.len(), 3);
         }
     }
 }

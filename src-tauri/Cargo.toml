@@ -32,6 +32,8 @@ ahash = { version = "0.8", optional = true }
 screenshots = { version = "0.8.10", optional = true }
 image = { version = "0.24", default-features = false, features = ["png"] }
 base64 = "0.21"
+reqwest = { version = "0.12", features = ["json"], optional = true }
+tokio = { version = "1", features = ["rt"], optional = true }
 windows = { version = "0.58", optional = true, features = [
 	"Win32_Foundation",
 	"Win32_UI_Input_KeyboardAndMouse",
@@ -43,8 +45,9 @@ x11rb = { version = "0.13.2", optional = true, features = ["xinput", "xtest", "x
 xkbcommon = { version = "0.9.0", optional = true, features = ["x11"] }
  
 [features]
-default = ["os-linux-capture-xcap", "os-linux-input"]
+default = ["os-linux-capture-xcap", "os-linux-input", "llm-integration"]
 os-linux-capture-xcap = ["xcap", "ahash"]
 os-linux-input = ["x11rb", "xkbcommon"]
 os-macos = ["screenshots"]
 os-windows = ["screenshots", "windows"]
+llm-integration = ["reqwest", "tokio"]

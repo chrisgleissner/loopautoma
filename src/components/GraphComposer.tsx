@@ -79,6 +79,8 @@ export function GraphComposer({ profile, onChange }: { profile: Profile | null; 
                   ? { type: "Type", text: "" }
                   : t === "Key"
                   ? { type: "Key", key: "Enter" }
+                  : t === "LLMPromptGeneration"
+                  ? { type: "LLMPromptGeneration", region_ids: [], risk_threshold: 0.5 }
                   : { type: "Click", button: "Left" };
                 onChange({ ...profile, actions: [...profile.actions, def] });
               }}
@@ -110,6 +112,8 @@ export function GraphComposer({ profile, onChange }: { profile: Profile | null; 
                       ? { type: "Type", text: "" }
                       : t === "Key"
                       ? { type: "Key", key: "Enter" }
+                      : t === "LLMPromptGeneration"
+                      ? { type: "LLMPromptGeneration", region_ids: [], risk_threshold: 0.5 }
                       : { type: "Click", button: "Left" };
                     const next = [...profile.actions];
                     next[i] = def;
