@@ -6,7 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: false, // Run sequentially to avoid interference
+  fullyParallel: false, // Run sequentially to avoid interference from shared localStorage and Vite dev server state
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : 1, // Single worker to avoid race conditions

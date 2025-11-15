@@ -12,8 +12,8 @@
     "tauri": "tauri",
     "test": "bun test tests/hello.bun.test.ts",
     "test:ui:cov": "vitest run --coverage",
-  "test:e2e": "playwright test",
-  "test:e2e:report": "playwright show-report",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug"

@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Profile, Rect, defaultPresetProfile } from "./types";
+import { BLANK_PNG_BASE64 } from "./testConstants";
 
 type TestHarness = {
   state?: Record<string, unknown>;
@@ -10,7 +11,7 @@ type TestHarness = {
 const hasWindow = typeof window !== "undefined";
 const getHarness = (): TestHarness | undefined => (hasWindow ? (window as any).__LOOPAUTOMA_TEST__ : undefined);
 
-const isDesktopMode = () => hasWindow && (((window as any).__TAURI_IPC__) || getHarness()?.invoke);
+const isDesktopMode = () => hasWindow && ((window as any).__TAURI_IPC__ || getHarness()?.invoke);
 
 async function callInvoke<T = unknown>(cmd: string, args?: any): Promise<T> {
   const harness = getHarness();
@@ -19,10 +20,6 @@ async function callInvoke<T = unknown>(cmd: string, args?: any): Promise<T> {
   }
   return invoke(cmd, args);
 }
-
-// Minimal 1x1 transparent PNG for placeholder thumbnails
-const BLANK_PNG_BASE64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
 
 export async function profilesLoad(): Promise<Profile[]> {
   if (isDesktopMode()) return (await callInvoke("profiles_load")) as Profile[];
@@ -79,12 +76,12 @@ export async function windowInfo(): Promise<{ x: number; y: number; scale: numbe
 export type RegionPickPoint = { x: number; y: number };
 
 export async function regionPickerShow(): Promise<void> {
-  if (!isDesktopMode()) throw new Error("Region overlay requires desktop mode");
+  if (!isDesktopMode()) throw new Error("Region overlay requires desktop mode. Please run the Tauri app instead of the web preview.");
   await callInvoke("region_picker_show");
 }
 
 export async function regionPickerComplete(start: RegionPickPoint, end: RegionPickPoint): Promise<void> {
-  if (!isDesktopMode()) throw new Error("Region overlay requires desktop mode");
+  if (!isDesktopMode()) throw new Error("Region overlay requires desktop mode. Please run the Tauri app instead of the web preview.");
   await callInvoke("region_picker_complete", { submission: { start, end } });
 }
 
@@ -104,7 +101,7 @@ export async function captureRegionThumbnail(rect: Rect): Promise<string | null>
 }
 
 export async function startInputRecording(): Promise<void> {
-  if (!isDesktopMode()) throw new Error("Input capture is unavailable in web preview");
+  if (!isDesktopMode()) throw new Error("Input recording requires desktop mode. Please run the Tauri app to use this feature.");
   await callInvoke("start_input_recording");
 }
 

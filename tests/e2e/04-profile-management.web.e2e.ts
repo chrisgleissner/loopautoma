@@ -4,7 +4,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForAppReady, selectProfile, getSelectedProfileId } from './helpers';
+import { waitForAppReady, getSelectedProfileId } from './helpers';
 
 test.describe('Profile Management', () => {
   test.beforeEach(async ({ page }) => {
@@ -41,7 +41,7 @@ test.describe('Profile Management', () => {
       const firstId = await getSelectedProfileId(page);
       
       // Select second option
-  await selector.selectOption({ index: 1 });
+      await selector.selectOption({ index: 1 });
       await page.waitForTimeout(200);
       
       // Should have changed

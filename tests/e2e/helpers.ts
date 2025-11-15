@@ -5,6 +5,7 @@
 
 import { Page, expect } from '@playwright/test';
 import { Profile, Rect, defaultPresetProfile } from '../../src/types';
+import { BLANK_PNG_BASE64, STATE_SETTLE_TIMEOUT_MS } from '../../src/testConstants';
 
 /**
  * Wait for app to be fully loaded and ready
@@ -32,7 +33,7 @@ export async function waitForAppReady(page: Page) {
 export async function selectProfile(page: Page, profileName: string) {
   const selector = page.locator('select[data-testid="profile-selector"]');
   await selector.selectOption({ label: profileName });
-  await page.waitForTimeout(100); // Allow state to settle
+  await page.waitForTimeout(STATE_SETTLE_TIMEOUT_MS); // Allow state to settle
 }
 
 /**
@@ -237,13 +238,47 @@ export async function waitForConsoleMessage(page: Page, messagePattern: string |
   });
 }
 
-const BLANK_PNG_BASE64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
-
 export type FakeDesktopOptions = {
   profiles?: Profile[];
 };
 
+/**
+ * Sets up a fake desktop harness in the browser context for E2E testing.
+ *
+ * This utility injects a script that simulates the Tauri backend, allowing tests to run
+ * without a real desktop environment. It provides a fake implementation of Tauri commands,
+ * event emission, and state tracking.
+ *
+ * Supported commands (via `window.__TAURI_IPC__.invoke` or `window.__LOOPAUTOMA_TEST__.invoke`):
+ *   - `profiles_load`: Returns the current list of profiles.
+ *   - `profiles_save`: Saves or updates profiles.
+ *   - `monitor_start`: Sets state.running = true and emits "loopautoma://event" (MonitorStateChanged: Running).
+ *   - `monitor_stop`: Sets state.running = false and emits "loopautoma://event" (MonitorStateChanged: Stopped).
+ *   - `region_picker_show`: Sets state.overlayActive = true and emits RegionOverlay event.
+ *   - `region_picker_complete`: Sets state.overlayActive = false and emits "loopautoma://region_pick_complete".
+ *   - `region_picker_cancel`: Sets state.overlayActive = false and emits RegionOverlay closed event.
+ *   - `app_quit`: Resets all state (running, overlayActive, recording) and emits state-change events.
+ *   - `region_capture_thumbnail`: Returns a blank PNG thumbnail.
+ *   - `start_input_recording`: Sets state.recording = true and emits RecordingStateChanged event.
+ *   - `stop_input_recording`: Sets state.recording = false and emits RecordingStateChanged event.
+ *
+ * State tracking:
+ *   - The `state` object (exposed as `window.__LOOPAUTOMA_TEST__.state`) tracks:
+ *       - profiles: Array of Profile objects.
+ *       - running: Whether the monitor is running.
+ *       - overlayActive: Whether the overlay is shown.
+ *       - quitCount: Number of times "quit" was invoked.
+ *       - recording: Whether recording is active.
+ *
+ * Event emission:
+ *   - The `emit` function (exposed as `window.__LOOPAUTOMA_TEST__.emit`) dispatches custom events
+ *     to the app using `window.dispatchEvent`. Events use the same channel names as the real backend.
+ *   - Helper functions (e.g., `emitRegionPick`, `emitInputEvent`) are provided
+ *     to emit events from tests.
+ *
+ * @param page Playwright Page object
+ * @param options Optional: initial profiles to inject
+ */
 export async function setupFakeDesktopMode(page: Page, options?: FakeDesktopOptions) {
   const profiles = options?.profiles ?? [defaultPresetProfile()];
   await page.addInitScript(({ initialProfiles, blank }) => {
@@ -306,7 +341,7 @@ export async function setupFakeDesktopMode(page: Page, options?: FakeDesktopOpti
           emit("loopautoma://event", { type: "RecordingStateChanged", state: "Stopped" });
           return;
         default:
-          console.warn("Unhandled fake invoke", cmd, args); // eslint-disable-line no-console
+          console.warn("[FakeHarness] Unhandled fake invoke", cmd, args); // eslint-disable-line no-console
           return;
       }
     };
