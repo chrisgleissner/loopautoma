@@ -17,9 +17,42 @@ Cross‑platform desktop automation that watches configurable screen regions and
 - Run unattended: detect stable/changed UI regions and advance the flow.
 - Stay safe: cooldowns, rate limits, and guardrails to keep automation bounded.
 
-## Get Started
+## Quick Start Tutorial
 
-Linux + X11 quickstart:
+![LoopAutoma UI](./doc/img/ui-screenshot.png)
+
+**Get the latest release** (v0.1.2) with pre-built installers for Linux, macOS, and Windows:
+
+- **Linux**: [.deb](https://github.com/chrisgleissner/loopautoma/releases/latest/download/loopautoma_0.1.1_amd64.deb) • [.rpm](https://github.com/chrisgleissner/loopautoma/releases/latest/download/loopautoma-0.1.1-1.x86_64.rpm) • [AppImage](https://github.com/chrisgleissner/loopautoma/releases/latest/download/loopautoma_0.1.1_amd64.AppImage)
+- **macOS**: [Intel](https://github.com/chrisgleissner/loopautoma/releases/latest/download/loopautoma_0.1.1_x64.dmg) • [Apple Silicon](https://github.com/chrisgleissner/loopautoma/releases/latest/download/loopautoma_0.1.1_aarch64.dmg)
+- **Windows**: [Installer](https://github.com/chrisgleissner/loopautoma/releases/latest/download/loopautoma_0.1.1_x64-setup.exe) • [MSI](https://github.com/chrisgleissner/loopautoma/releases/latest/download/loopautoma_0.1.1_x64_en-US.msi)
+
+### Ubuntu/Debian Example
+
+```bash
+# Download and install
+wget https://github.com/chrisgleissner/loopautoma/releases/latest/download/loopautoma_0.1.1_amd64.deb
+sudo apt install ./loopautoma_0.1.1_amd64.deb
+
+# Run the app
+loopautoma
+```
+
+**Note**: Linux requires an X11 session (not Wayland). Check with `echo "$XDG_SESSION_TYPE"` — if it shows `wayland`, switch to X11 at the login screen.
+
+### Using the Copilot Keep-Alive Preset
+
+The app loads with a ready-to-use preset that keeps AI agents (like VS Code Copilot) running:
+
+1. **Define watch regions**: Click "Define watch region" and drag over areas where your agent shows output or progress indicators
+2. **Start monitoring**: Hit "Start" — the app watches for UI changes and types "continue" + Enter when activity stops
+3. **Walk away confidently**: Built-in guardrails (5s cooldown, 3h max runtime, 120 activations/hour) keep automation safe
+
+**Advanced**: Use the Recording feature to capture custom action sequences, or edit profiles via the Graphical Composer or JSON editor.
+
+### Build from Source (Optional)
+
+For development or customization:
 
 ```bash
 git clone https://github.com/chrisgleissner/loopautoma.git
@@ -28,14 +61,7 @@ bun install
 bun run dev
 ```
 
-Build production bundles (deb/rpm/AppImage):
-
-```bash
-bun run build
-ls src-tauri/target/release/bundle/
-```
-
-See **[doc/install.md](doc/install.md)** for distro packages, troubleshooting, Docker workflows, and alternative setups.
+See **[doc/install.md](doc/install.md)** for system requirements, troubleshooting, and detailed build instructions.
 
 ## Tech Stack
 - Tauri 2 + Rust 2021 backend
