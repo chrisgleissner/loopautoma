@@ -186,7 +186,7 @@ function LLMPromptGenerationEditor({ value, onChange }: ActionEditorProps) {
         />
       </label>
       <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>
-        💡 Tip: Reference the variable in subsequent Type actions using ${v.variable_name || "prompt"}
+        💡 Tip: Reference the variable in subsequent Type actions using {'$' + (v.variable_name || "prompt")}
       </div>
     </div>
   );
