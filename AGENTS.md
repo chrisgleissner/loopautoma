@@ -55,6 +55,12 @@ Always stay within the safety and capability constraints of your host environmen
 - Do not add copyright or license headers.
 - Do not introduce new top‑level tools or frameworks without a strong justification aligned with `doc/architecture.md` and `doc/rollout-plan.md`.
 
+### Documentation conventions
+
+- **All new documentation files must be placed in the `doc/` folder** and use camelCase filenames (e.g., `doc/releaseBuildValidation.md`, not `RELEASE_BUILD_VALIDATION.md` or `doc/release-build-validation.md`).
+- Exception: `README.md` in the root follows standard naming.
+- When creating new documentation during task execution, always place it in `doc/` with camelCase naming.
+
 ### Testing and safety
 
 - Prefer writing or updating tests alongside non‑trivial changes.

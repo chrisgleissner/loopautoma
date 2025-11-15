@@ -29,8 +29,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 xcap = { version = "0.7.1", optional = true }
 ahash = { version = "0.8", optional = true }
-x11rb = { version = "0.13.2", optional = true, features = ["xinput", "xtest", "xkb", "allow-unsafe-code"] }
-xkbcommon = { version = "0.9.0", optional = true, features = ["x11"] }
 screenshots = { version = "0.8.10", optional = true }
 image = { version = "0.24", default-features = false, features = ["png"] }
 base64 = "0.21"
@@ -39,6 +37,10 @@ windows = { version = "0.58", optional = true, features = [
 	"Win32_UI_Input_KeyboardAndMouse",
 	"Win32_UI_WindowsAndMessaging",
 ] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = { version = "0.13.2", optional = true, features = ["xinput", "xtest", "xkb", "allow-unsafe-code"] }
+xkbcommon = { version = "0.9.0", optional = true, features = ["x11"] }
  
 [features]
 default = ["os-linux-capture-xcap", "os-linux-input"]

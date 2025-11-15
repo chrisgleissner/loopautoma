@@ -484,7 +484,6 @@ fn region_picker_show(app: tauri::AppHandle) -> Result<(), String> {
     .title("Select region")
     .fullscreen(true)
     .decorations(false)
-    .transparent(true)
     .always_on_top(true)
     .resizable(false)
     .skip_taskbar(true)

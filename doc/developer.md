@@ -31,8 +31,6 @@ sudo apt install -y --no-install-recommends \
   libayatana-appindicator3-dev \
   clang \
   llvm-dev \
-  libpipewire-0.3-dev \
-  libspa-0.2-dev \
   libclang-dev \
   libc6-dev \
   cmake \
@@ -48,6 +46,12 @@ sudo apt install -y --no-install-recommends \
   libxcb-xkb-dev \
   libxdo-dev
 ```
+
+**Note:** If building with the `os-linux-capture-xcap` feature (screen capture via xcap), you'll also need:
+```bash
+sudo apt install -y libpipewire-0.3-dev libspa-0.2-dev
+```
+This feature requires Ubuntu 24.04+ or equivalent (libspa 0.8.0 compatibility). The default Linux release build uses this feature for screen monitoring.
 
 ### Toolchains
 

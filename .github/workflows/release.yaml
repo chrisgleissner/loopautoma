@@ -17,13 +17,14 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
+            args: '--target aarch64-apple-darwin -- --no-default-features --features os-macos'
           - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin'
+            args: '--target x86_64-apple-darwin -- --no-default-features --features os-macos'
           - platform: 'ubuntu-22.04'
-            args: ''
+            # Ubuntu 24.04+ required for os-linux-capture-xcap (libspa 0.8.0)
+            args: '-- --no-default-features --features os-linux-input,os-linux-capture-xcap'
           - platform: 'windows-latest'
-            args: ''
+            args: '-- --no-default-features --features os-windows'
 
     runs-on: ${{ matrix.platform }}
     
@@ -45,12 +46,15 @@ jobs:
             patchelf \
             libayatana-appindicator3-dev \
             libpipewire-0.3-dev \
-            libspa-0.2-dev
+            libspa-0.2-dev \
+            libxkbcommon-dev \
+            libxkbcommon-x11-dev \
+            libgbm-dev
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          bun-version: 1.3.1
+          bun-version: latest
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
