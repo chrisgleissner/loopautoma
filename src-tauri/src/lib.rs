@@ -104,6 +104,7 @@ pub fn build_monitor_from_profile<'a>(p: &Profile) -> (monitor::Monitor<'a>, Vec
 
     // Actions
     let mut acts: Vec<Box<dyn Action + Send + Sync>> = vec![];
+    
     for a in &p.actions {
         match a {
             ActionConfig::MoveCursor { x, y } => {
@@ -116,6 +117,20 @@ pub fn build_monitor_from_profile<'a>(p: &Profile) -> (monitor::Monitor<'a>, Vec
                 acts.push(Box::new(action::TypeText { text: text.clone() }))
             }
             ActionConfig::Key { key } => acts.push(Box::new(action::Key { key: key.clone() })),
+            ActionConfig::LLMPromptGeneration {
+                region_ids,
+                risk_threshold,
+                system_prompt,
+                variable_name,
+            } => {
+                acts.push(Box::new(action::LLMPromptGenerationAction {
+                    region_ids: region_ids.clone(),
+                    risk_threshold: *risk_threshold,
+                    system_prompt: system_prompt.clone(),
+                    variable_name: variable_name.clone().unwrap_or_else(|| "prompt".to_string()),
+                    all_regions: p.regions.clone(),
+                }))
+            }
         }
     }
     let seq = ActionSequence::new(acts);

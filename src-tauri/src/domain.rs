@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -109,9 +110,41 @@ pub trait InputCapture: Send {
     fn stop(&mut self) -> Result<(), BackendError>;
 }
 
+/// ActionContext holds global variables that can be referenced by actions
+#[derive(Debug, Clone, Default)]
+pub struct ActionContext {
+    pub variables: HashMap<String, String>,
+}
+
+impl ActionContext {
+    pub fn new() -> Self {
+        Self {
+            variables: HashMap::new(),
+        }
+    }
+
+    pub fn set(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.variables.insert(key.into(), value.into());
+    }
+
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.variables.get(key).map(|s| s.as_str())
+    }
+
+    /// Replace variables in text, e.g., "$prompt" -> actual value
+    pub fn expand(&self, text: &str) -> String {
+        let mut result = text.to_string();
+        for (key, value) in &self.variables {
+            let pattern = format!("${}", key);
+            result = result.replace(&pattern, value);
+        }
+        result
+    }
+}
+
 pub trait Action {
     fn name(&self) -> &'static str;
-    fn execute(&self, automation: &dyn Automation) -> Result<(), String>;
+    fn execute(&self, automation: &dyn Automation, context: &mut ActionContext) -> Result<(), String>;
 }
 
 pub struct ActionSequence {
@@ -123,12 +156,12 @@ impl ActionSequence {
         Self { actions }
     }
 
-    pub fn run(&self, automation: &dyn Automation, events: &mut Vec<Event>) -> bool {
+    pub fn run(&self, automation: &dyn Automation, context: &mut ActionContext, events: &mut Vec<Event>) -> bool {
         for a in &self.actions {
             events.push(Event::ActionStarted {
                 action: a.name().to_string(),
             });
-            match a.execute(automation) {
+            match a.execute(automation, context) {
                 Ok(()) => events.push(Event::ActionCompleted {
                     action: a.name().to_string(),
                     success: true,
@@ -193,13 +226,23 @@ pub struct ConditionConfig {
     pub downscale: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ActionConfig {
     MoveCursor { x: u32, y: u32 },
     Click { button: MouseButton },
     Type { text: String },
     Key { key: String },
+    LLMPromptGeneration {
+        /// Region IDs to capture and send to LLM
+        region_ids: Vec<String>,
+        /// User's acceptable risk threshold (0.0-1.0)
+        risk_threshold: f64,
+        /// Optional system prompt for the LLM
+        system_prompt: Option<String>,
+        /// Variable name to store the generated prompt (default: "prompt")
+        variable_name: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -207,6 +250,15 @@ pub struct GuardrailsConfig {
     pub max_runtime_ms: Option<u64>,
     pub max_activations_per_hour: Option<u32>,
     pub cooldown_ms: u64,
+}
+
+/// Response from LLM for prompt generation
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LLMPromptResponse {
+    /// The generated prompt text (max ~200 characters)
+    pub prompt: String,
+    /// Risk level assessment (0.0 = low, 1.0 = high)
+    pub risk: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

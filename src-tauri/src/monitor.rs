@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
-use crate::domain::{ActionSequence, Condition, Event, Guardrails, MonitorState, Trigger};
+use crate::domain::{ActionContext, ActionSequence, Condition, Event, Guardrails, MonitorState, Trigger};
 
 pub struct Monitor<'a> {
     pub trigger: Box<dyn Trigger + Send + 'a>,
@@ -12,6 +12,7 @@ pub struct Monitor<'a> {
     pub activations: u32,
     pub last_activation_at: Option<Instant>,
     activation_log: VecDeque<Instant>,
+    pub context: ActionContext,
 }
 
 impl<'a> Monitor<'a> {
@@ -30,6 +31,7 @@ impl<'a> Monitor<'a> {
             activations: 0,
             last_activation_at: None,
             activation_log: VecDeque::new(),
+            context: ActionContext::new(),
         }
     }
 
@@ -38,6 +40,7 @@ impl<'a> Monitor<'a> {
         self.activations = 0;
         self.last_activation_at = None;
         self.activation_log.clear();
+        self.context = ActionContext::new(); // Reset context on start
         events.push(Event::MonitorStateChanged {
             state: MonitorState::Running,
         });
@@ -111,7 +114,7 @@ impl<'a> Monitor<'a> {
             }
         }
 
-        let ok = self.actions.run(automation, out_events);
+        let ok = self.actions.run(automation, &mut self.context, out_events);
         if ok {
             self.activations += 1;
             self.last_activation_at = Some(now);
