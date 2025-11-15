@@ -20,15 +20,8 @@ sudo apt install -y --no-install-recommends \
   git \
   pkg-config \
   build-essential \
-  libgbm-dev \
-  libdrm-dev \
   libssl-dev \
-  libgtk-3-dev \
-  libwebkit2gtk-4.1-dev \
-  libsoup-3.0-dev \
-  librsvg2-dev \
   patchelf \
-  libayatana-appindicator3-dev \
   clang \
   llvm-dev \
   libclang-dev \
@@ -36,6 +29,21 @@ sudo apt install -y --no-install-recommends \
   cmake \
   xz-utils \
   sudo \
+  libglib2.0-dev \
+  libcairo2-dev \
+  libpango1.0-dev \
+  libgdk-pixbuf-2.0-dev \
+  libatk1.0-dev \
+  libgtk-3-dev \
+  libjavascriptcoregtk-4.1-dev \
+  libsoup-3.0-dev \
+  libwebkit2gtk-4.1-dev \
+  librsvg2-dev \
+  libayatana-appindicator3-dev \
+  libpipewire-0.3-dev \
+  libspa-0.2-dev \
+  libgbm-dev \
+  libdrm-dev \
   libx11-dev \
   libxext-dev \
   libxrandr-dev \
@@ -47,11 +55,7 @@ sudo apt install -y --no-install-recommends \
   libxdo-dev
 ```
 
-**Note:** If building with the `os-linux-capture-xcap` feature (screen capture via xcap), you'll also need:
-```bash
-sudo apt install -y libpipewire-0.3-dev libspa-0.2-dev
-```
-This feature requires Ubuntu 24.04+ or equivalent (libspa 0.8.0 compatibility). The default Linux release build uses this feature for screen monitoring.
+**Note:** The above package list includes all dependencies for building with the `os-linux-capture-xcap` feature (libpipewire-0.3-dev, libspa-0.2-dev). This feature requires Ubuntu 24.04+ or equivalent (libspa 0.8.0 compatibility). The default Linux release build uses this feature for screen monitoring.
 
 ### Toolchains
 
