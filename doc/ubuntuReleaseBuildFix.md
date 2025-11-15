@@ -156,7 +156,7 @@ To prevent similar issues in the future:
 
 1. **Validation Step:** The new validation step will fail fast if dependencies are missing
 2. **Documentation:** This document and inline comments explain the requirements
-3. **Consistency:** Package list now matches the Dockerfile and developer.md
+3. **Consistency:** Package list now matches the Dockerfile and developer.md, but is still missing `libdrm-dev` in `.github/workflows/release.yaml` and the list above; full consistency is not yet achieved.
 4. **Testing:** Always test release builds locally before pushing tags
 
 ## Related Files Modified
