@@ -1,6 +1,6 @@
 [package]
 name = "loopautoma"
-version = "0.1.0"
+version = "0.1.1"
 description = "Loopautoma — cross-platform desktop automation via Tauri"
 authors = ["Chris Gleissner <chrisgleissner@gmail.com>"]
 edition = "2021"
