@@ -57,9 +57,19 @@ Always stay within the safety and capability constraints of your host environmen
 
 ### Documentation conventions
 
-- **All new documentation files must be placed in the `doc/` folder** and use camelCase filenames (e.g., `doc/releaseBuildValidation.md`, not `RELEASE_BUILD_VALIDATION.md` or `doc/release-build-validation.md`).
-- Exception: `README.md` in the root follows standard naming.
-- When creating new documentation during task execution, always place it in `doc/` with camelCase naming.
+**CRITICAL: All documentation files MUST follow these rules:**
+
+- **Location**: All new documentation files MUST be placed in the `doc/` folder (not in the root directory)
+- **Naming**: Use camelCase filenames (e.g., `doc/releaseBuildValidation.md`)
+- **Never use**: UPPERCASE_SNAKE_CASE.md or kebab-case.md in the root directory
+- **Examples**:
+  - ✅ Correct: `doc/ubuntuBuildFixSummary.md`
+  - ❌ Wrong: `UBUNTU_BUILD_FIX_SUMMARY.md` (root + uppercase)
+  - ❌ Wrong: `ubuntu-build-fix-summary.md` (kebab-case)
+- **Exception**: Only `README.md` in the root follows standard naming.
+- When creating new documentation during task execution, ALWAYS check:
+  1. Is it in `doc/` folder?
+  2. Is the filename camelCase?
 
 ### Testing and safety
 

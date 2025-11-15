@@ -100,8 +100,17 @@ CI defaults:
 
 ## Documentation conventions
 
-- All Markdown documentation files in the `doc/` folder must use camelCase filenames (e.g., `install.md`, `phase1Completion.md`, not `INSTALL.md` or `PHASE1-COMPLETION.md`).
-- Only exception: `README.md` in the root follows standard naming.
+**CRITICAL: All documentation files MUST follow these rules:**
+
+- **Location**: All new documentation files MUST be placed in the `doc/` folder (not in the root directory)
+- **Naming**: Use camelCase filenames (e.g., `install.md`, `phase1Completion.md`)
+- **Never use**: UPPERCASE_SNAKE_CASE.md or kebab-case.md in the root
+- **Examples**:
+  - ✅ Correct: `doc/ubuntuBuildFixSummary.md`
+  - ❌ Wrong: `UBUNTU_BUILD_FIX_SUMMARY.md` (root + uppercase)
+  - ❌ Wrong: `ubuntu-build-fix-summary.md` (kebab-case)
+- **Exception**: Only `README.md` in the root follows standard naming.
+- Before creating a markdown file, verify: Is it in `doc/`? Is filename camelCase?
 
 ## Planning and persistence (Codex exec plans)
 
