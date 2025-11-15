@@ -88,15 +88,15 @@ Guidelines:
 - [x] 1.12 — Add comprehensive unit tests for LLM action (10 tests)
 
 **Phase 2: LLM Integration (Real API)**
-- [ ] 2.1 — Design LLM client trait for testability
-- [ ] 2.2 — Implement real LLM API integration (GPT-5.1 vision)
-- [ ] 2.3 — Add screen capture to LLM action (use ScreenCapture trait)
-- [ ] 2.4 — Convert captured regions to base64 images
-- [ ] 2.5 — Build LLM request with system prompt and risk guidance
-- [ ] 2.6 — Parse and validate JSON response
-- [ ] 2.7 — Add error handling for API failures
-- [ ] 2.8 — Add configurable API key/endpoint via env vars
-- [ ] 2.9 — Add tests with mock HTTP client
+- [x] 2.1 — Design LLM client trait for testability
+- [x] 2.2 — Implement real LLM API integration (GPT-4 Vision)
+- [x] 2.3 — Add screen capture to LLM action (use ScreenCapture trait)
+- [x] 2.4 — Convert captured regions to base64 images
+- [x] 2.5 — Build LLM request with system prompt and risk guidance
+- [x] 2.6 — Parse and validate JSON response
+- [x] 2.7 — Add error handling for API failures
+- [x] 2.8 — Add configurable API key/endpoint via env vars
+- [x] 2.9 — Add tests with mock HTTP client
 
 **Phase 3: UI Integration**
 - [ ] 3.1 — Update TypeScript types (ActionConfig, etc.)
@@ -132,6 +132,9 @@ Guidelines:
 - 2025-11-15 — Completed Phase 1 (1.1–1.12): Core backend implementation with ActionContext, variable expansion, and 10 new tests
 - 2025-11-15 — All 39 Rust tests passing (29 existing + 10 new LLM tests)
 - 2025-11-15 — TypeScript types updated for LLMPromptGeneration ActionConfig
+- 2025-11-15 — Completed Phase 2 (2.1–2.9): Full LLM API integration with OpenAI GPT-4 Vision, screen capture, JSON parsing, error handling
+- 2025-11-15 — Added reqwest + tokio dependencies, LLMClient trait, MockLLMClient, OpenAIClient
+- 2025-11-15 — All 39 tests passing with real screen capture integration
 
 **Assumptions and open questions**
 - Assumption: GPT-5.1 vision API will be available for production use

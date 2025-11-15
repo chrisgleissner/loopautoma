@@ -132,6 +132,66 @@ function KeyEditor({ value, onChange }: ActionEditorProps) {
   );
 }
 
+function LLMPromptGenerationEditor({ value, onChange }: ActionEditorProps) {
+  const v = value as Extract<ActionConfig, { type: "LLMPromptGeneration" }>;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 8, border: "1px solid #ccc", borderRadius: 4 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <label title="Region IDs to capture and send to LLM (comma-separated)">
+          Region IDs
+          <input
+            type="text"
+            value={v.region_ids.join(", ")}
+            onChange={(e) =>
+              onChange({
+                ...v,
+                type: "LLMPromptGeneration",
+                region_ids: e.target.value.split(",").map((s) => s.trim()).filter((s) => s),
+              })
+            }
+            placeholder="e.g., chat-out, progress"
+            style={{ width: 200, marginLeft: 6 }}
+          />
+        </label>
+        <label title="Maximum acceptable risk level (0.0 = low, 1.0 = high)">
+          Risk Threshold
+          <input
+            type="number"
+            min="0"
+            max="1"
+            step="0.1"
+            value={v.risk_threshold}
+            onChange={(e) => onChange({ ...v, type: "LLMPromptGeneration", risk_threshold: Number(e.target.value || 0) })}
+            style={{ width: 80, marginLeft: 6 }}
+          />
+        </label>
+      </div>
+      <label title="Optional system prompt to guide the LLM">
+        System Prompt (optional)
+        <textarea
+          value={v.system_prompt || ""}
+          onChange={(e) => onChange({ ...v, type: "LLMPromptGeneration", system_prompt: e.target.value || undefined })}
+          placeholder="Optional: Guide the LLM with specific instructions..."
+          style={{ width: "100%", minHeight: 60, marginTop: 4, fontFamily: "inherit" }}
+        />
+      </label>
+      <label title="Variable name to store the generated prompt (default: prompt)">
+        Variable Name
+        <input
+          type="text"
+          value={v.variable_name || "prompt"}
+          onChange={(e) => onChange({ ...v, type: "LLMPromptGeneration", variable_name: e.target.value || undefined })}
+          placeholder="prompt"
+          style={{ width: 150, marginLeft: 6 }}
+        />
+      </label>
+      <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>
+        💡 Tip: Reference the variable in subsequent Type actions using ${v.variable_name || "prompt"}
+      </div>
+    </div>
+  );
+}
+
 export function registerBuiltins() {
   registerTriggerEditor("IntervalTrigger", IntervalTriggerEditor);
   registerConditionEditor("RegionCondition", RegionConditionEditor);
@@ -139,4 +199,5 @@ export function registerBuiltins() {
   registerActionEditor("Click", ClickEditor);
   registerActionEditor("Type", TypeEditor);
   registerActionEditor("Key", KeyEditor);
+  registerActionEditor("LLMPromptGeneration", LLMPromptGenerationEditor);
 }
