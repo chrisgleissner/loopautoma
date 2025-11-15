@@ -97,6 +97,63 @@ Guidelines:
 
 ---
 
+### Task: Fix Ubuntu Release Build - Comprehensive Dependency Fix
+
+**Started:** 2025-11-15
+
+**User request (summary)**
+- Fix the Ubuntu release build that is failing with missing glib-2.0 and other GTK dependencies
+- Analyze the root cause thoroughly and predict future issues
+- Implement a comprehensive fix that will work once and for all
+- Most recent error: "The system library `glib-2.0` required by crate `glib-sys` was not found"
+
+**Context and constraints**
+- Ubuntu 24.04 is required for libspa 0.8.0 compatibility (xcap dependency)
+- Previous fix changed platform to ubuntu-24.04 but didn't update the if condition
+- Need to ensure ALL GTK/GLib development packages are installed
+- Build must succeed locally before considering it fixed
+
+**Plan (checklist)**
+- [x] Analyze root cause of missing glib-2.0.pc error
+- [x] Identify the critical mismatch: if condition checking ubuntu-22.04 but platform is ubuntu-24.04
+- [x] Identify all missing GTK/GLib development packages
+- [x] Fix the if condition in release.yaml to match ubuntu-24.04
+- [x] Add comprehensive package list including all GTK/GLib dependencies
+- [x] Add validation step to verify .pc files exist before build
+- [x] Test build locally to verify all dependencies satisfied
+- [x] Create comprehensive documentation
+- [x] Update PLANS.md with completion status
+
+**Progress log**
+- 2025-11-15 — Analyzed error: glib-2.0.pc not found
+- 2025-11-15 — Discovered root cause: if condition was checking ubuntu-22.04 but platform is ubuntu-24.04
+- 2025-11-15 — This caused ALL dependency installation to be skipped
+- 2025-11-15 — Installed missing packages locally one by one as build revealed them:
+  - libglib2.0-dev (glib-2.0.pc, gobject-2.0.pc, gio-2.0.pc)
+  - libcairo2-dev, libpango1.0-dev, libgdk-pixbuf-2.0-dev, libatk1.0-dev
+  - libjavascriptcoregtk-4.1-dev
+  - libsoup-3.0-dev
+  - libwebkit2gtk-4.1-dev (also installs javascriptcore and soup as deps)
+  - libpipewire-0.3-dev (also installs libspa-0.2-dev)
+  - libxkbcommon-x11-dev, libgbm-dev
+- 2025-11-15 — Fixed release.yaml if condition: ubuntu-22.04 → ubuntu-24.04
+- 2025-11-15 — Added comprehensive package list (35 packages total)
+- 2025-11-15 — Added validation step to check for required .pc files
+- 2025-11-15 — Verified local build succeeds in 31 seconds
+- 2025-11-15 — Created doc/ubuntuReleaseBuildFix.md with comprehensive documentation
+
+**Assumptions and open questions**
+- Assumption: libwebkit2gtk-4.1-dev will pull in its dependencies (javascriptcore, soup) but listing them explicitly for clarity
+- Assumption: Ubuntu 24.04 is now widely available and acceptable as minimum version
+- Validated: All packages are available in Ubuntu 24.04 standard repositories
+
+**Follow‑ups / future work**
+- Monitor next release build to confirm success
+- Consider adding similar validation to CI workflow
+- Update install.md to document Ubuntu 24.04 minimum requirement
+
+---
+
 ### Task: UI Behavior Verification — E2E Test Suite (Phase 4.7 / Stabilization)
 
 **Started:** 2025-11-14
