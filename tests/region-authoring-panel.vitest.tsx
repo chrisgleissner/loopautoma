@@ -16,7 +16,7 @@ vi.mock("../src/tauriBridge", async () => {
 
 // Mock Tauri event listener
 vi.mock("@tauri-apps/api/event", () => ({
-  listen: vi.fn(async (eventName: string, callback: (event: any) => void) => {
+  listen: vi.fn(async (_eventName: string, callback: (event: any) => void) => {
     // Store callback for manual triggering in tests
     (global as any).__regionPickCallback = callback;
     return () => {};

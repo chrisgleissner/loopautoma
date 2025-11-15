@@ -7,7 +7,7 @@
     "dev": "tauri dev",
     "dev:web": "vite",
     "build": "tauri build",
-    "build:web": "tsc && vite build",
+    "build:web": "tsc --noEmit --project tsconfig.app.json && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "bun test tests/hello.bun.test.ts",
