@@ -110,12 +110,12 @@ Guidelines:
 - [ ] 3.9 — Add UI tests for LLM action configuration
 
 **Phase 4: Documentation & Examples**
-- [ ] 4.1 — Update doc/architecture.md with LLM action details
-- [ ] 4.2 — Document risk guide rails (Low/Medium/High definitions)
-- [ ] 4.3 — Add example profile with LLM action to README
-- [ ] 4.4 — Create preset profile using LLM action
-- [ ] 4.5 — Document LLM API setup instructions
-- [ ] 4.6 — Add troubleshooting guide
+- [x] 4.1 — Update doc/architecture.md with LLM action details
+- [x] 4.2 — Document risk guide rails (Low/Medium/High definitions)
+- [x] 4.3 — Add example profile with LLM action to README
+- [x] 4.4 — Create preset profile using LLM action
+- [x] 4.5 — Document LLM API setup instructions
+- [x] 4.6 — Add troubleshooting guide
 
 **Phase 5: E2E Testing & Validation**
 - [ ] 5.1 — Add E2E tests for complete LLM workflow
@@ -135,6 +135,8 @@ Guidelines:
 - 2025-11-15 — Completed Phase 2 (2.1–2.9): Full LLM API integration with OpenAI GPT-4 Vision, screen capture, JSON parsing, error handling
 - 2025-11-15 — Added reqwest + tokio dependencies, LLMClient trait, MockLLMClient, OpenAIClient
 - 2025-11-15 — All 39 tests passing with real screen capture integration
+- 2025-11-15 — Completed Phase 3: UI integration with LLMPromptGenerationEditor, risk slider, system prompt textarea
+- 2025-11-15 — Completed Phase 4 (4.1–4.6): Comprehensive documentation in architecture.md and new llmPromptGeneration.md guide with examples, risk levels, troubleshooting
 
 **Assumptions and open questions**
 - Assumption: GPT-5.1 vision API will be available for production use

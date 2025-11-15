@@ -157,8 +157,9 @@ Profile schema (minimal contract):
 - actions: Action[] (order significant) where
   - MoveCursor { type: "MoveCursor", x: number>=0, y: number>=0 }
   - Click { type: "Click", button: "left" | "right" | "middle" }
-  - Type { type: "Type", text: string }
+  - Type { type: "Type", text: string } (supports variable expansion like $prompt)
   - Key { type: "Key", key: string }
+  - LLMPromptGeneration { type: "LLMPromptGeneration", region_ids: string[], risk_threshold: number in [0.0, 1.0], system_prompt?: string, variable_name?: string }
 - guardrails?: { maxRuntimeMs?: number>0, maxActivationsPerHour?: number>0, cooldownMs?: number>=0 }
 
 ## Tauri bridge (commands and events)
@@ -236,10 +237,67 @@ Implementation notes:
  - Soak tests (time‑dilated where possible) to validate unattended operation: ensure no memory leaks, watchdog trips as configured, and correct recovery after stop/start.
  - Ubuntu/X11 backends: add integration tests behind feature gates where possible; mock X11 when CI access is limited.
 
+## LLM Prompt Generation Action
+
+The LLMPromptGeneration action enables dynamic prompt generation based on screen content with risk-based guardrails.
+
+### How it works
+
+1. **Screen Capture**: Captures specified regions using the ScreenCapture trait
+2. **LLM Call**: Sends base64-encoded PNG images to GPT-4 Vision API with system prompt and risk guidance
+3. **Risk Assessment**: LLM returns JSON with `{ "prompt": string, "risk": float }` where risk is 0.0–1.0
+4. **Threshold Validation**: Compares LLM risk against user's risk_threshold
+5. **Variable Population**: If risk acceptable, sets variable (default: $prompt) in ActionContext
+6. **Abort on High Risk**: If risk > threshold, plays audible alarm and aborts sequence
+
+### Risk Levels
+
+- **Low Risk (0.0–0.33)**: Safe operations inside workspace, no deletions, no external communication
+- **Medium Risk (0.34–0.66)**: Git operations, file management inside workspace
+- **High Risk (0.67–1.0)**: Operations outside workspace, elevated privileges, software installation, data transfer
+
+### Configuration
+
+Environment variables for LLM integration:
+- `OPENAI_API_KEY`: Required for real LLM calls (falls back to mock if missing)
+- `OPENAI_API_ENDPOINT`: Optional, defaults to `https://api.openai.com/v1/chat/completions`
+- `OPENAI_MODEL`: Optional, defaults to `gpt-4-vision-preview`
+- `LOOPAUTOMA_BACKEND=fake`: Use mock LLM for testing
+
+### Variable Expansion
+
+Subsequent Type actions can reference generated variables using `$variable_name` syntax:
+
+```jsonc
+{
+  "actions": [
+    {
+      "type": "LLMPromptGeneration",
+      "region_ids": ["chat-out"],
+      "risk_threshold": 0.5,
+      "variable_name": "prompt"
+    },
+    {
+      "type": "Type",
+      "text": "$prompt"  // Expands to LLM-generated value
+    },
+    { "type": "Key", "key": "Enter" }
+  ]
+}
+```
+
+### ActionContext
+
+Global variable store that persists within a single monitor activation:
+- Variables reset on monitor start
+- Multiple LLM actions can set different variables
+- Variables are expanded in Type actions before execution
+- Accessible via context.get(name) and context.set(name, value)
+
 ## Extensibility points
 
 - New Trigger/Condition/Action types extend traits without changing existing code; registered in a factory/registry that maps JSON descriptors to concrete types.
-- Future Conditions can perform OCR on Regions and feed text to LLMs to generate Action inputs; this only requires new Condition and Action implementations, not architectural changes.
+- LLM Prompt Generation demonstrates extensibility: new action type with screen capture, external API calls, and variable management.
  - Additional safety Conditions (e.g., WindowFocusCondition, AllOfCondition) can be composed to restrict actions to a bound application window; implemented as standard Conditions without UI/OS branching.
  - Backends: implement ScreenCapture, Automation, and InputCapture for each OS under separate modules; no UI changes required.
 

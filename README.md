@@ -14,6 +14,7 @@ Cross‑platform desktop automation that watches configurable screen regions and
 
 ## Features
 - Keep agents moving: automatically type "Continue" and press enter when an agent stalls.
+- **LLM-powered prompts**: Use GPT-4 Vision to analyze screen content and generate context-aware prompts with risk-based guardrails.
 - Run unattended: detect stable/changed UI regions and advance the flow.
 - Stay safe: cooldowns, rate limits, and guardrails to keep automation bounded.
 
@@ -71,6 +72,7 @@ See **[doc/install.md](doc/install.md)** for system requirements, troubleshootin
 ## Docs
 - **Installation**: [doc/install.md](doc/install.md) — System requirements, packages, and troubleshooting
 - **Architecture**: [doc/architecture.md](doc/architecture.md) — Technical design and contracts
+- **LLM Prompt Generation**: [doc/llmPromptGeneration.md](doc/llmPromptGeneration.md) — AI-powered dynamic prompts with risk guardrails
 - **Rollout plan**: [doc/rollout-plan.md](doc/rollout-plan.md) — Development roadmap and phases
 - **Dev setup**: [doc/developer.md](doc/developer.md) — Building and testing from source
 
