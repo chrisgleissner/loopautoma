@@ -20,18 +20,18 @@ function IntervalTriggerEditor({ value, onChange }: TriggerEditorProps) {
     >
       <span>Check interval (s)</span>
       <AcceleratingNumberInput
-          min={0.1}
-          value={value.check_interval_sec}
-          onValueChange={(next) =>
-            onChange({
-              ...value,
-              type: "IntervalTrigger",
-              check_interval_sec: next === "" ? 0 : Number(next),
-            })
-          }
-          inputMode="decimal"
-          containerStyle={{ width: 170 }}
-        />
+        min={0.1}
+        value={value.check_interval_sec}
+        onValueChange={(next) =>
+          onChange({
+            ...value,
+            type: "IntervalTrigger",
+            check_interval_sec: next === "" ? 0 : Number(next),
+          })
+        }
+        inputMode="decimal"
+        containerStyle={{ width: 170 }}
+      />
     </label>
   );
 }
@@ -46,18 +46,18 @@ function RegionConditionEditor({ value, onChange }: ConditionEditorProps) {
       >
         <span>Stable (s)</span>
         <AcceleratingNumberInput
-            min={0}
-            value={value.stable_ms / 1000}
-            onValueChange={(next) =>
-              onChange({
-                ...value,
-                type: "RegionCondition",
-                stable_ms: Math.max(0, (next === "" ? 0 : Number(next)) * 1000),
-              })
-            }
-            inputMode="decimal"
-            containerStyle={{ width: 150 }}
-          />
+          min={0}
+          value={value.stable_ms / 1000}
+          onValueChange={(next) =>
+            onChange({
+              ...value,
+              type: "RegionCondition",
+              stable_ms: Math.max(0, (next === "" ? 0 : Number(next)) * 1000),
+            })
+          }
+          inputMode="decimal"
+          containerStyle={{ width: 150 }}
+        />
       </label>
       <label
         title="Downscale factor for hashing (higher = faster, lower precision)"
@@ -65,13 +65,13 @@ function RegionConditionEditor({ value, onChange }: ConditionEditorProps) {
       >
         <span>Downscale</span>
         <AcceleratingNumberInput
-            min={1}
-            value={value.downscale}
-            onValueChange={(next) =>
-              onChange({ ...value, type: "RegionCondition", downscale: next === "" ? 1 : Number(next) })
-            }
-            containerStyle={{ width: 110 }}
-          />
+          min={1}
+          value={value.downscale}
+          onValueChange={(next) =>
+            onChange({ ...value, type: "RegionCondition", downscale: next === "" ? 1 : Number(next) })
+          }
+          containerStyle={{ width: 110 }}
+        />
       </label>
     </div>
   );
@@ -85,18 +85,18 @@ function MoveCursorEditor({ value, onChange }: ActionEditorProps) {
       <label title="Cursor X coordinate in screen pixels" style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span>X</span>
         <AcceleratingNumberInput
-            value={v.x}
-            onValueChange={(next) => onChange({ type: "MoveCursor", x: next === "" ? 0 : Number(next), y: v.y })}
-            containerStyle={{ width: 110 }}
-          />
+          value={v.x}
+          onValueChange={(next) => onChange({ type: "MoveCursor", x: next === "" ? 0 : Number(next), y: v.y })}
+          containerStyle={{ width: 110 }}
+        />
       </label>
       <label title="Cursor Y coordinate in screen pixels" style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span>Y</span>
         <AcceleratingNumberInput
-            value={v.y}
-            onValueChange={(next) => onChange({ type: "MoveCursor", x: v.x, y: next === "" ? 0 : Number(next) })}
-            containerStyle={{ width: 110 }}
-          />
+          value={v.y}
+          onValueChange={(next) => onChange({ type: "MoveCursor", x: v.x, y: next === "" ? 0 : Number(next) })}
+          containerStyle={{ width: 110 }}
+        />
       </label>
     </>
   );
@@ -237,15 +237,15 @@ function LLMPromptGenerationEditor({ value, onChange }: ActionEditorProps) {
         >
           <span>Risk Threshold</span>
           <AcceleratingNumberInput
-              min={0}
-              max={1}
-              value={v.risk_threshold}
-              onValueChange={(next) =>
-                onChange({ ...v, type: "LLMPromptGeneration", risk_threshold: next === "" ? 0 : Number(next) })
-              }
-              inputMode="decimal"
+            min={0}
+            max={1}
+            value={v.risk_threshold}
+            onValueChange={(next) =>
+              onChange({ ...v, type: "LLMPromptGeneration", risk_threshold: next === "" ? 0 : Number(next) })
+            }
+            inputMode="decimal"
             containerStyle={{ width: 110 }}
-            />
+          />
         </label>
       </div>
       <label title="Optional system prompt to guide the LLM">

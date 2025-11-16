@@ -507,7 +507,7 @@ export function App() {
         <article className="panel card json-panel" aria-label="Configuration JSON">
           <div className="panel-header">
             <div className="panel-title">
-              <span className="panel-icon" aria-hidden="true">{}</span>
+              <span className="panel-icon" aria-hidden="true">{ }</span>
               <div>
                 <h3>Configuration JSON</h3>
                 <p className="muted">Advanced: edit the entire workspace config.</p>
