@@ -54,7 +54,7 @@ Gate: all tasks done on Ubuntu/X11, tests green, coverage ≥90%, Ubuntu package
 - [x] Performance pass: throttle authoring helpers; buffer reuse; enforce cooldowns/backoff; document CPU/memory baselines.
 - [x] Soak test: long-running unattended loops validate guardrails and clean shutdown; memory/cpu bounds checked.
 - [x] Security basics: input-synthesis safety, permissions review; dev-only flags locked down for production builds.
-- [x] UX polish: clearer preset(s) like “Copilot Keep-Alive”; improved profile validation feedback.
+- [x] UX polish: clearer preset(s) like “Keep AI Agent Active”; improved profile validation feedback.
 
 Gate: tests green, coverage ≥90% for domain/runtime/UI; soak stability documented.
 

@@ -32,11 +32,11 @@ export function ProfileInsights({
       </div>
       <div className="preset-card">
         <div className="preset-card__header">
-          <strong>Copilot Keep-Alive preset</strong>
+          <strong>Keep AI Agent Active preset</strong>
           {usesPreset && <span className="preset-chip">Active</span>}
         </div>
         <p>
-          Pre-configured to type "continue" and press Enter whenever your agent stalls. Includes safe guardrails (5s cooldown,
+          Pre-configured to type "continue" and press Enter whenever your AI agent stalls. Includes safe guardrails (5s cooldown,
           3h max runtime, 120 activations/hour) so you can walk away confidently.
         </p>
         <div className="preset-card__meta">

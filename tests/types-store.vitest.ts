@@ -5,7 +5,7 @@ describe("Types and defaults", () => {
   it("defaultPresetProfile returns valid profile", () => {
     const profile = defaultPresetProfile();
     expect(profile.id).toBe("keep-agent-001");
-    expect(profile.name).toBe("Copilot Keep-Alive");
+    expect(profile.name).toBe("Keep AI Agent Active");
     expect(profile.regions).toHaveLength(2);
     expect(profile.regions[0].id).toBe("chat-out");
     expect(profile.regions[1].id).toBe("progress");

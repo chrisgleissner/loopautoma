@@ -40,9 +40,9 @@ loopautoma
 
 **Note**: Linux requires an X11 session (not Wayland). Check with `echo "$XDG_SESSION_TYPE"` — if it shows `wayland`, switch to X11 at the login screen.
 
-### Using the Copilot Keep-Alive Preset
+### Using the Keep AI Agent Active Preset
 
-The app loads with a ready-to-use preset that keeps AI agents (like VS Code Copilot) running:
+The app loads with a ready-to-use preset that keeps AI agents running:
 
 1. **Define watch regions**: Click "Define watch region" and drag over areas where your agent shows output or progress indicators
 2. **Start monitoring**: Hit "Start" — the app watches for UI changes and types "continue" + Enter when activity stops

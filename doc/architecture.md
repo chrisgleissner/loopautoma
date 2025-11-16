@@ -1,6 +1,6 @@
 # Loop Automa — Target Architecture Overview
 
-This document defines the target architecture for a cross‑platform desktop app built with Tauri 2, a Rust backend, and a React/TypeScript UI. It uses the following abstract entities everywhere (no OS logic in the UI): Trigger, Condition, Action, ActionSequence, Monitor, Event, Region/RegionSource. The initial primary use case is unattended operation to keep an AI agent (e.g., VS Code Copilot) progressing indefinitely once started.
+This document defines the target architecture for a cross‑platform desktop app built with Tauri 2, a Rust backend, and a React/TypeScript UI. It uses the following abstract entities everywhere (no OS logic in the UI): Trigger, Condition, Action, ActionSequence, Monitor, Event, Region/RegionSource. The initial primary use case is unattended operation to keep an AI agent progressing indefinitely once started.
 
 MVP target platform (scope): Ubuntu 24.04 on X11. The architecture preserves clean extension points for macOS and Windows 11, which will be implemented after the Ubuntu/X11 MVP phases are complete. Wayland is out‑of‑scope for the MVP.
 
@@ -125,12 +125,12 @@ Example Profile (conceptual):
 }
 ```
 
-"Keep AI Agent Going" preset (conceptual):
+"Keep AI Agent Active" preset (conceptual):
 
 ```jsonc
 {
   "id": "keep-agent-001",
-  "name": "Copilot Keep-Alive",
+  "name": "Keep AI Agent Active",
   "regions": [
     { "id": "chat-out", "rect": { "x": 80, "y": 120, "width": 1200, "height": 600 }, "name": "Agent Output" },
     { "id": "progress", "rect": { "x": 80, "y": 740, "width": 1200, "height": 200 }, "name": "Progress Area" }
@@ -182,7 +182,7 @@ Profile schema (minimal contract):
 
 - Profile editor: define Regions (via selection tool), Trigger (interval), Condition (stable duration, downscale), and ActionSequence.
 - Monitor control: Start/Stop + status; live Event log/metrics.
-- Unattended mode: toggle to enable guardrails (max runtime/activations, cooldowns); preset selector (e.g., “Copilot Keep‑Alive”).
+- Unattended mode: toggle to enable guardrails (max runtime/activations, cooldowns); preset selector (e.g., “Keep AI Agent Active”).
 - State management: Zustand store; React Query optional for command calls; types mirror Rust models.
 - Serialization: JSON round‑trip to/from backend; validation errors surfaced inline.
 - Authoring helpers: recording bar to start/stop input capture plus the region selection overlay with thumbnail refresh; all OSes reuse the same UI over OS-specific backends.

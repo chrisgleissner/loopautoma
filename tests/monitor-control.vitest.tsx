@@ -67,7 +67,7 @@ describe("Monitor control", () => {
         expect.arrayContaining([
           expect.objectContaining({
             id: "keep-agent-001",
-            name: "Copilot Keep-Alive",
+            name: "Keep AI Agent Active",
           }),
         ])
       );
