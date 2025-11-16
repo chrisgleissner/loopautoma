@@ -36,6 +36,11 @@ export type Profile = {
   guardrails?: GuardrailsConfig;
 };
 
+export type ProfilesConfig = {
+  version?: number;
+  profiles: Profile[];
+};
+
 export type MonitorState = "Stopped" | "Running" | "Stopping";
 
 export type Event =
@@ -113,3 +118,22 @@ export const defaultPresetProfile = (): Profile => ({
   ],
   guardrails: { max_runtime_ms: 3 * 60 * 60 * 1000, max_activations_per_hour: 120, cooldown_ms: 5000 },
 });
+
+export const defaultProfilesConfig = (): ProfilesConfig => ({
+  version: 1,
+  profiles: [defaultPresetProfile()],
+});
+
+export const normalizeProfilesConfig = (input?: unknown): ProfilesConfig => {
+  if (input && Array.isArray((input as any).profiles)) {
+    const cfg = input as ProfilesConfig;
+    const version = typeof cfg.version === "number" ? cfg.version : 1;
+    const profiles = cfg.profiles?.length ? cfg.profiles : [defaultPresetProfile()];
+    return { version, profiles: [...profiles] };
+  }
+  if (Array.isArray(input)) {
+    const profiles = input.length ? (input as Profile[]) : [defaultPresetProfile()];
+    return { version: 1, profiles: [...profiles] };
+  }
+  return defaultProfilesConfig();
+};

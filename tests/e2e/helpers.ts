@@ -4,7 +4,7 @@
  */
 
 import { Page, expect } from '@playwright/test';
-import { Profile, Rect, defaultPresetProfile } from '../../src/types';
+import { Profile, ProfilesConfig, Rect, normalizeProfilesConfig } from '../../src/types';
 import { BLANK_PNG_BASE64, STATE_SETTLE_TIMEOUT_MS } from '../../src/testConstants';
 
 /**
@@ -240,6 +240,7 @@ export async function waitForConsoleMessage(page: Page, messagePattern: string |
 
 export type FakeDesktopOptions = {
   profiles?: Profile[];
+  config?: ProfilesConfig;
 };
 
 /**
@@ -250,8 +251,8 @@ export type FakeDesktopOptions = {
  * event emission, and state tracking.
  *
  * Supported commands (via `window.__TAURI_IPC__.invoke` or `window.__LOOPAUTOMA_TEST__.invoke`):
- *   - `profiles_load`: Returns the current list of profiles.
- *   - `profiles_save`: Saves or updates profiles.
+ *   - `profiles_load`: Returns the current configuration object.
+ *   - `profiles_save`: Saves or updates the configuration.
  *   - `monitor_start`: Sets state.running = true and emits "loopautoma://event" (MonitorStateChanged: Running).
  *   - `monitor_stop`: Sets state.running = false and emits "loopautoma://event" (MonitorStateChanged: Stopped).
  *   - `region_picker_show`: Sets state.overlayActive = true and emits RegionOverlay event.
@@ -264,7 +265,7 @@ export type FakeDesktopOptions = {
  *
  * State tracking:
  *   - The `state` object (exposed as `window.__LOOPAUTOMA_TEST__.state`) tracks:
- *       - profiles: Array of Profile objects.
+ *       - config: ProfilesConfig object (version + profiles[]).
  *       - running: Whether the monitor is running.
  *       - overlayActive: Whether the overlay is shown.
  *       - quitCount: Number of times "quit" was invoked.
@@ -280,10 +281,15 @@ export type FakeDesktopOptions = {
  * @param options Optional: initial profiles to inject
  */
 export async function setupFakeDesktopMode(page: Page, options?: FakeDesktopOptions) {
-  const profiles = options?.profiles ?? [defaultPresetProfile()];
-  await page.addInitScript(({ initialProfiles, blank }) => {
+  const initialConfig = normalizeProfilesConfig(
+    options?.config ??
+      (options?.profiles
+        ? { profiles: options.profiles, version: 1 }
+        : undefined),
+  );
+  await page.addInitScript(({ initialConfig, blank }) => {
     const state: any = {
-      profiles: initialProfiles,
+      config: initialConfig,
       running: false,
       overlayActive: false,
       quitCount: 0,
@@ -295,9 +301,9 @@ export async function setupFakeDesktopMode(page: Page, options?: FakeDesktopOpti
     const fakeInvoke = async (cmd: string, args?: any) => {
       switch (cmd) {
         case "profiles_load":
-          return state.profiles;
+          return state.config;
         case "profiles_save":
-          state.profiles = args?.profiles ?? state.profiles;
+          state.config = args?.config ?? state.config;
           return;
         case "monitor_start":
           state.running = true;
@@ -353,7 +359,7 @@ export async function setupFakeDesktopMode(page: Page, options?: FakeDesktopOpti
     (window as any).__TAURI_IPC__ = {
       invoke: fakeInvoke,
     };
-  }, { initialProfiles: profiles, blank: BLANK_PNG_BASE64 });
+  }, { initialConfig, blank: BLANK_PNG_BASE64 });
 }
 
 export async function dispatchTauriEvent<T = unknown>(page: Page, channel: string, payload: T) {

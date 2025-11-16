@@ -1,44 +1,35 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useProfiles, useEventStream, useRunState } from "../src/store";
-import type { Event } from "../src/types";
+import { defaultProfilesConfig, type Event } from "../src/types";
 
 // Mock @tauri-apps/api/event
-const mockListener = vi.fn();
 const mockOff = vi.fn();
 
 vi.mock("@tauri-apps/api/event", () => ({
-  listen: vi.fn().mockImplementation((_channel, callback) => {
-    mockListener.mockImplementation(callback);
-    return Promise.resolve(mockOff);
-  }),
+  listen: vi.fn().mockImplementation((_channel, _callback) => Promise.resolve(mockOff)),
 }));
+
+const dispatchRuntimeEvent = (payload: Event) => {
+  window.dispatchEvent(new CustomEvent("loopautoma://event", { detail: { payload } }));
+};
 
 describe("Store hooks", () => {
   describe("useProfiles", () => {
-    it("initializes with empty profiles array", () => {
+    it("initializes with null config", () => {
       const { result } = renderHook(() => useProfiles());
-      expect(result.current.profiles).toEqual([]);
+      expect(result.current.config).toEqual(null);
     });
 
-    it("allows setting profiles", () => {
+    it("allows setting config", () => {
       const { result } = renderHook(() => useProfiles());
-      const testProfiles = [
-        {
-          id: "test-1",
-          name: "Test Profile",
-          regions: [],
-          trigger: { type: "IntervalTrigger", check_interval_sec: 60 },
-          condition: { type: "RegionCondition", stable_ms: 1000, downscale: 4 },
-          actions: [],
-        },
-      ];
+      const cfg = defaultProfilesConfig();
 
       act(() => {
-        result.current.setProfiles(testProfiles);
+        result.current.setConfig(cfg);
       });
 
-      expect(result.current.profiles).toEqual(testProfiles);
+      expect(result.current.config).toEqual(cfg);
     });
   });
 
@@ -66,11 +57,8 @@ describe("Store hooks", () => {
       
       await waitFor(() => {
         act(() => {
-          mockListener({ payload: testEvent });
+          dispatchRuntimeEvent(testEvent);
         });
-      });
-
-      await waitFor(() => {
         expect(result.current.events).toContainEqual(testEvent);
       });
     });
@@ -79,13 +67,11 @@ describe("Store hooks", () => {
       const { result } = renderHook(() => useEventStream());
       
       // Simulate adding 501 events
-      await waitFor(() => {
-        for (let i = 0; i < 501; i++) {
-          act(() => {
-            mockListener({ payload: { type: "TriggerFired" } });
-          });
-        }
-      });
+      for (let i = 0; i < 501; i++) {
+        act(() => {
+          dispatchRuntimeEvent({ type: "TriggerFired" });
+        });
+      }
 
       await waitFor(() => {
         expect(result.current.events.length).toBeLessThanOrEqual(500);
@@ -118,15 +104,8 @@ describe("Store hooks", () => {
       
       expect(result.current.runningProfileId).toBe("test-id");
       
-      await waitFor(() => {
-        act(() => {
-          mockListener({ 
-            payload: { 
-              type: "MonitorStateChanged", 
-              state: "Stopped" 
-            } 
-          });
-        });
+      act(() => {
+        dispatchRuntimeEvent({ type: "MonitorStateChanged", state: "Stopped" } as Event);
       });
 
       await waitFor(() => {
@@ -141,15 +120,8 @@ describe("Store hooks", () => {
         result.current.setRunningProfileId("test-id");
       });
       
-      await waitFor(() => {
-        act(() => {
-          mockListener({ 
-            payload: { 
-              type: "MonitorStateChanged", 
-              state: "Running" 
-            } 
-          });
-        });
+      act(() => {
+        dispatchRuntimeEvent({ type: "MonitorStateChanged", state: "Running" } as Event);
       });
 
       await waitFor(() => {

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Event as RuntimeEvent, Profile } from "./types";
+import { Event as RuntimeEvent, ProfilesConfig } from "./types";
 import { subscribeEvent } from "./eventBridge";
 
 export function useProfiles() {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  return { profiles, setProfiles };
+  const [config, setConfig] = useState<ProfilesConfig | null>(null);
+  return { config, setConfig };
 }
 
 export function useEventStream() {

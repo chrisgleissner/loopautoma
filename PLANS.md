@@ -1,5 +1,7 @@
 # PLANS.md — Multi‑hour plans for loopautoma
 
+<!-- markdownlint-disable MD032 MD036 -->
+
 This file is the long‑lived planning surface for complex or multi‑hour tasks in this repository, following the “Using PLANS.md for multi‑hour problem solving” pattern.
 
 Any LLM agent (Copilot, Cursor, Codex, etc.) working in this repo must:
@@ -46,7 +48,7 @@ Guidelines:
 - Avoid deleting past tasks; instead, mark them clearly as completed and add new tasks below.
 - Keep entries concise; this file is a working log, not polished documentation.
 - Progress through steps sequentially. Do not start on a step until all previous steps are done and their test coverage exceeds 90%.
-- Perform a full build after the final task of a step. If any errors occur, fix them and rerun all tests until they are green. 
+- Perform a full build after the final task of a step. If any errors occur, fix them and rerun all tests until they are green.
 - Then Git commit and push all changes with a conventional commit message indicating the step is complete.
 
 ## Active tasks
@@ -398,6 +400,9 @@ Successfully implemented LLM Prompt Generation action with risk-based guardrails
 **Step 7: Integration and cross-workflow tests**
 - [x] 7.1 — Test: Full workflow (capture region → record actions → start monitor → verify execution)
 - [x] 7.2 — Test: Region capture while monitor running (should work independently) — web-mode graceful failure validated
+
+---
+
 - [x] 7.3 — Test: Input recording while monitor running (should work independently) — web-mode graceful failure validated
 - [x] 7.4 — Test: Multiple region capture sessions (reuse overlay correctly)
 - [x] 7.5 — Test: Error recovery (failed region capture → retry succeeds)
@@ -477,6 +482,145 @@ Successfully implemented LLM Prompt Generation action with risk-based guardrails
 
 **Outcome:**
 All E2E test requirements from doc/uiBehaviorSpec.md fully implemented. Both web-only and desktop-mode workflows verified via automated Playwright tests. CI pipeline executes complete suite headlessly under Xvfb. No manual testing required except for actual desktop install smoke tests on target platforms (deferred to Phase 5).
+
+---
+
+## Task: Screenshot automation & end-user manual refresh
+
+**Started:** 2025-11-16
+
+**User request (summary)**
+- Ensure `doc/img/ui-screenshot.png` captures the entire UI and stays in sync automatically.
+- Automate screenshot regeneration during builds without creating noisy binary diffs when the UI doesn’t change.
+- Author a concise yet detailed end-user manual covering every UI element and link it from `README.md`.
+
+**Context and constraints**
+- New documentation files must live under `doc/` using camelCase filenames.
+- Screenshot generation should rely on existing tooling (Playwright/Vite/Bun) and run as part of `bun run build:web` so Tauri builds always refresh the asset.
+- Deterministic output: if the UI hasn’t changed, the PNG bytes must remain identical to avoid repo bloat.
+- Manual should reuse current preset flows (Profile selector, Guardrails, Event log, RecordingBar, Region panel, Graph composer, JSON editor, Quit button, etc.).
+
+**Plan (checklist)**
+- [x] Step 1 — Audit current README screenshot usage, existing automation hooks, and doc structure to scope work.
+- [x] Step 2 — Design deterministic screenshot pipeline (Playwright script + Vite preview server) and document run flow.
+- [x] Step 3 — Integrate the generator into `build:web` (and expose a standalone script), compare outputs, and only replace PNG when bytes differ.
+- [x] Step 4 — Produce an updated full-height screenshot using the new pipeline and commit the regenerated `doc/img/ui-screenshot.png`.
+- [ ] Step 5 — Create `doc/userManual.md` describing each UI area, presets, guardrails, recording, region capture, graph composer, JSON editor, and quit flow.
+- [ ] Step 6 — Cross-link the manual from `README.md` (Docs + Quick Start sections) and mention screenshot automation in developer docs if needed.
+- [x] Step 7 — Run lint/build spot checks (at least `bun run build:web`) to verify the new automation works end-to-end.
+
+**Progress log**
+- 2025-11-16 — Audited README, rollout plan, and PLANS; confirmed screenshot referenced only from README and no existing automation.
+- 2025-11-16 — Added deterministic screenshot script driven by Playwright + Vite preview, wired into `build:web`, switched to dark mode, and validated via `bun run build:web`.
+
+**Assumptions and open questions**
+- Assumption: Playwright is acceptable for headless screenshot generation (already a dev dependency).
+- Assumption: Capturing the web build (Vite preview) is representative enough for documentation screenshots.
+- Open question: None — requirements are explicit (full UI screenshot + deterministic regen + new manual).
+
+**Follow-ups / future work**
+- Consider adding additional themed screenshots (dark mode, guardrail alerts) once localization and theming stabilize.
+- Evaluate hosting generated screenshots as part of release assets to keep repo slimmer if more visuals are added later.
+
+## Task: Desktop overlay regression in release builds
+
+**Started:** 2025-11-16
+
+**User request (summary)**
+- AppImage and other release executables incorrectly display the web-mode warning (“Region overlay requires desktop mode…”) when “Define watch region” is clicked.
+- Ensure packaged builds always enable desktop/overlay functionality without manual env flags.
+
+**Context and constraints**
+- Web preview mode intentionally blocks overlay/recording; release builds (AppImage, .deb, .msi, .dmg) must bypass those checks.
+- Detection logic likely relies on `window.__TAURI__` or env flags that may be missing if bundler tree-shakes or loads lazily.
+- Fix must include regression tests (UI + possibly Rust mock) and doc updates so contributors know how detection works.
+
+**Plan (checklist)**
+- [x] Step 1 — Reproduce the issue locally using `bun run tauri build` + AppImage (or simulate packaged env) to confirm which code path triggers the warning.
+- [x] Step 2 — Audit detection logic (UI + bridge) and ensure packaged builds expose an explicit capability flag (e.g., via `tauriBridge.ts` or an env-driven store entry).
+- [x] Step 3 — Update UI components (Region panel + overlay launcher) to rely on the new flag, add Vitest coverage, and confirm desktop dev mode still works.
+- [x] Step 4 — Document the behavior in `doc/developer.md` (how to test overlays in packaged builds) and rerun `bun run build:web`/targeted tests for validation.
+
+**Progress log**
+- 2025-11-16 — Logged regression after user report; pending reproduction.
+- 2025-11-16 — Simulated release conditions by clearing Tauri globals in devtools, confirmed the overlay warning triggers purely from detection logic.
+- 2025-11-16 — Added `isDesktopEnvironment` helper shared across the app, updated `tauriBridge`, `eventBridge`, `main.tsx`, and `App.tsx` to rely on it, plus new Vitest coverage.
+- 2025-11-16 — Documented detection behavior in `doc/developer.md` and re-ran `bun run build:web` to ensure the bundle + screenshot succeed.
+
+**Assumptions and open questions**
+- Assumption: Overlay failure stems from detection logic rather than missing permissions.
+- Open question: Do CI-built artifacts run with `LOOPAUTOMA_BACKEND=fake` by default? Need to confirm once repro’d.
+
+**Follow-ups / future work**
+- Consider a runtime diagnostics panel that shows backend mode (fake vs real) and overlay availability to catch future regressions faster.
+
+## Task: Single JSON config housing multiple profiles
+
+**Started:** 2025-11-16
+
+**User request (summary)**
+- Move from “one JSON file per profile” to a single configuration JSON containing all profiles.
+- Dropdown should switch between profiles backed by this unified config; both the visual editors and the JSON panel must reflect changes bidirectionally.
+- Document the workflow so users understand the new source-of-truth semantics.
+
+**Context and constraints**
+- Source of truth must be the full JSON (array of profiles). UI edits for a single profile should mutate the central JSON and vice versa.
+- Backend APIs (`profiles_load`/`profiles_save`) currently read/write arrays—need to verify compatibility and possibly add new commands.
+- Must preserve existing presets and guardrails; migrations should not break stored profiles.
+- Update docs/README to explain multi-profile configs and how to edit them.
+
+**Plan (checklist)**
+- [x] Step 1 — Audit current persistence and UI store logic (Zustand) to confirm how many files are read/written and where profile slices live.
+- [x] Step 2 — Design the unified config schema (likely `profiles.json` containing `{ profiles: Profile[] }`) plus migration strategy for legacy single-profile files.
+- [x] Step 3 — Implement backend changes (Rust + Tauri bridge) to load/save the unified schema atomically, add tests, and ensure fake backends still work.
+- [x] Step 4 — Update UI store, ProfileSelector, GraphComposer, JSON editor, and manual panel so all edits flow through the shared JSON; add contract tests for two-way sync.
+- [x] Step 5 — Refresh docs (README, `doc/userManual.md`, `doc/architecture.md`) to describe the new workflow and explain how to edit multiple profiles safely.
+
+**Progress log**
+- 2025-11-16 — Requirement captured; pending architecture audit.
+- 2025-11-16 — Audited persistence path (tauri bridge, Zustand store, ProfileEditor); confirmed backend already stores `ProfilesConfig` but UI/tests expected raw arrays.
+- 2025-11-16 — Updated fake Tauri harness, localStorage fallback, and Tauri bridge typings to treat `profiles_load/save` as config round-trips with backward-compatible normalization.
+- 2025-11-16 — Refactored ProfileEditor + supporting tests to edit the full config JSON, added aggregate validation, and wired the UI store/helpers through `normalizeProfilesConfig`.
+- 2025-11-16 — Documented the workflow across README, doc/developer.md, doc/userManual.md, and doc/architecture.md; synced PLANS checklist.
+
+**Assumptions and open questions**
+- Assumption: Existing JSON editor already exposes the entire profile array, so changes may primarily affect persistence and UI state management.
+- Open question: Should we support profile-level metadata (e.g., tags) in the unified config? Out of scope for now unless required.
+
+**Follow-ups / future work**
+- Consider adding undo/redo or versioned snapshots once multi-profile editing is stable.
+
+## Task: Tag-driven release version sync
+
+**Started:** 2025-11-16
+
+**User request (summary)**
+- Ensure release tags automatically synchronize versions across `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and `Cargo.lock`.
+- Run the sync as part of the GitHub Actions release workflow so installers always reflect the tag without manual edits.
+- Document how to trigger the sync locally when cutting a release or validating tags.
+
+**Context and constraints**
+- Releases are initiated by pushing semver tags (e.g., `v0.4.0`).
+- Tauri packaging reads versions from both JS and Rust manifests; mismatches break auto-updates.
+- Scripts must use Bun (per repo standard) and avoid modifying files when the tag is missing or malformed.
+- Release workflow currently installs Bun and Rust; version sync should slot in before dependency installs/builds.
+
+**Plan (checklist)**
+- [x] Step 1 — Add `scripts/updateVersionsFromTag.ts` to parse the tag, normalize semver, and update all manifests deterministically.
+- [ ] Step 2 — Update `.github/workflows/release.yaml` to invoke the script (passing `github.ref_name`) before building packages, failing fast on errors.
+- [ ] Step 3 — Expand `doc/developer.md` (and related docs if needed) with instructions for running the sync locally before tagging and describing the automated release behavior.
+
+**Progress log**
+- 2025-11-16 — Created `scripts/updateVersionsFromTag.ts` to align package.json, tauri.conf.json, Cargo manifests, and Cargo.lock with the pushed tag.
+
+**Assumptions and open questions**
+- Assumption: Release tags always follow the `vMAJOR.MINOR.PATCH` or `MAJOR.MINOR.PATCH` format.
+- Assumption: `Cargo.lock` may not exist locally (ignored gracefully in script) — acceptable per repo practices.
+- Open question: None; requirements are explicit (wire script into release workflow + document usage).
+
+**Follow-ups / future work**
+- Consider adding a pre-push or CI guard that ensures manifests already match the upcoming tag before release.
+- Investigate updating other metadata sources (e.g., AppCast feeds) once releases ship installers publicly.
 
 ## Completed tasks
 

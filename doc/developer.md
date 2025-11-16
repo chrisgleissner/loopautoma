@@ -88,9 +88,37 @@ LOOPAUTOMA_BACKEND=fake bun run dev   # safe mode, no real input
 bun run dev:web            # pure web dev server
 bun run build              # desktop bundles (.deb/.rpm/.AppImage under src-tauri/target/release/bundle/)
 bun run build:web          # UI bundle only
+bun run generate:ui-screenshot  # deterministic doc/img/ui-screenshot.png refresh via Playwright
+bun scripts/updateVersionsFromTag.ts v0.4.0  # align package.json/Tauri/Cargo versions before tagging
 cd src-tauri && cargo test --all --locked                 # Rust tests
 cd src-tauri && cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
 ```
+
+### Screenshot automation pipeline
+
+- `bun run generate:ui-screenshot` launches a Vite preview server, applies the dark theme, injects sample events, and grabs a full-height PNG via Playwright.
+- `bun run build:web` already calls the generator at the end of the build; run the standalone command only when you want to refresh the screenshot without rebuilding.
+- Output is written to `doc/img/ui-screenshot.png` only when the bytes change, keeping git diffs minimal. Use this before updating docs/README screenshots.
+
+### Desktop vs web detection
+
+- Region overlays, thumbnails, and input recording now rely on a single `isDesktopEnvironment` helper that checks for Tauri globals, user-agent markers, and the new `window.__LOOPAUTOMA_FORCE_DESKTOP__` escape hatch.
+- Packaged builds (AppImage, .deb, .dmg, .msi) automatically satisfy one of the detection paths, so the “Run the Tauri app instead of the web preview” warning should never appear in release artifacts.
+- To debug overlay flows in a pure web preview (without Tauri IPC), add `window.__LOOPAUTOMA_FORCE_DESKTOP__ = true` in devtools before clicking “Define watch region.” Remove it afterwards to restore normal behavior.
+- When reproducing desktop-only regressions, prefer running `bun run tauri dev` or the generated AppImage rather than `bun run dev`.
+
+### ProfilesConfig (single-source persistence)
+
+- The backend now treats all user data as one JSON document shaped as `{ "version": number, "profiles": Profile[] }` (see `doc/architecture.md`).
+- `profiles_load`/`profiles_save` load and persist the entire object atomically, and the UI keeps a single copy in state via the JSON editor.
+- Web preview mode stores the normalized config under `localStorage["loopautoma.profiles"]`, so you can wipe or seed data by editing that key.
+- The JSON editor in the app always shows the full config; editing a single profile in Graph Composer or Region panel mutates the same document, so both stay in sync automatically.
+
+### Release tagging and version sync
+
+- The release workflow derives installer metadata from the pushed tag. Run `bun scripts/updateVersionsFromTag.ts vX.Y.Z` locally to preview changes before tagging.
+- On CI, `.github/workflows/release.yaml` invokes the same script (with `GITHUB_REF_NAME`) immediately after setting up Bun. If the tag is malformed (not `vMAJOR.MINOR.PATCH`), the script fails fast and stops the job.
+- The script updates `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and `src-tauri/Cargo.lock` (if present). Commit these updates alongside your release prep branch so that the tag matches the manifest versions.
 
 ### E2E tests (Playwright)
 
@@ -103,8 +131,9 @@ bun run test:e2e:report
 ```
 
 Notes:
+
 - The Playwright HTML reporter is configured not to auto-open (open: "never") to avoid blocking terminals and agent sessions. If you need the report, run the separate `test:e2e:report` command.
-- If a previous command appears to hang with a message like "Serving HTML report at http://localhost:XXXX", stop it with Ctrl+C and use the explicit report command instead.
+- If a previous command appears to hang with a message like "Serving HTML report at `http://localhost:XXXX`", stop it with Ctrl+C and use the explicit report command instead.
 
 ## 3. Cross‑OS (macOS + Windows) Backends
 
@@ -136,4 +165,4 @@ cargo check --no-default-features --features os-windows
 - `src-tauri/.cargo/config.toml` already exports `BINDGEN_EXTRA_CLANG_ARGS=--sysroot=/usr -I/usr/lib/llvm-18/lib/clang/18/include -I/usr/include/x86_64-linux-gnu`, so local `cargo` picks up the same headers as CI.
 - If the hardware capture/input crates fail to build, re-run the apt block above and confirm you are on an X11 session. To unblock development without native hooks, use `LOOPAUTOMA_BACKEND=fake bun run dev`.
 - Want reproducible tooling without touching the host? Build the CI image locally (`docker build -t loopautoma/ci:local .`) and run commands inside: `docker run --rm -v "$PWD:/workspace" -w /workspace loopautoma/ci:local bash -lc 'bun install && bun run dev'`.
- - If E2E runs seem to block, verify the HTML report server is not running in the foreground. Our config disables auto-open; prefer `bun run test:e2e:report` to view results.
+- If E2E runs seem to block, verify the HTML report server is not running in the foreground. Our config disables auto-open; prefer `bun run test:e2e:report` to view results.

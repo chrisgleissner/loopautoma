@@ -50,6 +50,89 @@ fn is_release_runtime() -> bool {
     !cfg!(debug_assertions)
 }
 
+fn default_profile() -> Profile {
+    Profile {
+        id: "keep-agent-001".into(),
+        name: "Keep AI Agent Active".into(),
+        regions: vec![
+            Region {
+                id: "chat-out".into(),
+                rect: Rect {
+                    x: 80,
+                    y: 120,
+                    width: 1200,
+                    height: 600,
+                },
+                name: Some("Agent Output".into()),
+            },
+            Region {
+                id: "progress".into(),
+                rect: Rect {
+                    x: 80,
+                    y: 740,
+                    width: 1200,
+                    height: 200,
+                },
+                name: Some("Progress Area".into()),
+            },
+        ],
+        trigger: TriggerConfig {
+            r#type: "IntervalTrigger".into(),
+            check_interval_sec: 60.0,
+        },
+        condition: ConditionConfig {
+            r#type: "RegionCondition".into(),
+            stable_ms: 8_000,
+            downscale: 4,
+        },
+        actions: vec![
+            ActionConfig::MoveCursor { x: 960, y: 980 },
+            ActionConfig::Click {
+                button: MouseButton::Left,
+            },
+            ActionConfig::Type {
+                text: "continue".into(),
+            },
+            ActionConfig::Key {
+                key: "Enter".into(),
+            },
+        ],
+        guardrails: Some(GuardrailsConfig {
+            max_runtime_ms: Some(3 * 60 * 60 * 1000),
+            max_activations_per_hour: Some(120),
+            cooldown_ms: 5_000,
+        }),
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+struct ProfilesConfig {
+    version: Option<u32>,
+    profiles: Vec<Profile>,
+}
+
+impl Default for ProfilesConfig {
+    fn default() -> Self {
+        Self {
+            version: Some(1),
+            profiles: vec![default_profile()],
+        }
+    }
+}
+
+impl ProfilesConfig {
+    fn normalize(mut self) -> Self {
+        if self.profiles.is_empty() {
+            self.profiles.push(default_profile());
+        }
+        if self.version.is_none() {
+            self.version = Some(1);
+        }
+        self
+    }
+}
+
 #[derive(Default)]
 struct AuthoringState {
     input_capture: Mutex<Option<Box<dyn InputCapture + Send>>>,
@@ -62,7 +145,7 @@ fn greet(name: &str) -> String {
 
 #[derive(Default)]
 struct AppState {
-    profiles: Mutex<Vec<Profile>>,        // in-memory MVP
+    profiles: Mutex<ProfilesConfig>,      // in-memory MVP
     runner: Mutex<Option<MonitorRunner>>, // current monitor runner
     authoring: AuthoringState,
 }
@@ -270,13 +353,13 @@ pub(crate) fn ensure_dev_injection_allowed(command: &str) -> Result<(), String> 
 }
 
 #[tauri::command]
-fn profiles_load(state: tauri::State<AppState>) -> Result<Vec<Profile>, String> {
+fn profiles_load(state: tauri::State<AppState>) -> Result<ProfilesConfig, String> {
     Ok(state.profiles.lock().unwrap().clone())
 }
 
 #[tauri::command]
-fn profiles_save(profiles: Vec<Profile>, state: tauri::State<AppState>) -> Result<(), String> {
-    *state.profiles.lock().unwrap() = profiles;
+fn profiles_save(config: ProfilesConfig, state: tauri::State<AppState>) -> Result<(), String> {
+    *state.profiles.lock().unwrap() = config.normalize();
     Ok(())
 }
 
@@ -289,8 +372,9 @@ fn monitor_start(
     // Stop any existing runner
     monitor_stop_impl(&state, StopReason::Graceful);
 
-    let profiles = state.profiles.lock().unwrap().clone();
-    let profile = profiles
+    let profiles_cfg = state.profiles.lock().unwrap().clone();
+    let profile = profiles_cfg
+        .profiles
         .into_iter()
         .find(|p| p.id == profile_id)
         .ok_or_else(|| "profile not found".to_string())?;

@@ -108,6 +108,9 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Sync versions from tag
+        run: bun scripts/updateVersionsFromTag.ts ${{ github.ref_name }}
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:

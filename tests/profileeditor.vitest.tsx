@@ -1,62 +1,67 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ProfileEditor } from "../src/components/ProfileEditor";
+import { defaultProfilesConfig } from "../src/types";
 
-const sample = {
-  id: "p1",
-  name: "One",
-  regions: [{ id: "r1", rect: { x: 0, y: 0, width: 10, height: 10 } }],
-  trigger: { type: "IntervalTrigger", check_interval_sec: 60 },
-  condition: { type: "RegionCondition", stable_ms: 1000, downscale: 4 },
-  actions: [{ type: "Type", text: "continue" }],
-  guardrails: { cooldown_ms: 0 },
-};
+const sampleConfig = defaultProfilesConfig();
+
+function getTextarea() {
+  const textareas = screen.getAllByRole("textbox");
+  return textareas[textareas.length - 1] as HTMLTextAreaElement;
+}
 
 describe("ProfileEditor", () => {
-  it("renders null state", () => {
-    render(<ProfileEditor profile={null} onChange={() => {}} />);
-    expect(screen.getByText(/No profile selected/)).toBeTruthy();
+  it("renders loading state", () => {
+    render(<ProfileEditor config={null} onChange={() => {}} />);
+    expect(screen.getByText(/Configuration is still loading/)).toBeTruthy();
   });
 
-  it("loads profile JSON and saves edits", () => {
+  it("loads config JSON and saves edits", () => {
     const onChange = vi.fn();
-    render(<ProfileEditor profile={sample as any} onChange={onChange} />);
-    const textareas = screen.getAllByRole("textbox");
-    const ta = textareas[textareas.length - 1] as HTMLTextAreaElement;
-    expect(ta.value).toMatch(/"id": "p1"/);
-    const updated = { ...sample, name: "Two" };
-    fireEvent.change(ta, { target: { value: JSON.stringify(updated) } });
-    fireEvent.click(screen.getByText(/Save Profile/));
+    render(<ProfileEditor config={sampleConfig} onChange={onChange} />);
+    const ta = getTextarea();
+    expect(ta.value).toMatch(/"profiles"/);
+    const next = {
+      ...sampleConfig,
+      profiles: [
+        { ...sampleConfig.profiles[0], name: "Two" },
+      ],
+    };
+    fireEvent.change(ta, { target: { value: JSON.stringify(next) } });
+    fireEvent.click(screen.getByText(/Save Config/));
     expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange.mock.calls[0][0].name).toBe("Two");
+    expect(onChange.mock.calls[0][0].profiles[0].name).toBe("Two");
   });
 
   it("shows error on invalid JSON and invalid shape", () => {
     const onChange = vi.fn();
-    render(<ProfileEditor profile={sample as any} onChange={onChange} />);
-    const textareas2 = screen.getAllByRole("textbox");
-    const ta = textareas2[textareas2.length - 1] as HTMLTextAreaElement;
+    render(<ProfileEditor config={sampleConfig} onChange={onChange} />);
+    const ta = getTextarea();
     fireEvent.change(ta, { target: { value: "{" } });
-    fireEvent.click(screen.getByText(/Save Profile/));
+    fireEvent.click(screen.getByText(/Save Config/));
     // Find the error container next to the Save button
     const errorEls = screen.getAllByText(/JSON/);
     expect(errorEls.some((el) => el.tagName.toLowerCase() === "span")).toBe(true);
     fireEvent.change(ta, { target: { value: JSON.stringify({ foo: "bar" }) } });
-    fireEvent.click(screen.getByText(/Save Profile/));
-    expect(screen.getByText(/Invalid profile shape/)).toBeTruthy();
+    fireEvent.click(screen.getByText(/Save Config/));
+    expect(screen.getByText(/Config must be either/)).toBeTruthy();
   });
 
   it("blocks save when auditProfile reports errors", () => {
     const onChange = vi.fn();
-    render(<ProfileEditor profile={sample as any} onChange={onChange} />);
-  const textareas = screen.getAllByRole("textbox");
-  const ta = textareas[textareas.length - 1] as HTMLTextAreaElement;
+    render(<ProfileEditor config={sampleConfig} onChange={onChange} />);
+    const ta = getTextarea();
     const invalid = {
-      ...sample,
-      guardrails: { ...sample.guardrails, cooldown_ms: -50 }
+      ...sampleConfig,
+      profiles: [
+        {
+          ...sampleConfig.profiles[0],
+          guardrails: { ...sampleConfig.profiles[0].guardrails, cooldown_ms: -50 },
+        },
+      ],
     };
     fireEvent.change(ta, { target: { value: JSON.stringify(invalid) } });
-    fireEvent.click(screen.getByText(/Save Profile/));
+    fireEvent.click(screen.getByText(/Save Config/));
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByText(/Cooldown must be ≥ 0 ms/)).toBeTruthy();
   });

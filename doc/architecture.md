@@ -1,5 +1,7 @@
 # Loop Automa — Target Architecture Overview
 
+<!-- markdownlint-disable MD005 MD007 MD029 MD032 MD033 -->
+
 This document defines the target architecture for a cross‑platform desktop app built with Tauri 2, a Rust backend, and a React/TypeScript UI. It uses the following abstract entities everywhere (no OS logic in the UI): Trigger, Condition, Action, ActionSequence, Monitor, Event, Region/RegionSource. The initial primary use case is unattended operation to keep an AI agent progressing indefinitely once started.
 
 MVP target platform (scope): Ubuntu 24.04 on X11. The architecture preserves clean extension points for macOS and Windows 11, which will be implemented after the Ubuntu/X11 MVP phases are complete. Wayland is out‑of‑scope for the MVP.
@@ -165,8 +167,8 @@ Profile schema (minimal contract):
 ## Tauri bridge (commands and events)
 
 - Commands (Rust):
-  - profiles_load() -> Result<Profile[], Error>
-  - profiles_save(profiles: Profile[]) -> Result<(), Error>
+  - profiles_load() -> Result<ProfilesConfig, Error> where ProfilesConfig = { version: number, profiles: Profile[] }
+  - profiles_save(config: ProfilesConfig) -> Result<(), Error>
   - monitor_start(profileId: String) -> Result<(), Error>
   - monitor_stop() -> Result<(), Error>
   - monitor_panic_stop() -> Result<(), Error>

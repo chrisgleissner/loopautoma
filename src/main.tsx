@@ -3,11 +3,12 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { RegionOverlay } from "./components/RegionOverlay";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isDesktopEnvironment } from "./utils/runtime";
 
 async function bootstrap() {
   const rootEl = document.getElementById("root") as HTMLElement;
   let Component: React.ComponentType = App;
-  const isTauri = typeof window !== "undefined" && (window as any).__TAURI_IPC__;
+  const isTauri = isDesktopEnvironment();
 
   if (isTauri) {
     try {

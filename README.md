@@ -1,18 +1,19 @@
-![Logo](./doc/img/logo.png)
-
 # LoopAutoma
+
+![Logo](./doc/img/logo.png)
 
 [![CI](https://github.com/chrisgleissner/loopautoma/actions/workflows/ci.yaml/badge.svg)](https://github.com/chrisgleissner/loopautoma/actions/workflows/ci.yaml)
 [![codecov](https://codecov.io/gh/chrisgleissner/loopautoma/graph/badge.svg?token=IdaePvWHB4)](https://codecov.io/gh/chrisgleissner/loopautoma)
 [![License: GPL v2](https://img.shields.io/github/license/chrisgleissner/loopautoma)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-forestgreen)](doc/architecture.md)
 
-> [!NOTE] 
+> [!NOTE]
 > This project is under active development and not yet fully functional. Some of this documentation refers to not yet fully implemented features.
 
-Cross‑platform desktop automation that watches configurable screen regions and performs keyboard/mouse actions when conditions are met. 
+Cross‑platform desktop automation that watches configurable screen regions and performs keyboard/mouse actions when conditions are met.
 
 ## Features
+
 - Keep agents moving: automatically type "Continue" and press enter when an agent stalls.
 - **LLM-powered prompts**: Use GPT-4 Vision to analyze screen content and generate context-aware prompts with risk-based guardrails.
 - Run unattended: detect stable/changed UI regions and advance the flow.
@@ -22,9 +23,12 @@ Cross‑platform desktop automation that watches configurable screen regions and
 
 ![LoopAutoma UI](./doc/img/ui-screenshot.png)
 
+Need a detailed walkthrough of every panel? Read the [User Manual](doc/userManual.md).
+
 **[Download the latest release](https://github.com/chrisgleissner/loopautoma/releases/latest)** with pre-built installers for Linux, macOS, and Windows.
 
 Available formats:
+
 - **Linux**: .deb, .rpm, AppImage
 - **macOS**: .dmg (Intel and Apple Silicon)
 - **Windows**: .exe installer and .msi
@@ -51,6 +55,12 @@ The app loads with a ready-to-use preset that keeps AI agents running:
 
 **Advanced**: Use the Recording feature to capture custom action sequences, or edit profiles via the Graphical Composer or JSON editor.
 
+## Profiles & persistence
+
+- All automations live inside a single JSON document shaped as `{ "version": 1, "profiles": [...] }`.
+- The JSON editor in the right column always reflects this complete config; editing it keeps every preset, guardrail, and action in sync across the UI.
+- The desktop build persists the config via Tauri’s app directory; the web preview stores it in `localStorage` under `loopautoma.profiles` so you can experiment safely.
+
 ### Build from Source (Optional)
 
 For development or customization:
@@ -65,16 +75,20 @@ bun run dev
 See **[doc/install.md](doc/install.md)** for system requirements, troubleshooting, and detailed build instructions.
 
 ## Tech Stack
+
 - Tauri 2 + Rust 2021 backend
 - React + TypeScript (Vite, Bun, Vitest) frontend
 - Target platforms: Linux (primary), macOS, Windows
 
 ## Docs
+
 - **Installation**: [doc/install.md](doc/install.md) — System requirements, packages, and troubleshooting
+- **User manual**: [doc/userManual.md](doc/userManual.md) — Guided tour of presets, guardrails, recording, regions, and editors
 - **Architecture**: [doc/architecture.md](doc/architecture.md) — Technical design and contracts
 - **LLM Prompt Generation**: [doc/llmPromptGeneration.md](doc/llmPromptGeneration.md) — AI-powered dynamic prompts with risk guardrails
 - **Rollout plan**: [doc/rollout-plan.md](doc/rollout-plan.md) — Development roadmap and phases
 - **Dev setup**: [doc/developer.md](doc/developer.md) — Building and testing from source
 
 ## License
+
 GPL‑2.0 — see [LICENSE](LICENSE).

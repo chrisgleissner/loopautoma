@@ -1,13 +1,14 @@
 import { listen } from "@tauri-apps/api/event";
+import { getTestHarness, isDesktopEnvironment } from "./utils/runtime";
 
-const isTauri = typeof window !== "undefined" && (window as any).__TAURI_IPC__;
-const isTestHarness = typeof window !== "undefined" && (window as any).__LOOPAUTOMA_TEST__;
+const isDesktop = isDesktopEnvironment();
+const isTestHarness = !!getTestHarness();
 
 type Handler<T> = (payload: T) => void;
 
 export async function subscribeEvent<T = unknown>(channel: string, handler: Handler<T>) {
   // If we have a test harness, always use DOM events for predictable testing
-  if (isTauri && !isTestHarness) {
+  if (isDesktop && !isTestHarness) {
     const unlisten = await listen<T>(channel, (event) => {
       handler(event.payload as T);
     });

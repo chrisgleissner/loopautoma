@@ -1,46 +1,48 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Profile, Rect, defaultPresetProfile } from "./types";
+import { Profile, ProfilesConfig, Rect, defaultProfilesConfig, normalizeProfilesConfig } from "./types";
 import { BLANK_PNG_BASE64 } from "./testConstants";
+import { getTestHarness, isDesktopEnvironment } from "./utils/runtime";
 
-type TestHarness = {
-  state?: Record<string, unknown>;
-  emit?: (channel: string, payload: unknown) => void;
-  invoke?: (cmd: string, args?: unknown) => Promise<any>;
-};
-
-const hasWindow = typeof window !== "undefined";
-const getHarness = (): TestHarness | undefined => (hasWindow ? (window as any).__LOOPAUTOMA_TEST__ : undefined);
-
-const isDesktopMode = () => hasWindow && ((window as any).__TAURI_IPC__ || getHarness()?.invoke);
+const isDesktopMode = () => isDesktopEnvironment();
 
 async function callInvoke<T = unknown>(cmd: string, args?: any): Promise<T> {
-  const harness = getHarness();
+  const harness = getTestHarness();
   if (harness?.invoke) {
     return harness.invoke(cmd, args);
   }
   return invoke(cmd, args);
 }
 
-export async function profilesLoad(): Promise<Profile[]> {
-  if (isDesktopMode()) return (await callInvoke("profiles_load")) as Profile[];
+export async function profilesLoad(): Promise<ProfilesConfig> {
+  if (isDesktopMode()) return (await callInvoke("profiles_load")) as ProfilesConfig;
   try {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem("loopautoma.profiles") : null;
-    if (!raw) return [defaultPresetProfile()];
-    const parsed = JSON.parse(raw) as Profile[];
-    return parsed && parsed.length > 0 ? parsed : [defaultPresetProfile()];
+    if (!raw) {
+      const fallback = defaultProfilesConfig();
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("loopautoma.profiles", JSON.stringify(fallback));
+      }
+      return fallback;
+    }
+    const normalized = normalizeProfilesConfig(JSON.parse(raw));
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("loopautoma.profiles", JSON.stringify(normalized));
+    }
+    return normalized;
   } catch {
-    return [defaultPresetProfile()];
+    return defaultProfilesConfig();
   }
 }
 
-export async function profilesSave(profiles: Profile[]): Promise<void> {
+export async function profilesSave(config: ProfilesConfig): Promise<void> {
+  const normalized = normalizeProfilesConfig(config);
   if (isDesktopMode()) {
-    await callInvoke("profiles_save", { profiles });
+    await callInvoke("profiles_save", { config: normalized });
     return;
   }
   try {
     if (typeof localStorage !== "undefined") {
-      localStorage.setItem("loopautoma.profiles", JSON.stringify(profiles));
+      localStorage.setItem("loopautoma.profiles", JSON.stringify(normalized));
     }
   } catch {
     // ignore — web preview persistence is best-effort

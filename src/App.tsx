@@ -9,44 +9,54 @@ import { RegionAuthoringPanel } from "./components/RegionAuthoringPanel";
 import { GraphComposer } from "./components/GraphComposer";
 import { ProfileInsights } from "./components/ProfileInsights";
 import { useEventStream, useProfiles, useRunState } from "./store";
-import { defaultPresetProfile, Profile } from "./types";
+import { defaultPresetProfile, normalizeProfilesConfig, Profile, ProfilesConfig } from "./types";
 import { monitorStart, monitorStop, profilesLoad, profilesSave, appQuit } from "./tauriBridge";
 import logo from "../doc/img/logo.png";
 import { useEffectOnce } from "./hooks/useEffectOnce";
 import { registerBuiltins } from "./plugins/builtins";
+import { isDesktopEnvironment } from "./utils/runtime";
 
 function App() {
-  const { profiles, setProfiles } = useProfiles();
+  const { config, setConfig } = useProfiles();
   const { events, clear } = useEventStream();
   const { runningProfileId, setRunningProfileId } = useRunState();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showGraph, setShowGraph] = useState(true);
   const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
+  const profiles = config?.profiles ?? [];
 
   useEffectOnce(() => {
     registerBuiltins();
   });
 
-  useEffect(() => {
-    // Load profiles from backend; seed default if none
-    profilesLoad()
-      .then((ps) => {
-        if (!ps || ps.length === 0) {
-          const preset = defaultPresetProfile();
-          setProfiles([preset]);
-          setSelectedId(preset.id);
-          return profilesSave([preset]);
-        } else {
-          setProfiles(ps);
-          setSelectedId(ps[0].id);
+  const applyConfig = useCallback(
+    async (next: ProfilesConfig) => {
+      const normalized = normalizeProfilesConfig(next);
+      setConfig(normalized);
+      setSelectedId((prev) => {
+        if (prev && normalized.profiles.some((p) => p.id === prev)) {
+          return prev;
         }
+        return normalized.profiles[0]?.id ?? null;
+      });
+      await profilesSave(normalized);
+    },
+    [setConfig],
+  );
+
+  useEffect(() => {
+    profilesLoad()
+      .then((cfg) => {
+        const normalized = normalizeProfilesConfig(cfg);
+        setConfig(normalized);
+        setSelectedId(normalized.profiles[0]?.id ?? null);
       })
       .catch(() => {
-        const preset = defaultPresetProfile();
-        setProfiles([preset]);
-        setSelectedId(preset.id);
+        const fallback = normalizeProfilesConfig(undefined);
+        setConfig(fallback);
+        setSelectedId(fallback.profiles[0]?.id ?? null);
       });
-  }, [setProfiles]);
+  }, [setConfig]);
 
   const start = async () => {
     if (!selectedId) return;
@@ -59,22 +69,24 @@ function App() {
   const restorePreset = useCallback(async () => {
     const preset = defaultPresetProfile();
     const remaining = profiles.filter((p) => p.id !== preset.id);
-    const next = [preset, ...remaining];
-    setProfiles(next);
+    const next: ProfilesConfig = {
+      version: config?.version ?? 1,
+      profiles: [preset, ...remaining],
+    };
+    await applyConfig(next);
     setSelectedId(preset.id);
-    await profilesSave(next);
-  }, [profiles, setProfiles]);
+  }, [applyConfig, config?.version, profiles]);
 
   const updateProfile = async (updated: any) => {
-    const idx = profiles.findIndex((p) => p.id === updated.id);
-    let next: Profile[];
+    if (!config) return;
+    const idx = config.profiles.findIndex((p) => p.id === updated.id);
+    let nextProfiles: Profile[];
     if (idx >= 0) {
-      next = [...profiles.slice(0, idx), updated, ...profiles.slice(idx + 1)];
+      nextProfiles = [...config.profiles.slice(0, idx), updated, ...config.profiles.slice(idx + 1)];
     } else {
-      next = [...profiles, updated];
+      nextProfiles = [...config.profiles, updated];
     }
-    setProfiles(next);
-    await profilesSave(next);
+    await applyConfig({ version: config.version, profiles: nextProfiles });
   };
 
   const stop = async () => {
@@ -84,7 +96,7 @@ function App() {
 
   const quitApp = useCallback(async () => {
     try {
-      if (typeof window !== "undefined" && (window as any).__TAURI_IPC__) {
+      if (isDesktopEnvironment()) {
         await appQuit();
         return;
       }
@@ -308,7 +320,7 @@ function App() {
 
         <div>
           <h3 style={{ margin: 0 }} title="Advanced: edit the underlying profile configuration directly as JSON">Profile JSON</h3>
-          <ProfileEditor profile={selectedProfile} onChange={updateProfile} />
+            <ProfileEditor config={config} onChange={applyConfig} />
         </div>
       </section>
     </main>
