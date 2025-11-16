@@ -91,7 +91,7 @@ export type ScreenFrame = {
 
 export const defaultPresetProfile = (): Profile => ({
   id: "keep-agent-001",
-  name: "Copilot Keep-Alive",
+  name: "Keep AI Agent Active",
   regions: [
     { id: "chat-out", rect: { x: 80, y: 120, width: 1200, height: 600 }, name: "Agent Output" },
     { id: "progress", rect: { x: 80, y: 740, width: 1200, height: 200 }, name: "Progress Area" },

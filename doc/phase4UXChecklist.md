@@ -6,7 +6,7 @@ This document outlines the expected UX flows for LoopAutoma in web-only dev mode
 
 **Goal**: New user understands basic concepts and can create first profile
 
-- [ ] Landing state shows ProfileSelector with "Copilot Keep-Alive" preset
+- [ ] Landing state shows ProfileSelector with "Keep AI Agent Active" preset
 - [ ] Clicking preset profile loads it and shows ProfileInsights summary
 - [ ] ProfileInsights displays: region count, action count, guardrails summary, trigger interval
 - [ ] Start button becomes enabled after profile selection

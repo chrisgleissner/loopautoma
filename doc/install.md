@@ -204,7 +204,7 @@ When you first launch Loop Automa:
 
 2. **Check X11 Session**: If the app warns about Wayland, follow the instructions above to switch to an X11 session.
 
-3. **Load or Create a Profile**: The app will start with a default "Copilot Keep-Alive" profile. You can modify it or create new profiles in the UI.
+3. **Load or Create a Profile**: The app will start with a default "Keep AI Agent Active" profile. You can modify it or create new profiles in the UI.
 
 4. **Test with Safe Mode**: Before running automation on production systems, test with `LOOPAUTOMA_BACKEND=fake` to verify your profile logic without executing real input events:
 
