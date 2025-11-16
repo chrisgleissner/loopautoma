@@ -1,7 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod action;
 mod condition;
-mod domain;
+pub mod domain;
 mod llm;
 mod monitor;
 #[cfg(any(
@@ -10,7 +10,7 @@ mod monitor;
     feature = "os-macos",
     feature = "os-windows"
 ))]
-mod os;
+pub mod os;
 mod soak;
 #[cfg(test)]
 mod tests;
