@@ -46,11 +46,11 @@ Guardrail settings live with each profile. The UI now edits these values in **se
 
 ## 5. Defining screen regions
 
-1. Click **“Define watch region”** to open the translucent overlay.
+1. Click the mouse icon (tooltip **“Define watch region”**) to open the translucent overlay.
 2. Drag from the top-left of the desired area to the bottom-right. All four drag directions are supported.
 3. Release to preview the rectangle. Use the inline form to rename the region.
 4. Click **Save region** to add it to the profile. The Region Panel lists every region with a thumbnail and bounding box details.
-5. Use **Refresh thumbnail** to capture the latest pixels or **Remove** to delete a region.
+5. Use the circular arrow icon (tooltip **“Refresh thumbnail”**) to capture the latest pixels or the trash icon to delete a region.
 
 Tips:
 
@@ -71,11 +71,19 @@ Notes:
 - Recording requires real OS hooks. In web-only mode, the UI surfaces mock errors explaining that recording needs the desktop build.
 - Modifier combos (Ctrl/Alt/Shift) and scroll events are captured. Scrolls appear in the timeline but are not persisted as actions in the current release.
 
+### 6.1 Special-key shortcuts and inline syntax
+
+- When editing an action sequence in the Graph Composer, use the **Insert special key** dropdown inside any **Type** action to append `{Key:…}` markers without memorizing the syntax.
+- Supported keys include navigation (Arrows, Home/End), function keys, Enter/Escape, and you can still provide custom strings.
+- Click the scissors icon (tooltip **“Split inline keys”**) to automatically convert a string like `"ping {Key:Enter}"` into two actions: `Type("ping ")` followed by `Key("Enter")`.
+- The **Key** action editor now exposes the same preset list plus a dedicated custom field, so picking or editing keys is always a single click.
+- Full syntax reference lives in this section and via the in-app helper link.
+
 ## 7. Graph Composer
 
 - Provides a node-based view of the Trigger → Condition → Actions pipeline.
 - Click a node to edit its configuration: interval (Trigger), stable duration in seconds + downscale/hash (Condition), or the ordered list of actions.
-- Drag actions to reorder. Add new actions via the “+ Action” button (MoveCursor, Click, Type, Key, LLMPromptGeneration, etc.).
+- Drag actions to reorder. Use the plus icon in the Action toolbar to add new steps (MoveCursor, Click, Type, Key, LLMPromptGeneration, etc.).
 - Validation errors are displayed inline (missing coordinates, empty text, invalid region references).
 
 ## 8. JSON editor

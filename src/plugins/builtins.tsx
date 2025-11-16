@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { ActionConfig, MouseButton } from "../types";
+import { SPECIAL_KEYS, formatInlineKeyToken } from "../utils/specialKeys";
 import {
   ActionEditorProps,
   ConditionEditorProps,
@@ -112,31 +114,91 @@ function ClickEditor({ value, onChange }: ActionEditorProps) {
 
 function TypeEditor({ value, onChange }: ActionEditorProps) {
   const v = value as Extract<ActionConfig, { type: "Type" }>;
+  const [pendingInsert, setPendingInsert] = useState("");
+  const appendSpecialKey = (key: string) => {
+    const token = formatInlineKeyToken(key);
+    const prefix = v.text ?? "";
+    const needsSpace = prefix.length > 0 && !prefix.endsWith(" ");
+    const nextText = `${prefix}${needsSpace ? " " : ""}${token}`;
+    onChange({ type: "Type", text: nextText });
+  };
   return (
-    <label title="Text to type as keystrokes">
-      Text
-      <input
-        type="text"
-        value={v.text}
-        onChange={(e) => onChange({ type: "Type", text: e.target.value })}
-        style={{ width: 200, marginLeft: 6 }}
-      />
-    </label>
+    <div className="type-editor" title="Type literal text; use {Key:Enter} inline markers for special keys">
+      <label>
+        Text
+        <textarea
+          value={v.text}
+          onChange={(e) => onChange({ type: "Type", text: e.target.value })}
+          style={{ width: 260, minHeight: 48, marginLeft: 6 }}
+        />
+      </label>
+      <div className="type-editor__helpers">
+        <label>
+          Insert special key
+          <select
+            value={pendingInsert}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (!next) return;
+              appendSpecialKey(next);
+              setPendingInsert("");
+            }}
+          >
+            <option value="">Choose…</option>
+            {SPECIAL_KEYS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <a
+          href="https://github.com/chrisgleissner/loopautoma/blob/main/doc/userManual.md#special-key-shortcuts"
+          target="_blank"
+          rel="noreferrer"
+          className="type-editor__helper-link"
+        >
+          Special key syntax ↗
+        </a>
+      </div>
+    </div>
   );
 }
 
 function KeyEditor({ value, onChange }: ActionEditorProps) {
   const v = value as Extract<ActionConfig, { type: "Key" }>;
+  const isPreset = SPECIAL_KEYS.some((opt) => opt.value === v.key);
   return (
-    <label title="Key to press (e.g., Enter)">
-      Key
-      <input
-        type="text"
-        value={v.key}
-        onChange={(e) => onChange({ type: "Key", key: e.target.value })}
-        style={{ width: 120, marginLeft: 6 }}
-      />
-    </label>
+    <div className="key-editor" title="Select a special key or enter a custom value">
+      <label>
+        Common keys
+        <select
+          value={isPreset ? v.key : ""}
+          onChange={(e) => {
+            if (!e.target.value) return;
+            onChange({ type: "Key", key: e.target.value });
+          }}
+          style={{ marginLeft: 6 }}
+        >
+          <option value="">Custom…</option>
+          {SPECIAL_KEYS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Custom key
+        <input
+          type="text"
+          value={isPreset ? "" : v.key}
+          onChange={(e) => onChange({ type: "Key", key: e.target.value })}
+          placeholder="Enter, Ctrl+K"
+          style={{ width: 160, marginLeft: 6 }}
+        />
+      </label>
+    </div>
   );
 }
 

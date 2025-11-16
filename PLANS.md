@@ -11,6 +11,11 @@ Any LLM agent (Copilot, Cursor, Codex, etc.) working in this repo must:
 - Update the plan and progress sections as work proceeds.
 - Record assumptions, decisions, and known gaps so future agents can continue smoothly.
 
+## TOC
+
+<!-- TOC -->
+<!-- /TOC -->
+
 ## How to use this file
 
 For each substantial user request or multi‑step feature, create a new **Task** section like this:
@@ -50,6 +55,46 @@ Guidelines:
 - Progress through steps sequentially. Do not start on a step until all previous steps are done and their test coverage exceeds 90%.
 - Perform a full build after the final task of a step. If any errors occur, fix them and rerun all tests until they are green.
 - Then Git commit and push all changes with a conventional commit message indicating the step is complete.
+
+## Maintenance rules (required for all agents)
+
+### Table of Contents
+
+- Maintain an automatically generated TOC using the “<!-- TOC --> … <!-- /TOC -->” block at the top of this file.
+- After adding, removing, or renaming a Task section, regenerate the TOC using the standard Markdown All-in-One command.
+- Do not manually edit TOC entries.
+
+### Pruning and archiving
+
+To prevent uncontrolled growth of this file:
+
+- Keep only active tasks and the last 2–3 days of progress logs in this file.
+- When a Task is completed, move the entire Task section to `doc/plans/archive/YYYY-MM-DD-<task-name>.md`.
+- When progress logs exceed 30 lines, summarize older entries into a single “Historical summary” bullet at the bottom of the Task.
+- Do not delete information; always archive it.
+
+### Structure rules
+
+- Each substantial task must begin with a second-level header:
+
+  `## Task: <short title>`
+
+- Sub-sections must follow this order:
+  - User request (summary)
+  - Context and constraints
+  - Plan (checklist)
+  - Progress log
+  - Assumptions and open questions
+  - Follow-ups / future work
+
+- Agents must not introduce new section layouts.
+
+### Plan-then-act contract
+
+- Agents must keep the checklist strictly synchronized with actual work.  
+- Agents must append short progress notes after each major step.  
+- Agents must ensure that Build, Lint/Typecheck, and Tests are PASS before a Task is marked complete.  
+- All assumptions must be recorded in the “Assumptions and open questions” section.
 
 ## Active tasks
 
@@ -202,6 +247,53 @@ Successfully implemented LLM Prompt Generation action with risk-based guardrails
 - Prompt length validation (≤200 chars)
 - API key not committed to version control
 - Falls back to safe mock when API unavailable
+
+---
+
+### Task: UI Modernization & Action UX Polish
+
+**Started:** 2025-11-16 (reaffirmed 2025-11-17)
+
+**User request (summary)**
+- Modernize the UI (light/dark defaults, typography, spacing, iconography, responsive layout, dropdown polish) without breaking architecture constraints.
+- Improve action authoring ergonomics via special-key helpers (dropdown presets, inline syntax parsing) plus refreshed copy/docs/tests.
+- Ensure modifier-key recordings appear inline using bracket syntax (e.g., `continue[Enter]`, `[Ctrl+Shift+x]`).
+- Guarantee dropdown/input colors respect theme (white inputs on light theme, dark default during tests).
+- Replace text buttons with intuitive icons (refresh thumbnail, clear/remove actions, mouse/keyboard indicators) and rely on hover tooltips to explain behaviors.
+
+**Context and constraints**
+- React/Tauri UI must stay OS-agnostic; all styling and UX updates live in TypeScript/CSS only.
+- New documentation must go under `doc/` with camelCase filenames; bundle size should remain lean (prefer inline SVGs over heavy icon packs).
+- Keep UI coverage ≥90% and ensure `bun test`, `bun run build:web`, and a smoke `bun run tauri build -- --no-bundle` stay green.
+
+**Plan (checklist)**
+- [ ] Capture current App/App.css + GraphComposer layouts for comparison, note dropdown/input contrast bugs.
+- [ ] Introduce theme tokens supporting light/dark palettes plus configurable font stack; ensure light theme dropdowns render white background/black text, with tests defaulting to dark mode.
+- [ ] Adopt inline SVG icon set (refresh, plus, trash, mouse, keyboard) and wire them into ProfileSelector, Region cards, and action rows with tooltip titles only.
+- [ ] Reposition action controls so destructive icons sit to the left of descriptions to avoid layout shift; ensure clear/refresh icons cluster near interaction targets for minimal cursor travel.
+- [ ] Replace Key action editor with dropdown-only selector of SPECIAL_KEYS; add syntax helper link near Action Sequence header that opens hover explanation with copy-ready text.
+- [ ] Integrate inline `{Key:Enter}` parser helpers with GraphComposer buttons, including split/merge affordances and vitest coverage.
+- [ ] Highlight mouse/keyboard actions with icons and concise tooltips; hide verbose labels in favor of hover copy.
+- [ ] Update recording flow to capture modifier combos as `[Ctrl+Shift+x]` and inline text as `text[Enter]` when applicable.
+- [ ] Ensure guardrail inputs, JSON editor, and dropdowns inherit new theme tokens and spacing rhythm without wasted whitespace.
+- [ ] Refresh README + `doc/userManual.md` (or a new doc/ entry) to describe theme config, iconography, and special key syntax.
+- [ ] Add Vitest/Playwright coverage for theming defaults, icon affordances, special key parsing, and recording bracket syntax; keep ≥90% coverage.
+- [ ] Run `bun test`, `bun run build:web`, and `bun run tauri build -- --no-bundle` smoke to confirm stability.
+
+**Progress log**
+- 2025-11-17 — Task reinstated after accidental removal; implementation pending.
+- 2025-11-16 — Requirements expanded per user feedback: enforce light-theme input colors, icon-only controls with tooltips, modifier recording syntax, and configurable palette defaults. Work in progress.
+- 2025-11-17 — Implemented palette/theme picker in App.tsx with matching CSS tokens and started Icons.tsx helper for inline SVG set; next step is wiring icons into RegionAuthoringPanel and GraphComposer controls.
+- 2025-11-17 — Wired icon controls into RegionAuthoringPanel + GraphComposer, fixed per-region thumbnail refresh logic, and reran targeted Vitest suites via `bunx vitest run` (graphcomposer*, region-authoring-panel).
+
+**Assumptions and open questions**
+- Assumption: Inline SVG icon set (Lucide subset or custom) suffices without new deps.
+- Open question: Should we add theme presets beyond light/dark (e.g., High Contrast)? Track as optional follow-up.
+- Open question: Detecting "test context" via `import.meta.vitest` or `process.env.VITEST` is acceptable for forcing dark default?
+
+**Follow‑ups / future work**
+- Potential theme preset chooser or user-defined color palettes once base modernization lands.
+- Localization-ready tooltip strings and keyboard shortcut surfaces.
 
 ---
 

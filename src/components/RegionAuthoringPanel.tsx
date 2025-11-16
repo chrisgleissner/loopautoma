@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { captureRegionThumbnail, regionPickerShow } from "../tauriBridge";
 import { Rect, Region } from "../types";
 import { subscribeEvent } from "../eventBridge";
+import { MouseIcon, RefreshIcon, TrashIcon, PlusIcon } from "./Icons";
 
 type RegionPickEventPayload = {
   rect: Rect;
@@ -102,23 +103,27 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
     setStatus(null);
   }, []);
 
-  const handleRemove = useCallback(async (regionId: string) => {
-    if (!onRegionRemove) return;
-    try {
-      await onRegionRemove(regionId);
-      setThumbnails((prev) => {
-        const next = { ...prev };
-        delete next[regionId];
-        return next;
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(msg || "Unable to remove region");
-    }
-  }, [onRegionRemove]);
+  const handleRemove = useCallback(
+    async (regionId: string) => {
+      if (!onRegionRemove) return;
+      try {
+        await onRegionRemove(regionId);
+        setThumbnails((prev) => {
+          const next = { ...prev };
+          delete next[regionId];
+          return next;
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setError(msg || "Failed to remove region");
+      }
+    },
+    [onRegionRemove]
+  );
 
   const refreshThumbnail = useCallback(async (region: Region) => {
     setThumbLoading(region.id);
+    setError(null);
     try {
       const data = await captureRegionThumbnail(region.rect);
       setThumbnails((prev) => ({ ...prev, [region.id]: data ?? null }));
@@ -165,11 +170,14 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
       <div className="region-panel-toolbar">
         <button
           type="button"
+          className="icon-button accent"
           onClick={launchOverlay}
           disabled={disabled}
-          title="Click to temporarily hide this window, then drag with the left mouse button over the desktop area to watch. Release to capture the region and return here with a thumbnail."
+          title="Temporarily hide the app, drag a rectangle on your desktop, and capture a region thumbnail."
+          aria-label="Define watch region"
         >
-          Define watch region
+          <MouseIcon size={20} />
+          <span className="sr-only">Define watch region</span>
         </button>
         <div className="region-overlay-hint">
           {overlayActive
@@ -206,10 +214,18 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
               <input value={pendingName} onChange={(e) => setPendingName(e.target.value)} placeholder="optional" />
             </label>
             <div className="region-draft-actions">
-              <button type="button" onClick={handleSavePending} disabled={!onRegionAdd}>
+              <button type="button" onClick={handleSavePending} disabled={!onRegionAdd} title="Add region to profile">
+                <span className="btn-icon" aria-hidden="true">
+                  <PlusIcon size={18} />
+                </span>
                 Add region to profile
               </button>
-              <button type="button" onClick={handleCancelPending} className="ghost">
+              <button
+                type="button"
+                onClick={handleCancelPending}
+                className="ghost"
+                title="Discard pending region"
+              >
                 Discard
               </button>
             </div>
@@ -222,6 +238,7 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
           <ul className="region-grid">
             {regions.map((region) => {
               const thumb = toDataUrl(thumbnails[region.id]);
+              const isThumbLoading = thumbLoading === region.id;
               return (
                 <li key={region.id} className="region-card">
                   {thumb ? (
@@ -236,12 +253,27 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
                       ({region.rect.x}, {region.rect.y}) · {region.rect.width}×{region.rect.height}
                     </span>
                     <div className="region-controls">
-                      <button type="button" onClick={() => refreshThumbnail(region)} disabled={thumbLoading === region.id}>
-                        {thumbLoading === region.id ? "Refreshing…" : "Refresh thumbnail"}
+                      <button
+                        type="button"
+                        className={`icon-button${isThumbLoading ? " spinning" : ""}`}
+                        onClick={() => refreshThumbnail(region)}
+                        disabled={isThumbLoading}
+                        title={isThumbLoading ? "Refreshing thumbnail" : "Refresh thumbnail"}
+                        aria-label={isThumbLoading ? "Refreshing thumbnail" : "Refresh thumbnail"}
+                      >
+                        <RefreshIcon size={16} />
+                        <span className="sr-only">Refresh thumbnail</span>
                       </button>
                       {onRegionRemove && (
-                        <button type="button" className="ghost" onClick={() => handleRemove(region.id)}>
-                          Remove
+                        <button
+                          type="button"
+                          className="icon-button danger"
+                          onClick={() => handleRemove(region.id)}
+                          title="Remove region"
+                          aria-label="Remove region"
+                        >
+                          <TrashIcon size={16} />
+                          <span className="sr-only">Remove</span>
                         </button>
                       )}
                     </div>

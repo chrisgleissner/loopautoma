@@ -17,7 +17,7 @@ describe("GraphComposer", () => {
   expect(screen.getAllByText(/Condition/).length >= 1).toBe(true);
   expect(screen.getAllByText(/Action Sequence/).length >= 1).toBe(true);
 
-    const addBtn = screen.getByText("+ Add Action");
+    const addBtn = screen.getByLabelText(/Add action/i);
     fireEvent.click(addBtn);
     expect(p.actions.length >= 1).toBe(true);
   });

@@ -18,6 +18,8 @@ Cross‑platform desktop automation that watches configurable screen regions and
 - **LLM-powered prompts**: Use GPT-4 Vision to analyze screen content and generate context-aware prompts with risk-based guardrails.
 - Run unattended: detect stable/changed UI regions and advance the flow.
 - Stay safe: cooldowns, rate limits, and guardrails to keep automation bounded.
+- Modern UI: dual light/dark palettes, responsive layout, and inline tooltips/icons across every panel.
+- Action ergonomics: insert special keys from a dropdown or inline `{Key:Enter}` syntax that automatically splits into discrete actions.
 
 ## Quick Start Tutorial
 
@@ -49,7 +51,7 @@ loopautoma
 
 The app loads with a ready-to-use preset that keeps AI agents running:
 
-1. **Define watch regions**: Click "Define watch region" and drag over areas where your agent shows output or progress indicators
+1. **Define watch regions**: Click the mouse icon (tooltip "Define watch region") and drag over areas where your agent shows output or progress indicators
 2. **Start monitoring**: Hit "Start" — the app watches for UI changes and types "continue" + Enter when activity stops
 3. **Walk away confidently**: Built-in guardrails (5s cooldown, 3h max runtime, 120 activations/hour) keep automation safe
 

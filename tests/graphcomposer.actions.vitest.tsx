@@ -20,32 +20,56 @@ describe("GraphComposer actions", () => {
     render(<Wrapper />);
 
     // Add action (defaults to MoveCursor)
-    fireEvent.click(screen.getByText("+ Add Action"));
-  // Change X and Y inside first action list item
-  const firstLi = screen.getAllByRole("listitem")[0];
-  const scope = within(firstLi);
-  const inputs = scope.getAllByRole("spinbutton") as HTMLInputElement[];
-  fireEvent.change(inputs[0], { target: { value: "123" } });
-  fireEvent.change(inputs[1], { target: { value: "456" } });
-  // Can't access p directly; rely on UI staying in sync; save changes then switch type and check editor presence
+    fireEvent.click(screen.getByLabelText(/Add action/i));
+    // Change X and Y inside first action list item
+    const firstLi = screen.getAllByRole("listitem")[0];
+    const scope = within(firstLi);
+    const inputs = scope.getAllByRole("spinbutton") as HTMLInputElement[];
+    fireEvent.change(inputs[0], { target: { value: "123" } });
+    fireEvent.change(inputs[1], { target: { value: "456" } });
+    // Can't access p directly; rely on UI staying in sync; save changes then switch type and check editor presence
 
     // Change type to Click and adjust button
     const typeSelect = screen.getAllByTitle("Change the action type")[0] as HTMLSelectElement;
     fireEvent.change(typeSelect, { target: { value: "Click" } });
     const buttonSelect = screen.getByLabelText(/Button/) as HTMLSelectElement;
     fireEvent.change(buttonSelect, { target: { value: "Right" } });
-  // Verify button select reflects Right
-  const buttonSelectAfter = screen.getByLabelText(/Button/);
-  expect((buttonSelectAfter as HTMLSelectElement).value).toBe("Right");
+    // Verify button select reflects Right
+    const buttonSelectAfter = screen.getByLabelText(/Button/);
+    expect((buttonSelectAfter as HTMLSelectElement).value).toBe("Right");
 
     // Add another action and remove it
-    fireEvent.click(screen.getByText("+ Add Action"));
-  // We added a second action; list should now have 2 items
-  const itemsAfterAdd = screen.getAllByRole("list")[0].querySelectorAll("li");
-  expect(itemsAfterAdd.length).toBe(2);
-    const removeButtons = screen.getAllByText("Remove");
+    fireEvent.click(screen.getByLabelText(/Add action/i));
+    // We added a second action; list should now have 2 items
+    const itemsAfterAdd = screen.getAllByRole("list")[0].querySelectorAll("li");
+    expect(itemsAfterAdd.length).toBe(2);
+    const removeButtons = screen.getAllByRole("button", { name: /Remove this action/i });
     fireEvent.click(removeButtons[1]);
     const itemsAfterRemove = screen.getAllByRole("list")[0].querySelectorAll("li");
     expect(itemsAfterRemove.length).toBe(1);
+  });
+
+  it("splits inline special key syntax into discrete actions", () => {
+    const Wrapper = () => {
+      const [p, setP] = useState(() => {
+        const d = defaultPresetProfile();
+        return { ...d, actions: [{ type: "Type", text: "Hello {Key:Enter}" }] };
+      });
+      return <GraphComposer profile={p as any} onChange={setP as any} />;
+    };
+    render(<Wrapper />);
+
+    const splitBtn = screen.getByLabelText(/Split inline keys/i);
+    expect(splitBtn).toBeTruthy();
+    fireEvent.click(splitBtn);
+
+    const list = screen.getAllByRole("list")[0];
+    const items = within(list).getAllByRole("listitem");
+    expect(items.length).toBeGreaterThan(1);
+
+    const firstType = within(items[0]).getByLabelText(/Text/i) as HTMLTextAreaElement;
+    expect(firstType.value.trim()).toBe("Hello");
+    const keySelect = within(items[1]).getByLabelText(/Common keys/i) as HTMLSelectElement;
+    expect(keySelect.value).toBe("Enter");
   });
 });

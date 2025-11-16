@@ -33,18 +33,18 @@ describe("RegionAuthoringPanel", () => {
 
   it("renders initial state with Define watch region button", () => {
     render(<RegionAuthoringPanel />);
-    expect(screen.getByText("Define watch region")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Define watch region/i })).toBeInTheDocument();
   });
 
   it("disables Define button when disabled prop is true", () => {
     render(<RegionAuthoringPanel disabled={true} />);
-    const button = screen.getByText("Define watch region");
+    const button = screen.getByRole("button", { name: /Define watch region/i });
     expect(button).toBeDisabled();
   });
 
   it("button is disabled when disabled prop is true and doesn't call regionPickerShow", async () => {
     render(<RegionAuthoringPanel disabled={true} onRegionAdd={mockOnRegionAdd} />);
-    const button = screen.getByText("Define watch region") as HTMLButtonElement;
+    const button = screen.getByRole("button", { name: /Define watch region/i }) as HTMLButtonElement;
 
     // Button should be disabled, so clicking does nothing
     expect(button.disabled).toBe(true);
@@ -56,7 +56,7 @@ describe("RegionAuthoringPanel", () => {
 
   it("calls regionPickerShow when Define button clicked", async () => {
     render(<RegionAuthoringPanel onRegionAdd={mockOnRegionAdd} />);
-    const button = screen.getByText("Define watch region");
+    const button = screen.getByRole("button", { name: /Define watch region/i });
 
     fireEvent.click(button);
 
@@ -67,7 +67,7 @@ describe("RegionAuthoringPanel", () => {
 
   it("displays overlay active message after launching", async () => {
     render(<RegionAuthoringPanel onRegionAdd={mockOnRegionAdd} />);
-    const button = screen.getByText("Define watch region");
+    const button = screen.getByRole("button", { name: /Define watch region/i });
 
     fireEvent.click(button);
 
@@ -81,7 +81,7 @@ describe("RegionAuthoringPanel", () => {
     vi.spyOn(tauriBridge, "regionPickerShow").mockRejectedValue(new Error(errorMsg));
 
     render(<RegionAuthoringPanel onRegionAdd={mockOnRegionAdd} />);
-    const button = screen.getByText("Define watch region");
+    const button = screen.getByRole("button", { name: /Define watch region/i });
 
     fireEvent.click(button);
 
@@ -204,7 +204,7 @@ describe("RegionAuthoringPanel", () => {
 
     render(<RegionAuthoringPanel regions={regions} onRegionRemove={mockOnRegionRemove} />);
 
-    const removeButtons = screen.getAllByText("Remove");
+    const removeButtons = screen.getAllByRole("button", { name: /Remove region/i });
     fireEvent.click(removeButtons[0]);
 
     await waitFor(() => {
@@ -222,10 +222,10 @@ describe("RegionAuthoringPanel", () => {
     render(<RegionAuthoringPanel regions={regions} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Refresh thumbnail")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Refresh thumbnail/i })).toBeInTheDocument();
     });
 
-    const refreshButton = screen.getByText("Refresh thumbnail");
+    const refreshButton = screen.getByRole("button", { name: /Refresh thumbnail/i });
     fireEvent.click(refreshButton);
 
     await waitFor(() => {
@@ -246,18 +246,18 @@ describe("RegionAuthoringPanel", () => {
     render(<RegionAuthoringPanel regions={regions} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Refresh thumbnail")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Refresh thumbnail/i })).toBeInTheDocument();
     });
 
-    const refreshButton = screen.getByText("Refresh thumbnail");
+    const refreshButton = screen.getByRole("button", { name: /Refresh thumbnail/i });
     fireEvent.click(refreshButton);
 
     await waitFor(() => {
-      expect(screen.getByText("Refreshing…")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Refreshing thumbnail/i })).toBeInTheDocument();
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Refresh thumbnail")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Refresh thumbnail/i })).toBeInTheDocument();
     }, { timeout: 200 });
   });
 
@@ -322,7 +322,7 @@ describe("RegionAuthoringPanel", () => {
 
     render(<RegionAuthoringPanel regions={regions} onRegionRemove={mockOnRegionRemove} />);
 
-    const removeButton = screen.getByText("Remove");
+    const removeButton = screen.getByRole("button", { name: /Remove region/i });
     fireEvent.click(removeButton);
 
     await waitFor(() => {

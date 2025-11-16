@@ -19,7 +19,7 @@ describe("GraphComposer Clear All", () => {
     const listBefore = screen.getByRole("list");
     expect(listBefore.querySelectorAll("li").length).toBeGreaterThan(0);
 
-    const clearBtn = screen.getByRole("button", { name: /Clear All/i });
+    const clearBtn = screen.getByRole("button", { name: /Clear all actions/i });
     fireEvent.click(clearBtn);
     const listAfter = screen.getByRole("list");
     expect(listAfter.querySelectorAll("li").length).toBe(0);
