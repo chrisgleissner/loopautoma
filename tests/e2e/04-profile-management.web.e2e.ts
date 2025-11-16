@@ -35,15 +35,15 @@ test.describe('Profile Management', () => {
     }
     // Count distinct non-empty option values (ignore placeholder)
     const values = await selector.locator('option[value]:not([value=""])').evaluateAll((opts) => Array.from(new Set(opts.map(o => (o as HTMLOptionElement).value))));
-    
+
     if (values.length > 1) {
       // Get first profile ID
       const firstId = await getSelectedProfileId(page);
-      
+
       // Select second option
       await selector.selectOption({ index: 1 });
       await page.waitForTimeout(200);
-      
+
       // Should have changed
       const secondId = await getSelectedProfileId(page);
       expect(secondId).not.toBe(firstId);
@@ -53,7 +53,7 @@ test.describe('Profile Management', () => {
   test('5.3 - Profile editor displays selected profile', async ({ page }) => {
     // Graphical composer should be visible (removed ProfileInsights as part of UI stabilization)
     const composer = page.locator('article:has-text("Graphical Composer")');
-    
+
     // Should be visible on page
     const isVisible = await composer.first().isVisible().catch(() => false);
     expect(isVisible).toBe(true);
@@ -62,7 +62,7 @@ test.describe('Profile Management', () => {
   test('5.4 - Guardrails inputs visible and editable', async ({ page }) => {
     // Look for guardrail input fields (cooldown, max_activations, max_runtime)
     const guardrailSection = page.locator('text=/guardrail|cooldown|max.*activation|max.*runtime/i').first();
-    
+
     // Should find guardrail-related content
     const found = await guardrailSection.isVisible().catch(() => false);
     expect(found).toBe(true);
@@ -78,7 +78,7 @@ test.describe('Profile Management', () => {
   test('5.7 - Add action button is keyboard accessible', async ({ page }) => {
     // Verify Add action button is keyboard accessible (replaced preset test as part of UI stabilization)
     const addActionButton = page.getByRole('button', { name: /add action/i }).first();
-    
+
     if (await addActionButton.isVisible()) {
       await addActionButton.focus();
       await expect(addActionButton).toBeFocused();
@@ -88,7 +88,7 @@ test.describe('Profile Management', () => {
   test('5.8 - Profile validation visible in UI', async ({ page }) => {
     // ProfileInsights or validation messages should be present
     const insights = page.locator('.profile-insights, .validation-message, .alert');
-    
+
     // At least one validation/info component exists
     const count = await insights.count();
     expect(count).toBeGreaterThanOrEqual(0); // May or may not have validation UI depending on profile state
@@ -97,11 +97,11 @@ test.describe('Profile Management', () => {
   test('5.6 - Profile metadata persists across reload', async ({ page }) => {
     // Get current profile ID
     const profileId = await getSelectedProfileId(page);
-    
+
     // Reload page
     await page.reload();
     await waitForAppReady(page);
-    
+
     // Profile should be reselected
     const reloadedId = await getSelectedProfileId(page);
     expect(reloadedId).toBe(profileId);
