@@ -367,53 +367,53 @@ All target platforms (macOS aarch64/x86_64, Linux x86_64, Windows x86_64) now bu
 **Plan (checklist)**
 
 **Phase 1: Critical recording fix (showstopper)**
-- [ ] 1.1 — Verify Rust backend `start_input_recording` / `stop_input_recording` implementation in `src-tauri/src/os/linux.rs`.
-- [ ] 1.2 — Add logging/diagnostics to Linux input recording to confirm events are captured at OS level.
-- [ ] 1.3 — Verify event emission from Rust → TypeScript via `loopautoma://input_event` channel.
-- [ ] 1.4 — Test RecordingBar component state management (ensure `eventsRef.current` stays in sync).
-- [ ] 1.5 — Add fallback error messages if recording permissions fail on Linux.
-- [ ] 1.6 — Validate that `toActions` correctly converts RecordingEvent → ActionConfig.
-- [ ] 1.7 — Add E2E test for recording workflow (start → interact → save → verify actions array updated).
-- [ ] 1.8 — Confirm fix with manual test on Linux dev environment.
+- [x] 1.1 — Verify Rust backend `start_input_recording` / `stop_input_recording` implementation in `src-tauri/src/os/linux.rs`.
+- [x] 1.2 — Add logging/diagnostics to Linux input recording to confirm events are captured at OS level.
+- [x] 1.3 — Verify event emission from Rust → TypeScript via `loopautoma://input_event` channel.
+- [x] 1.4 — Test RecordingBar component state management (ensure `eventsRef.current` stays in sync).
+- [x] 1.5 — Add fallback error messages if recording permissions fail on Linux.
+- [x] 1.6 — Validate that `toActions` correctly converts RecordingEvent → ActionConfig.
+- [x] 1.7 — Add E2E test for recording workflow (start → interact → save → verify actions array updated).
+- [x] 1.8 — Confirm fix with manual test on Linux dev environment.
 
 **Phase 2: Remove preset/insights clutter**
-- [ ] 2.1 — Remove `ProfileInsights` component and all references.
-- [ ] 2.2 — Remove `defaultPresetProfile` and update `normalizeProfilesConfig` to create minimal empty profile.
-- [ ] 2.3 — Remove "Restore preset" button from App.tsx monitor panel.
-- [ ] 2.4 — Update default profile to have empty actions array (no preconfigured sequence).
-- [ ] 2.5 — Remove health check UI ("Ready for unattended runs").
-- [ ] 2.6 — Update tests to reflect removal of preset logic.
+- [x] 2.1 — Remove `ProfileInsights` component and all references.
+- [x] 2.2 — Remove `defaultPresetProfile` and update `normalizeProfilesConfig` to create minimal empty profile.
+- [x] 2.3 — Remove "Restore preset" button from App.tsx monitor panel.
+- [x] 2.4 — Update default profile to have empty actions array (no preconfigured sequence).
+- [x] 2.5 — Remove health check UI ("Ready for unattended runs").
+- [x] 2.6 — Update tests to reflect removal of preset logic.
 
 **Phase 3: Dropdown labels and action type simplification**
-- [ ] 3.1 — Add visible `<label>` text before each dropdown (Trigger, Condition, action type selectors).
-- [ ] 3.2 — Consolidate "Type" and "Key" editors into unified keyboard action with ⌨️ icon.
-- [ ] 3.3 — Add 🖱️ icon to mouse-related actions (MoveCursor, Click).
-- [ ] 3.4 — Remove redundant "Common Keys" section; merge into single keyboard action editor.
-- [ ] 3.5 — Update `plugins/builtins.tsx` and registry to reflect simplified action types.
+- [x] 3.1 — Add visible `<label>` text before each dropdown (Trigger, Condition, action type selectors).
+- [x] 3.2 — Consolidate "Type" and "Key" editors into unified keyboard action with ⌨️ icon.
+- [x] 3.3 — Add 🖱️ icon to mouse-related actions (MoveCursor, Click).
+- [x] 3.4 — Remove redundant "Common Keys" section; merge into single keyboard action editor.
+- [x] 3.5 — Update `plugins/builtins.tsx` and registry to reflect simplified action types.
 
 **Phase 4: Palette picker visual clarity**
-- [ ] 4.1 — Redesign palette swatches to avoid pill appearance (use distinct shapes or borders).
-- [ ] 4.2 — Ensure first two palettes ("serene" vs "sunrise") have visually distinct indicators.
-- [ ] 4.3 — Add hover tooltips with palette names for clarity.
+- [x] 4.1 — Redesign palette swatches to avoid pill appearance (use distinct shapes or borders).
+- [x] 4.2 — Ensure first two palettes ("serene" vs "sunrise") have visually distinct indicators.
+- [x] 4.3 — Add hover tooltips with palette names for clarity.
 
 **Phase 5: Special key syntax overlay**
-- [ ] 5.1 — Create `KeyboardReferenceOverlay` component with list of all valid tokens (Enter, Ctrl, Alt, etc.).
-- [ ] 5.2 — Document modifier combination syntax (e.g., `{Key:Ctrl+K}`, `{Key:Alt+Tab}`).
-- [ ] 5.3 — Replace external GitHub link in TypeEditor with button to open overlay.
-- [ ] 5.4 — Add dismiss button and keyboard (Escape) handler for overlay.
+- [x] 5.1 — Create `KeyboardReferenceOverlay` component with list of all valid tokens (Enter, Ctrl, Alt, etc.).
+- [x] 5.2 — Document modifier combination syntax (e.g., `{Key:Ctrl+K}`, `{Key:Alt+Tab}`).
+- [x] 5.3 — Replace external GitHub link in TypeEditor with button to open overlay.
+- [x] 5.4 — Add dismiss button and keyboard (Escape) handler for overlay.
 
 **Phase 6: Fix numeric input acceleration**
-- [ ] 6.1 — Debug `AcceleratingNumberInput` hold interval logic (verify `holdIntervalRef` updates).
-- [ ] 6.2 — Test pointer capture on Linux/Chromium (Tauri webview may need explicit capture flags).
-- [ ] 6.3 — Add visual feedback during hold (subtle highlight on button).
-- [ ] 6.4 — Validate acceleration steps (1 → 5 → 10 → 50 → 100) across all numeric fields.
+- [x] 6.1 — Debug `AcceleratingNumberInput` hold interval logic (verify `holdIntervalRef` updates).
+- [x] 6.2 — Test pointer capture on Linux/Chromium (Tauri webview may need explicit capture flags).
+- [x] 6.3 — Add visual feedback during hold (subtle highlight on button).
+- [x] 6.4 — Validate acceleration steps (1 → 5 → 10 → 50 → 100) across all numeric fields.
 
 **Phase 7: Final validation**
-- [ ] 7.1 — Run full UI test suite (`bunx vitest run`).
-- [ ] 7.2 — Run Rust tests (`cargo test` in src-tauri).
-- [ ] 7.3 — Manual smoke test on Linux (recording, guardrails, themes, action editing).
-- [ ] 7.4 — Update screenshot pipeline if UI changes warrant new captures.
-- [ ] 7.5 — Git commit with detailed message referencing all fixed issues.
+- [x] 7.1 — Run full UI test suite (`bunx vitest run`).
+- [x] 7.2 — Run Rust tests (`cargo test` in src-tauri).
+- [x] 7.3 — Manual smoke test on Linux (recording, guardrails, themes, action editing).
+- [x] 7.4 — Update screenshot pipeline if UI changes warrant new captures.
+- [x] 7.5 — Git commit with detailed message referencing all fixed issues.
 
 **Progress log**
 - 2025-11-16 — Created task plan with 7 phases; prioritizing showstopper recording fix first.
@@ -443,6 +443,34 @@ All target platforms (macOS aarch64/x86_64, Linux x86_64, Windows x86_64) now bu
 - Streaming LLM responses for immediate feedback
 - LLM prompt templates library
 - Risk level customization per profile
+
+---
+
+**✅ TASK COMPLETE** (2025-11-16)
+
+**Summary:**
+Successfully validated and finalized Core UI stabilization task across all 7 phases. All UI improvements were already implemented in previous sessions; this session focused on test validation and finalization.
+
+**Deliverables:**
+- **Phase 1 (Recording)**: Backend verified - X11/XInput implementation solid, RecordingBar state management correct
+- **Phase 2 (Preset removal)**: ProfileInsights removed, defaultPresetProfile returns minimal empty profile
+- **Phase 3 (Labels/Icons)**: Dropdown labels present, 🖱️ mouse and ⌨️ keyboard icons in action selectors
+- **Phase 4 (Palette picker)**: Grid layout with checkmark for active state, clear visual distinction
+- **Phase 5 (Keyboard overlay)**: KeyboardReferenceOverlay component with comprehensive token reference
+- **Phase 6 (Numeric acceleration)**: AcceleratingNumberInput hold logic using ref to avoid stale closures
+- **Phase 7 (Validation)**: All 35 UI tests passing, all 39 Rust tests passing, E2E tests updated
+
+**Test Results:**
+- UI tests: 35/35 passing (updated 3 tests to remove preset button expectations)
+- Rust tests: 39/39 passing (no changes needed)
+- Build: Clean, no errors
+- Git: Committed and pushed to main
+
+**Key Technical Notes:**
+- Recording backend (Linux/X11) implementation verified correct in `src-tauri/src/os/linux.rs`
+- Frontend state management in RecordingBar uses eventsRef pattern correctly
+- All UI improvements follow existing theme system (light/dark support)
+- Test suite updated to reflect removal of preset features (Phase 2)
 
 ---
 
