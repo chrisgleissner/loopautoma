@@ -166,7 +166,5 @@ mod x11_tests {
     }
 }
 
-#[cfg(not(all(target_os = "linux", feature = "os-linux-input")))]
-fn main() {
-    println!("X11 integration tests are only available on Linux with os-linux-input feature");
-}
+// X11 integration tests are only available on Linux with os-linux-input feature.
+// No tests will be run on other platforms.
