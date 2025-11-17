@@ -106,7 +106,7 @@ if [ -d "../src-tauri" ] && command -v cargo >/dev/null 2>&1; then
     else
         echo "⚠ WARNING: Some integration tests failed (may be expected in some environments)"
     fi
-    cd -
+    cd - > /dev/null
     echo ""
 fi
 
