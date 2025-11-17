@@ -36,7 +36,7 @@ echo "2. Checking required packages..."
 MISSING_PACKAGES=()
 
 for pkg in libx11-6 libxi6 libxtst6 libxkbcommon-x11-0; do
-    if ! dpkg -l | grep -q "^ii  $pkg"; then
+    if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
         MISSING_PACKAGES+=("$pkg")
     fi
 done
