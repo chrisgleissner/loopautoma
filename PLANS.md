@@ -1,6 +1,6 @@
 # PLANS.md — Multi‑hour plans for loopautoma
 
-<!-- markdownlint-disable MD032 MD036 -->
+<!-- markdownlint-disable MD032 MD036 MD039 MD051 -->
 
 This file is the long‑lived planning surface for complex or multi‑hour tasks in this repository, following the "Using PLANS.md for multi‑hour problem solving" pattern.
 
@@ -18,7 +18,6 @@ Any LLM agent (Copilot, Cursor, Codex, etc.) working in this repo must:
 - [PLANS.md — Multi‑hour plans for loopautoma](#plansmd--multihour-plans-for-loopautoma)
   - [TOC](#toc)
   - [How to use this file](#how-to-use-this-file)
-  - [Task: ](#task-)
   - [Maintenance rules (required for all agents)](#maintenance-rules-required-for-all-agents)
     - [Table of Contents](#table-of-contents)
     - [Pruning and archiving](#pruning-and-archiving)
@@ -26,6 +25,7 @@ Any LLM agent (Copilot, Cursor, Codex, etc.) working in this repo must:
     - [Plan-then-act contract](#plan-then-act-contract)
   - [Active tasks](#active-tasks)
     - [Task: Critical showstoppers - Input recording, playback, window minimize, and countdown timers](#task-critical-showstoppers---input-recording-playback-window-minimize-and-countdown-timers)
+    - [Task: Release build unblock - EventLog monitor tick](#task-release-build-unblock---eventlog-monitor-tick)
   - [Completed tasks (archived)](#completed-tasks-archived)
 
 <!-- /TOC -->
@@ -394,6 +394,34 @@ Phase 6: Documentation and cleanup
 - Consider Wayland support via libei (future alternative to X11/XInput)
 - Add visual feedback during recording (pulsing red indicator)
 - Consider caching prerequisite check results to avoid repeated validation
+
+### Task: Release build unblock - EventLog monitor tick
+
+**User request (summary)**
+- Pull the latest `main` and resolve release build failure introduced by `EventLog.tsx`.
+- Ensure `bun run build:web` (triggered by `tauri build`) succeeds across targets.
+
+**Context and constraints**
+- Must follow repo guardrails (doc/architecture.md, doc/developer.md, README.md).
+- Preserve existing local modifications in `src-tauri/src/action.rs` and `src-tauri/src/llm.rs`.
+- Fix should remain TypeScript-only and keep UI behavior intuitive.
+
+**Plan (checklist)**
+- [x] Sync local branch with remote `origin/main` without losing local dirty files.
+- [x] Reproduce the TypeScript error from `EventLog.tsx` and pinpoint missing return path.
+- [x] Update the formatter to cover `MonitorTick` events and provide a safe fallback string.
+- [x] Re-run `bun run build:web` to verify the release build step succeeds.
+
+**Progress log**
+- 2025-11-17 — Stashed local changes, pulled/rebased main, restored stashed work (no conflicts).
+- 2025-11-17 — Added `MonitorTick` formatting plus default fallback based on captured `eventType`.
+- 2025-11-17 — `bun run build:web` now passes; Vite bundle produced successfully.
+
+**Assumptions and open questions**
+- Assumption: Release failures were isolated to `EventLog.tsx`; no additional regressions surfaced in build output.
+
+**Follow‑ups / future work**
+- Consider richer display (icons/colors) for `MonitorTick` lines in the log if users need more telemetry detail.
 
 ## Completed tasks (archived)
 

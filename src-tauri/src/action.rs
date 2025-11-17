@@ -59,22 +59,6 @@ impl Action for TypeText {
     }
 }
 
-pub struct Key {
-    pub key: String,
-}
-impl Action for Key {
-    fn name(&self) -> &'static str {
-        "Key"
-    }
-    fn execute(
-        &self,
-        automation: &dyn Automation,
-        _context: &mut ActionContext,
-    ) -> Result<(), String> {
-        automation.key(&self.key)
-    }
-}
-
 /// LLM Prompt Generation action that captures regions, calls LLM, and populates $prompt
 pub struct LLMPromptGenerationAction {
     pub region_ids: Vec<String>,

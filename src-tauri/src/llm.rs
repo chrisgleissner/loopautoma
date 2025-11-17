@@ -30,6 +30,7 @@ impl MockLLMClient {
         }
     }
 
+    #[cfg(test)]
     pub fn with_response(prompt: String, risk: f64) -> Self {
         Self {
             mock_response: LLMPromptResponse { prompt, risk },

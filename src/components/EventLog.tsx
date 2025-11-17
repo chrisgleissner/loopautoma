@@ -1,6 +1,7 @@
 import { Event } from "../types";
 
 function fmt(e: Event): string {
+  const eventType = e.type;
   switch (e.type) {
     case "TriggerFired":
       return "TriggerFired";
@@ -16,6 +17,14 @@ function fmt(e: Event): string {
       return `WatchdogTripped: ${e.reason}`;
     case "Error":
       return `Error: ${e.message}`;
+    case "MonitorTick": {
+      const next = (e.next_check_ms / 1000).toFixed(1);
+      const cooldown = (e.cooldown_remaining_ms / 1000).toFixed(1);
+      const condition = e.condition_met ? "true" : "false";
+      return `MonitorTick: next=${next}s cooldown=${cooldown}s condition_met=${condition}`;
+    }
+    default:
+      return `Event(${eventType})`;
   }
 }
 
