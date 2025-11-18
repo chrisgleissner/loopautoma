@@ -31,7 +31,7 @@ function fmt(e: Event): string {
 export function EventLog({ events }: { events: Event[] }) {
   // Filter out MonitorTick events - they're too noisy and only useful for CountdownTimer
   const filteredEvents = events.filter(e => e.type !== "MonitorTick");
-  
+
   return (
     <div className="event-log" style={{ maxHeight: 240, overflow: "auto", border: "1px solid #444", padding: 8 }}>
       {filteredEvents.length === 0 ? (

@@ -15,7 +15,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use x11rb::{
     connection::Connection,
     protocol::{
-        xproto::{self},
+        xproto::{self, ConnectionExt},
         xtest::ConnectionExt as XTestExt,
     },
     xcb_ffi::XCBConnection,
@@ -128,14 +128,25 @@ pub struct LinuxAutomation {
 #[cfg(feature = "os-linux-automation")]
 impl LinuxAutomation {
     pub fn new() -> Result<Self, BackendError> {
+        eprintln!("[LinuxAutomation] Initializing X11 automation...");
+        eprintln!("[LinuxAutomation] DISPLAY={:?}", std::env::var("DISPLAY"));
+        
         let (conn, screen_idx) = open_xcb_connection()?;
+        eprintln!("[LinuxAutomation] X11 connection established, screen_idx={}", screen_idx);
+        
         let root = conn
             .setup()
             .roots
             .get(screen_idx)
             .ok_or_else(|| BackendError::new("x11_screen_missing", "unable to read X11 screen"))?
             .root;
+        eprintln!("[LinuxAutomation] Root window ID: {}", root);
+        
+        eprintln!("[LinuxAutomation] Initializing keyboard lookup...");
         let keyboard = KeyboardLookup::from_connection(&conn)?;
+        eprintln!("[LinuxAutomation] Keyboard lookup initialized successfully with {} key mappings", keyboard.entries.len());
+        
+        eprintln!("[LinuxAutomation] ✓ Initialization complete!");
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
             root,
@@ -157,18 +168,42 @@ impl LinuxAutomation {
     fn send_motion(&self, x: u32, y: u32) -> Result<(), String> {
         let xi = self.keyboard.clamp_coord(x);
         let yi = self.keyboard.clamp_coord(y);
+        
+        eprintln!("[Automation] Moving cursor to ({}, {})", xi, yi);
+        
         self.with_conn(|conn| {
-            conn.xtest_fake_input(
-                xproto::MOTION_NOTIFY_EVENT,
-                0,
-                CURRENT_TIME,
-                self.root,
-                xi,
-                yi,
-                0,
+            // CRITICAL: XTest fake MOTION_NOTIFY doesn't actually move the cursor!
+            // Must use XWarpPointer to physically move the cursor
+            // This is what xdotool and other automation tools do
+            conn.warp_pointer(
+                x11rb::NONE,  // src_window (None = relative to root)
+                self.root,     // dst_window (warp to root coordinates)
+                0, 0,          // src_x, src_y (ignored when src_window is None)
+                0, 0,          // src_width, src_height (ignored)
+                xi, yi,        // dst_x, dst_y (target position)
             )
-            .map_err(|e| e.to_string())?;
-            conn.flush().map_err(|e| e.to_string())
+            .map_err(|e| format!("warp_pointer failed: {}", e))?;
+            
+            conn.flush().map_err(|e| format!("flush failed: {}", e))?;
+            
+            // Small delay to let X11 process the warp
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            
+            // Query actual cursor position to verify
+            match conn.query_pointer(self.root) {
+                Ok(reply) => {
+                    let reply = reply.reply().map_err(|e| format!("query_pointer reply failed: {}", e))?;
+                    eprintln!("[Automation] Cursor now at ({}, {}), target was ({}, {})", 
+                             reply.root_x, reply.root_y, xi, yi);
+                    if (reply.root_x as i32 - xi as i32).abs() > 5 || (reply.root_y as i32 - yi as i32).abs() > 5 {
+                        return Err(format!("Cursor warp failed: ended at ({}, {}) instead of ({}, {})", 
+                                         reply.root_x, reply.root_y, xi, yi));
+                    }
+                }
+                Err(e) => eprintln!("[Automation] Warning: Could not verify cursor position: {}", e),
+            }
+            
+            Ok(())
         })
     }
 
@@ -178,6 +213,15 @@ impl LinuxAutomation {
             MouseButton::Middle => 2,
             MouseButton::Right => 3,
         };
+        
+        let button_name = match button {
+            MouseButton::Left => "Left",
+            MouseButton::Middle => "Middle",
+            MouseButton::Right => "Right",
+        };
+        
+        eprintln!("[Automation] Mouse {} button {}", button_name, if press { "DOWN" } else { "UP" });
+        
         self.with_conn(|conn| {
             conn.xtest_fake_input(
                 if press {
@@ -192,12 +236,21 @@ impl LinuxAutomation {
                 0,
                 0,
             )
-            .map_err(|e| e.to_string())?;
-            conn.flush().map_err(|e| e.to_string())
+            .map_err(|e| format!("xtest_fake_input button failed: {}", e))?;
+            
+            conn.flush().map_err(|e| format!("flush failed: {}", e))?;
+            
+            // Critical: Add delay between button press and release
+            // Some apps need time to register the event
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            
+            Ok(())
         })
     }
 
     fn send_keycode(&self, keycode: u8, press: bool) -> Result<(), String> {
+        eprintln!("[Automation] Key {} keycode={}", if press { "DOWN" } else { "UP" }, keycode);
+        
         self.with_conn(|conn| {
             conn.xtest_fake_input(
                 if press {
@@ -212,8 +265,15 @@ impl LinuxAutomation {
                 0,
                 0,
             )
-            .map_err(|e| e.to_string())?;
-            conn.flush().map_err(|e| e.to_string())
+            .map_err(|e| format!("xtest_fake_input key failed: {}", e))?;
+            
+            conn.flush().map_err(|e| format!("flush failed: {}", e))?;
+            
+            // Critical: Add delay between key press and release
+            // Without this, some apps don't register the keypress
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            
+            Ok(())
         })
     }
 
@@ -270,14 +330,44 @@ impl Automation for LinuxAutomation {
     }
 
     fn type_text(&self, text: &str) -> Result<(), String> {
-        for ch in text.chars() {
-            if ch == '\n' {
+        eprintln!("[Automation] Typing text: {:?} ({} chars)", text, text.len());
+        
+        let mut i = 0;
+        let chars: Vec<char> = text.chars().collect();
+        let mut char_count = 0;
+        
+        while i < chars.len() {
+            // Check for [SpecialKey] syntax (e.g., [Enter], [Tab], [Escape])
+            if chars[i] == '[' {
+                if let Some(end_pos) = text[i..].find(']') {
+                    let key_name = &text[i+1..i+end_pos];
+                    eprintln!("[Automation] Pressing special key: [{}]", key_name);
+                    // Send the special key
+                    self.key(key_name)?;
+                    i += end_pos + 1;
+                    continue;
+                }
+            }
+            
+            // Regular character
+            if chars[i] == '\n' {
+                eprintln!("[Automation] Pressing Enter key");
                 self.key("Enter")?;
             } else {
-                let keysym = xkb::utf32_to_keysym(ch as u32);
+                let keysym = xkb::utf32_to_keysym(chars[i] as u32);
+                eprintln!("[Automation] Typing char '{}' (keysym={:x})", chars[i], keysym.raw());
                 self.send_keysym(keysym)?;
+                char_count += 1;
+            }
+            i += 1;
+            
+            // Small delay between characters for reliability
+            if i < chars.len() {
+                std::thread::sleep(std::time::Duration::from_millis(5));
             }
         }
+        
+        eprintln!("[Automation] Finished typing {} characters", char_count);
         Ok(())
     }
 
@@ -381,6 +471,21 @@ struct KeyboardLookup {
 #[cfg(feature = "os-linux-automation")]
 impl KeyboardLookup {
     fn from_connection(conn: &XCBConnection) -> Result<Self, BackendError> {
+        // Try XKB first, but fall back to static keymap if it fails
+        match Self::from_xkb(conn) {
+            Ok(lookup) => {
+                eprintln!("[XKB] Using live XKB keymap from X11");
+                Ok(lookup)
+            }
+            Err(e) => {
+                eprintln!("[XKB] Failed to get live keymap: {}", e);
+                eprintln!("[XKB] Falling back to static US QWERTY keymap");
+                Ok(Self::static_us_qwerty())
+            }
+        }
+    }
+    
+    fn from_xkb(conn: &XCBConnection) -> Result<Self, BackendError> {
         let context = Context::new(xkb::CONTEXT_NO_FLAGS);
         let device_id = core_keyboard_device_id(conn)?;
         let keymap = xkb::x11::keymap_new_from_device(
@@ -437,6 +542,95 @@ impl KeyboardLookup {
             shift_keycode,
         })
     }
+    
+    /// Fallback static keymap for US QWERTY layout
+    /// Based on standard X11 keycodes (evdev offset +8)
+    fn static_us_qwerty() -> Self {
+        use xkb::keysyms::*;
+        let mut entries = HashMap::new();
+        
+        // Special keys (no shift)
+        entries.insert(KEY_Return.into(), KeyEntry { keycode: 36, mods: 0 });
+        entries.insert(KEY_Escape.into(), KeyEntry { keycode: 9, mods: 0 });
+        entries.insert(KEY_Tab.into(), KeyEntry { keycode: 23, mods: 0 });
+        entries.insert(KEY_space.into(), KeyEntry { keycode: 65, mods: 0 });
+        entries.insert(KEY_BackSpace.into(), KeyEntry { keycode: 22, mods: 0 });
+        
+        // Lowercase letters (no shift)
+        entries.insert(KEY_a.into(), KeyEntry { keycode: 38, mods: 0 });
+        entries.insert(KEY_b.into(), KeyEntry { keycode: 56, mods: 0 });
+        entries.insert(KEY_c.into(), KeyEntry { keycode: 54, mods: 0 });
+        entries.insert(KEY_d.into(), KeyEntry { keycode: 40, mods: 0 });
+        entries.insert(KEY_e.into(), KeyEntry { keycode: 26, mods: 0 });
+        entries.insert(KEY_f.into(), KeyEntry { keycode: 41, mods: 0 });
+        entries.insert(KEY_g.into(), KeyEntry { keycode: 42, mods: 0 });
+        entries.insert(KEY_h.into(), KeyEntry { keycode: 43, mods: 0 });
+        entries.insert(KEY_i.into(), KeyEntry { keycode: 31, mods: 0 });
+        entries.insert(KEY_j.into(), KeyEntry { keycode: 44, mods: 0 });
+        entries.insert(KEY_k.into(), KeyEntry { keycode: 45, mods: 0 });
+        entries.insert(KEY_l.into(), KeyEntry { keycode: 46, mods: 0 });
+        entries.insert(KEY_m.into(), KeyEntry { keycode: 58, mods: 0 });
+        entries.insert(KEY_n.into(), KeyEntry { keycode: 57, mods: 0 });
+        entries.insert(KEY_o.into(), KeyEntry { keycode: 32, mods: 0 });
+        entries.insert(KEY_p.into(), KeyEntry { keycode: 33, mods: 0 });
+        entries.insert(KEY_q.into(), KeyEntry { keycode: 24, mods: 0 });
+        entries.insert(KEY_r.into(), KeyEntry { keycode: 27, mods: 0 });
+        entries.insert(KEY_s.into(), KeyEntry { keycode: 39, mods: 0 });
+        entries.insert(KEY_t.into(), KeyEntry { keycode: 28, mods: 0 });
+        entries.insert(KEY_u.into(), KeyEntry { keycode: 30, mods: 0 });
+        entries.insert(KEY_v.into(), KeyEntry { keycode: 55, mods: 0 });
+        entries.insert(KEY_w.into(), KeyEntry { keycode: 25, mods: 0 });
+        entries.insert(KEY_x.into(), KeyEntry { keycode: 53, mods: 0 });
+        entries.insert(KEY_y.into(), KeyEntry { keycode: 29, mods: 0 });
+        entries.insert(KEY_z.into(), KeyEntry { keycode: 52, mods: 0 });
+        
+        // Uppercase letters (with shift bit set - bit 0)
+        let shift_mask = 1;
+        entries.insert(KEY_A.into(), KeyEntry { keycode: 38, mods: shift_mask });
+        entries.insert(KEY_B.into(), KeyEntry { keycode: 56, mods: shift_mask });
+        entries.insert(KEY_C.into(), KeyEntry { keycode: 54, mods: shift_mask });
+        entries.insert(KEY_D.into(), KeyEntry { keycode: 40, mods: shift_mask });
+        entries.insert(KEY_E.into(), KeyEntry { keycode: 26, mods: shift_mask });
+        entries.insert(KEY_F.into(), KeyEntry { keycode: 41, mods: shift_mask });
+        entries.insert(KEY_G.into(), KeyEntry { keycode: 42, mods: shift_mask });
+        entries.insert(KEY_H.into(), KeyEntry { keycode: 43, mods: shift_mask });
+        entries.insert(KEY_I.into(), KeyEntry { keycode: 31, mods: shift_mask });
+        entries.insert(KEY_J.into(), KeyEntry { keycode: 44, mods: shift_mask });
+        entries.insert(KEY_K.into(), KeyEntry { keycode: 45, mods: shift_mask });
+        entries.insert(KEY_L.into(), KeyEntry { keycode: 46, mods: shift_mask });
+        entries.insert(KEY_M.into(), KeyEntry { keycode: 58, mods: shift_mask });
+        entries.insert(KEY_N.into(), KeyEntry { keycode: 57, mods: shift_mask });
+        entries.insert(KEY_O.into(), KeyEntry { keycode: 32, mods: shift_mask });
+        entries.insert(KEY_P.into(), KeyEntry { keycode: 33, mods: shift_mask });
+        entries.insert(KEY_Q.into(), KeyEntry { keycode: 24, mods: shift_mask });
+        entries.insert(KEY_R.into(), KeyEntry { keycode: 27, mods: shift_mask });
+        entries.insert(KEY_S.into(), KeyEntry { keycode: 39, mods: shift_mask });
+        entries.insert(KEY_T.into(), KeyEntry { keycode: 28, mods: shift_mask });
+        entries.insert(KEY_U.into(), KeyEntry { keycode: 30, mods: shift_mask });
+        entries.insert(KEY_V.into(), KeyEntry { keycode: 55, mods: shift_mask });
+        entries.insert(KEY_W.into(), KeyEntry { keycode: 25, mods: shift_mask });
+        entries.insert(KEY_X.into(), KeyEntry { keycode: 53, mods: shift_mask });
+        entries.insert(KEY_Y.into(), KeyEntry { keycode: 29, mods: shift_mask });
+        entries.insert(KEY_Z.into(), KeyEntry { keycode: 52, mods: shift_mask });
+        
+        // Numbers (no shift)
+        entries.insert(KEY_0.into(), KeyEntry { keycode: 19, mods: 0 });
+        entries.insert(KEY_1.into(), KeyEntry { keycode: 10, mods: 0 });
+        entries.insert(KEY_2.into(), KeyEntry { keycode: 11, mods: 0 });
+        entries.insert(KEY_3.into(), KeyEntry { keycode: 12, mods: 0 });
+        entries.insert(KEY_4.into(), KeyEntry { keycode: 13, mods: 0 });
+        entries.insert(KEY_5.into(), KeyEntry { keycode: 14, mods: 0 });
+        entries.insert(KEY_6.into(), KeyEntry { keycode: 15, mods: 0 });
+        entries.insert(KEY_7.into(), KeyEntry { keycode: 16, mods: 0 });
+        entries.insert(KEY_8.into(), KeyEntry { keycode: 17, mods: 0 });
+        entries.insert(KEY_9.into(), KeyEntry { keycode: 18, mods: 0 });
+        
+        Self {
+            entries,
+            shift_mask,
+            shift_keycode: Some(50),  // Left Shift keycode
+        }
+    }
 
     fn clamp_coord(&self, value: u32) -> i16 {
         value.min(i16::MAX as u32) as i16
@@ -451,13 +645,21 @@ fn open_xcb_connection() -> Result<(XCBConnection, usize), BackendError> {
 
 #[cfg(feature = "os-linux-automation")]
 fn core_keyboard_device_id(conn: &XCBConnection) -> Result<i32, BackendError> {
+    eprintln!("[XKB] Attempting to get core keyboard device ID...");
     let device_id = xkb::x11::get_core_keyboard_device_id(conn);
+    eprintln!("[XKB] get_core_keyboard_device_id returned: {}", device_id);
+    
     if device_id == -1 {
+        // Try to get more context about the failure
+        eprintln!("[XKB] DISPLAY={:?}", std::env::var("DISPLAY"));
+        eprintln!("[XKB] XDG_SESSION_TYPE={:?}", std::env::var("XDG_SESSION_TYPE"));
+        
         Err(BackendError::new(
             "x11_device_missing",
             "XKB could not find a core keyboard (is the app running in an X11 session with $DISPLAY set?).",
         ))
     } else {
+        eprintln!("[XKB] Successfully found core keyboard with device_id={}", device_id);
         Ok(device_id)
     }
 }

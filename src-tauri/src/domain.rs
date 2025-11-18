@@ -179,7 +179,7 @@ impl ActionSequence {
         context: &mut ActionContext,
         events: &mut Vec<Event>,
     ) -> bool {
-        for a in &self.actions {
+        for (i, a) in self.actions.iter().enumerate() {
             events.push(Event::ActionStarted {
                 action: a.name().to_string(),
             });
@@ -198,6 +198,11 @@ impl ActionSequence {
                     });
                     return false;
                 }
+            }
+            // Add delay between actions to allow window manager to process events
+            // Critical for X11: cursor move needs time to update focus before click/type
+            if i < self.actions.len() - 1 {
+                std::thread::sleep(std::time::Duration::from_millis(50));
             }
         }
         true
