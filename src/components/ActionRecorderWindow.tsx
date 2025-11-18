@@ -287,15 +287,10 @@ export function ActionRecorderWindow() {
             {/* Show live text buffer */}
             {textBuffer.length > 0 && (
               <div className="action-item action-item-live">
-                <div className="action-item-controls" style={{ visibility: "hidden" }}>
-                  <button disabled>▲</button>
-                  <button disabled>▼</button>
-                </div>
                 <span className="action-number">{actions.length + 1}</span>
                 <div className="action-item-content">
                   <span><code>{textBuffer}</code></span>
                 </div>
-                <button className="action-item-delete" disabled style={{ visibility: "hidden" }}>✕</button>
               </div>
             )}
           </div>

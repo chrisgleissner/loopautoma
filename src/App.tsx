@@ -267,12 +267,14 @@ function MainWindow() {
           const newActions = toActions(events);
           console.log("[App] Transformed to", newActions.length, "actions:", newActions);
 
-          console.log("[App] Updating profile with new actions");
-          void updateProfile({
+          const updatedProfile = {
             ...currentProfile,
             actions: [...currentProfile.actions, ...newActions],
-          });
-          console.log("[App] Profile updated successfully");
+          };
+          console.log("[App] Updating profile with new actions. Before:", currentProfile.actions.length, "After:", updatedProfile.actions.length);
+          console.log("[App] Updated profile:", updatedProfile);
+          void updateProfile(updatedProfile);
+          console.log("[App] Profile update called successfully");
         });
       } catch (err) {
         console.error("[App] Failed to set up action recorder event listener:", err);

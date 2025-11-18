@@ -1011,6 +1011,33 @@ Phase 7: UI polish and professionalism (COMPLETED)
   - [x] 29d. Log in App.tsx event listener when actions received
   - [x] 29e. Log selectedProfileRef.current value and profilesSave call
 
+Phase 8: Extreme compaction and dark mode fixes (COMPLETED)
+- [x] 30. Drastically reduce action list spacing
+  - [x] 30a. Reduced .action-list gap from 8px to 2px
+  - [x] 30b. Reduced .action-item padding from 4px 6px to 2px 4px
+  - [x] 30c. Reduced .action-item gap from 4px to 3px
+  - [x] 30d. Reduced .action-item margin-bottom from 2px to 0
+  - [x] 30e. Reduced border-radius from 3px to 2px
+  - [x] 30f. Reduced font-size from 11px to 10px
+- [x] 31. Make all control elements smaller
+  - [x] 31a. Reduced .action-number from 18px to 16px (size), 9px to 8px (font)
+  - [x] 31b. Reduced .action-item-reorder from 12px to 10px (width), 10px to 8px (height), 8px to 7px (font)
+  - [x] 31c. Reduced .action-item-delete from 16px to 14px (size), 11px to 10px (font)
+- [x] 32. Fix dark mode input/select styling
+  - [x] 32a. Added default background/color for all input/select: var(--brand-surface) / var(--brand-text)
+  - [x] 32b. Set input/select height to 28px with line-height 1.3
+  - [x] 32c. Added padding 2px 6px to select for consistency
+  - [x] 32d. Fixed dark mode to explicitly set background and color (not rely on inheritance)
+  - [x] 32e. Removed conflicting button color-scheme that affected inputs
+- [x] 33. Remove dropdown artifact
+  - [x] 33a. Removed hidden controls div from live text buffer item
+  - [x] 33b. Removed hidden delete button from live text buffer item
+  - [x] 33c. Live buffer now only shows number badge and content (no control artifacts)
+- [x] 34. Enhance action save verification logging
+  - [x] 34a. Log before/after action counts when updating profile
+  - [x] 34b. Log complete updated profile object for inspection
+  - [x] 34c. Log "Profile update called successfully" to confirm updateProfile was invoked
+
 **Progress log**
 
 - 2025-11-18 — Task created after user reported app disappearing bug
@@ -1031,6 +1058,14 @@ Phase 7: UI polish and professionalism (COMPLETED)
   - Simplified action text format: "Click Left (123,456)" instead of "🖱️ Click Left at (123, 456)"
   - Minimized control buttons: reorder 12px, delete 16px, no borders
   - Added extensive logging to handleDone for config save diagnostics
+  - Build successful: bun run build:web passed ✅
+- 2025-01-18 — Phase 8 complete: Fourth round - extreme compaction and dark mode fixes
+  - Drastically reduced action list spacing: gap 8px→2px, padding 4px→2px, margin 2px→0
+  - Made all elements smaller: number badge 18px→16px, reorder 12px→10px, delete 16px→14px
+  - Fixed dark mode input/select: white text on dark background (was white on white)
+  - Set input/select height to 28px for consistency with text
+  - Removed dropdown artifact by hiding controls in live text buffer
+  - Enhanced action save logging: tracks before/after action counts and full profile
   - Build successful: bun run build:web passed ✅
 
 **Assumptions and open questions**
