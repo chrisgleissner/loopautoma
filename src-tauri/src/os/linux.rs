@@ -378,6 +378,7 @@ fn find_monitor<'a>(monitors: &'a [Monitor], region: &Region) -> Option<&'a Moni
 
 #[cfg(feature = "os-linux-input")]
 pub struct LinuxInputCapture {
+    instance_id: u64,
     running: Arc<AtomicBool>,
     handle: Option<JoinHandle<()>>,
 }
@@ -385,7 +386,12 @@ pub struct LinuxInputCapture {
 #[cfg(feature = "os-linux-input")]
 impl Default for LinuxInputCapture {
     fn default() -> Self {
+        use std::sync::atomic::AtomicU64;
+        static INSTANCE_COUNTER: AtomicU64 = AtomicU64::new(0);
+        let id = INSTANCE_COUNTER.fetch_add(1, Ordering::SeqCst);
+        eprintln!("[LinuxInputCapture] Creating NEW instance #{}", id);
         Self {
+            instance_id: id,
             running: Arc::new(AtomicBool::new(false)),
             handle: None,
         }
@@ -395,15 +401,20 @@ impl Default for LinuxInputCapture {
 #[cfg(feature = "os-linux-input")]
 impl InputCapture for LinuxInputCapture {
     fn start(&mut self, callback: InputEventCallback) -> Result<(), BackendError> {
+        eprintln!("[LinuxInputCapture] Instance #{} start() called", self.instance_id);
         if self.running.swap(true, Ordering::SeqCst) {
+            eprintln!("[LinuxInputCapture] Instance #{} already running, returning early", self.instance_id);
             return Ok(());
         }
+        eprintln!("[LinuxInputCapture] Instance #{} setting running=true and spawning thread", self.instance_id);
         let running = self.running.clone();
+        let instance_id = self.instance_id;
         let cb = callback.clone();
         let (ready_tx, ready_rx) = sync_channel(1);
         let handle = thread::spawn(move || {
-            if let Err(err) = run_input_loop(cb, running.clone(), Some(ready_tx)) {
-                eprintln!("linux input capture error: {}", err);
+            eprintln!("[LinuxInputCapture] Instance #{} thread started", instance_id);
+            if let Err(err) = run_input_loop(cb, running.clone(), Some(ready_tx), instance_id) {
+                eprintln!("[LinuxInputCapture] Instance #{} error: {}", instance_id, err);
             }
         });
         match ready_rx.recv_timeout(Duration::from_secs(2)) {
@@ -554,6 +565,7 @@ fn run_input_loop(
     callback: InputEventCallback,
     running: Arc<AtomicBool>,
     mut ready: Option<SyncSender<Result<(), BackendError>>>,
+    instance_id: u64,
 ) -> Result<(), BackendError> {
     let notify = |result: Result<(), BackendError>,
                   ready: &mut Option<SyncSender<Result<(), BackendError>>>| {
@@ -562,14 +574,14 @@ fn run_input_loop(
         }
     };
 
-    eprintln!("[LinuxInputCapture] Starting rdev event listener...");
-    eprintln!("[LinuxInputCapture] DISPLAY={:?}, XDG_SESSION_TYPE={:?}", 
-              std::env::var("DISPLAY"), std::env::var("XDG_SESSION_TYPE"));
+    eprintln!("[LinuxInputCapture] Instance #{} starting rdev event listener...", instance_id);
+    eprintln!("[LinuxInputCapture] Instance #{} DISPLAY={:?}, XDG_SESSION_TYPE={:?}", 
+              instance_id, std::env::var("DISPLAY"), std::env::var("XDG_SESSION_TYPE"));
     
     // Notify that we're ready before starting the blocking listen
     notify(Ok(()), &mut ready);
     
-    eprintln!("[LinuxInputCapture] About to call rdev::listen()...");
+    eprintln!("[LinuxInputCapture] Instance #{} about to call rdev::listen()...", instance_id);
     
     // Use rdev's listen function which uses XRecord internally
     // Note: rdev::listen() blocks forever with no built-in way to stop it.
@@ -580,11 +592,11 @@ fn run_input_loop(
     // there's no way to gracefully shut down XRecord without X11 protocol access.
     let result = rdev::listen(move |event| {
         let is_running = running.load(Ordering::Relaxed);
-        eprintln!("[LinuxInputCapture] RAW CALLBACK INVOKED! event={:?}, running={}", event.event_type, is_running);
+        eprintln!("[LinuxInputCapture] Instance #{} RAW CALLBACK INVOKED! event={:?}, running={}", instance_id, event.event_type, is_running);
         
         // Check if we should still process events
         if !is_running {
-            eprintln!("[LinuxInputCapture] Ignoring event (running=false)");
+            eprintln!("[LinuxInputCapture] Instance #{} ignoring event (running=false)", instance_id);
             return;
         }
         

@@ -17,6 +17,7 @@ import { useEffectOnce } from "./hooks/useEffectOnce";
 import { registerBuiltins } from "./plugins/builtins";
 import { isDesktopEnvironment } from "./utils/runtime";
 import { AcceleratingNumberInput } from "./components/AcceleratingNumberInput";
+import { recordingEventsStore } from "./recordingEventsStore";
 
 const THEME_STORAGE_KEY = "loopautoma.theme";
 const PALETTE_STORAGE_KEY = "loopautoma.palette";
@@ -428,21 +429,37 @@ export function App() {
             onStop={async (evts) => {
               console.log("[App] onStop called with", evts.length, "events:", evts);
               console.log("[App] selectedProfile:", selectedProfile?.id);
+              recordingEventsStore.info('app', `onStop callback invoked with ${evts.length} event(s)`, { eventCount: evts.length, profileId: selectedProfile?.id });
+
               if (!selectedProfile) {
                 console.warn("[App] No selected profile, skipping action save");
+                recordingEventsStore.error('app', 'Cannot save actions: No profile selected');
                 return;
               }
               if (evts.length === 0) {
                 console.warn("[App] No events to save");
+                recordingEventsStore.warn('app', 'No events to transform - event buffer is empty');
                 return;
               }
+
+              recordingEventsStore.info('transformation', `Starting transformation of ${evts.length} event(s)`, evts);
               const newActions = toActions(evts);
               console.log("[App] Transformed to actions:", newActions);
+              recordingEventsStore.success('transformation', `Transformed ${evts.length} event(s) into ${newActions.length} action(s)`, newActions);
+
+              recordingEventsStore.info('app', `Updating profile "${selectedProfile.name}" with ${newActions.length} new action(s)`);
               await updateProfile({
                 ...selectedProfile,
                 actions: [...selectedProfile.actions, ...newActions],
               });
               console.log("[App] Profile updated with new actions");
+              recordingEventsStore.success('app', `Profile updated! Total actions: ${selectedProfile.actions.length + newActions.length}`, {
+                profileId: selectedProfile.id,
+                profileName: selectedProfile.name,
+                previousActionCount: selectedProfile.actions.length,
+                newActionCount: newActions.length,
+                totalActionCount: selectedProfile.actions.length + newActions.length
+              });
             }}
           />
         </article>

@@ -471,21 +471,27 @@ fn start_input_recording(
     window: tauri::Window,
     state: tauri::State<AppState>,
 ) -> Result<(), String> {
+    eprintln!("[TAURI COMMAND] start_input_recording() called!");
     if env::var("LOOPAUTOMA_BACKEND").ok().as_deref() == Some("fake") {
+        eprintln!("[TAURI COMMAND] Rejecting: LOOPAUTOMA_BACKEND=fake");
         return Err("Input capture is disabled because LOOPAUTOMA_BACKEND=fake. Remove that override to use the OS-level recorder.".into());
     }
     #[cfg(not(feature = "os-linux-input"))]
     {
         let _ = window;
         let _ = state;
+        eprintln!("[TAURI COMMAND] Rejecting: feature not enabled");
         return Err("This build was compiled without the os-linux-input backend. Rebuild with --features os-linux-input (see doc/developer.md) or keep LOOPAUTOMA_BACKEND=fake for UI-only authoring.".into());
     }
     #[cfg(feature = "os-linux-input")]
     {
+        eprintln!("[TAURI COMMAND] Acquiring lock on input_capture state...");
         let mut guard = state.authoring.input_capture.lock().unwrap();
         if guard.is_some() {
+            eprintln!("[TAURI COMMAND] Capture already running, returning Ok");
             return Ok(());
         }
+        eprintln!("[TAURI COMMAND] Creating new input capture instance...");
         let mut capture = make_input_capture().ok_or_else(|| {
             "Input capture backend is missing. On Ubuntu 24.04 install the X11 dev packages listed in doc/developer.md (libx11-dev, libxext-dev, libxi-dev, libxtst-dev, libxkbcommon-x11-dev, etc.) and rebuild.".to_string()
         })?;

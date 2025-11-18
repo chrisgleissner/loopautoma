@@ -3,6 +3,8 @@ import { startInputRecording, stopInputRecording, checkInputPrerequisites } from
 import { InputEvent, KeyboardInputEvent, MouseInputEvent } from "../types";
 import { subscribeEvent } from "../eventBridge";
 import { PrerequisiteCheck } from "./PrerequisiteCheck";
+import { recordingEventsStore } from "../recordingEventsStore";
+import { RecordingLogsPanel } from "./RecordingLogsPanel";
 
 export type RecordingEvent =
   | { t: "click"; button: "Left" | "Right" | "Middle"; x: number; y: number }
@@ -18,6 +20,7 @@ export function RecordingBar(props: {
   const [timeline, setTimeline] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showPrereqCheck, setShowPrereqCheck] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
   const typeBuffer = useRef<string>("");
   const recordingRef = useRef(false);
   const eventsRef = useRef<RecordingEvent[]>([]);
@@ -42,9 +45,11 @@ export function RecordingBar(props: {
   const pushClick = useCallback((button: "Left" | "Right" | "Middle", x: number, y: number) => {
     const newEvent = { t: "click" as const, button, x: Math.round(x), y: Math.round(y) };
     console.log("[RecordingBar] pushClick:", newEvent);
+    recordingEventsStore.success('recording-bar', `Click event captured: ${button} at (${Math.round(x)}, ${Math.round(y)})`, newEvent);
     setEvents((prev) => {
       const next = [...prev, newEvent];
       eventsRef.current = next;
+      recordingEventsStore.info('recording-bar', `Events buffer now contains ${next.length} event(s)`);
       return next;
     });
     setTimeline((prev) => [...prev.slice(-19), `${button} click @ ${Math.round(x)},${Math.round(y)}`]);
@@ -63,6 +68,8 @@ export function RecordingBar(props: {
 
   const handleMouseEvent = useCallback((mouse: MouseInputEvent) => {
     const typ = mouse.event_type;
+    recordingEventsStore.info('recording-bar', `handleMouseEvent called, event_type: ${JSON.stringify(typ)}`, { mouse });
+
     if (typeof typ === "string") {
       if (typ === "move") {
         return; // too noisy for the timeline
@@ -71,25 +78,33 @@ export function RecordingBar(props: {
     }
     if (typ && typeof typ === "object") {
       if ("button_down" in typ && typ.button_down) {
+        recordingEventsStore.info('recording-bar', `Calling pushClick for button_down: ${typ.button_down}`);
         pushClick(typ.button_down, mouse.x, mouse.y);
       } else if ("button_up" in typ && typ.button_up) {
+        recordingEventsStore.info('recording-bar', `Button up detected: ${typ.button_up}`);
         setTimeline((prev) => [...prev.slice(-19), `${typ.button_up} release`]);
       }
     }
   }, [pushClick]);
 
   const handleKeyboardEvent = useCallback((keyboard: KeyboardInputEvent) => {
+    recordingEventsStore.info('recording-bar', `handleKeyboardEvent called, key: ${keyboard.key}, state: ${keyboard.state}, text: ${keyboard.text}`, { keyboard });
+
     const hasModifiers = keyboard.modifiers.alt || keyboard.modifiers.control || keyboard.modifiers.meta;
     const plainChar = keyboard.text && keyboard.text.length === 1 && !hasModifiers;
+
     if (keyboard.state === "down" && plainChar) {
+      recordingEventsStore.info('recording-bar', `Adding to type buffer: "${keyboard.text}"`);
       typeBuffer.current += keyboard.text ?? "";
       setTimeline((prev) => [...prev.slice(-19), `text "${keyboard.text}"`]);
       return;
     }
     if (keyboard.state === "down") {
+      recordingEventsStore.info('recording-bar', `Calling pushKey for: ${keyboard.key}`);
       pushKey(keyboard.key);
     }
     if (keyboard.state === "up") {
+      recordingEventsStore.info('recording-bar', `Key up - flushing type buffer`);
       flushTypeBuffer();
     }
   }, [flushTypeBuffer, pushKey]);
@@ -98,8 +113,25 @@ export function RecordingBar(props: {
     let dispose: (() => void) | undefined;
     subscribeEvent<InputEvent>("loopautoma://input_event", (data) => {
       console.log("[RecordingBar] Received input event:", data, "recording:", recordingRef.current);
-      if (!recordingRef.current) return;
+
       if (!data) return;
+
+      // Log ALL events to the UI table (even when not recording, for debugging)
+      if (data.kind === "mouse" && data.mouse) {
+        const eventType = data.mouse.event_type;
+        const isMove = typeof eventType === "string" && eventType === "move";
+        if (!isMove) {
+          recordingEventsStore.info('recording-bar', `Mouse event (recording: ${recordingRef.current})`, data);
+        }
+      } else if (data.kind === "keyboard" && data.keyboard) {
+        recordingEventsStore.info('recording-bar', `Keyboard event (recording: ${recordingRef.current})`, data);
+      } else if (data.kind === "scroll" && data.scroll) {
+        recordingEventsStore.info('recording-bar', `Scroll event (recording: ${recordingRef.current})`, data);
+      }
+
+      // Only process events for recording when actually recording
+      if (!recordingRef.current) return;
+
       if (data.kind === "mouse" && data.mouse) {
         handleMouseEvent(data.mouse);
       } else if (data.kind === "keyboard" && data.keyboard) {
@@ -115,14 +147,18 @@ export function RecordingBar(props: {
 
   const stopRecording = useCallback(async () => {
     recordingRef.current = false;
+    recordingEventsStore.info('recording-bar', 'Stopping recording...');
     try {
       await stopInputRecording();
+      recordingEventsStore.success('recording-bar', 'Backend recording stopped successfully');
     } catch (err) {
       console.warn("stop_input_recording failed", err);
+      recordingEventsStore.error('recording-bar', 'Failed to stop backend recording', err);
     }
     flushTypeBuffer();
     setRecording(false);
     console.log("[RecordingBar] Stopping recording with", eventsRef.current.length, "events:", eventsRef.current);
+    recordingEventsStore.info('recording-bar', `Calling onStop with ${eventsRef.current.length} event(s)`, eventsRef.current);
     props.onStop?.(eventsRef.current);
   }, [flushTypeBuffer, props]);
 
@@ -152,13 +188,16 @@ export function RecordingBar(props: {
       }
 
       try {
+        recordingEventsStore.info('recording-bar', 'Calling startInputRecording()...');
         await startInputRecording();
+        recordingEventsStore.success('recording-bar', 'startInputRecording() succeeded!');
         recordingRef.current = true;
         setRecording(true);
         props.onStart?.();
       } catch (err) {
         recordingRef.current = false;
         const message = err instanceof Error ? err.message : String(err);
+        recordingEventsStore.error('recording-bar', `startInputRecording() failed: ${message}`, err);
         setError(message || "Unable to start input capture");
         // Only show detailed modal in desktop mode, not web mode
         const isWebMode = message.includes("web preview") || message.includes("Tauri");
@@ -176,6 +215,9 @@ export function RecordingBar(props: {
       {showPrereqCheck && (
         <PrerequisiteCheck onClose={() => setShowPrereqCheck(false)} />
       )}
+      {showLogs && (
+        <RecordingLogsPanel onClose={() => setShowLogs(false)} />
+      )}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <button
@@ -191,6 +233,13 @@ export function RecordingBar(props: {
             {events.length} recorded step(s)
             {events.length > 0 && !recording && " (will be added to profile)"}
           </span>
+          <button
+            onClick={() => setShowLogs(true)}
+            title="View detailed recording event logs for debugging"
+            style={{ fontSize: 12, padding: '4px 8px' }}
+          >
+            📋 View Logs
+          </button>
         </div>
         {error && (
           <div role="alert" className="alert" style={{ fontSize: 13 }}>
