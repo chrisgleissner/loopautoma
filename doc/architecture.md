@@ -172,10 +172,10 @@ Profile schema (minimal contract):
   - monitor_start(profileId: String) -> Result<(), Error>
   - monitor_stop() -> Result<(), Error>
   - monitor_panic_stop() -> Result<(), Error>
-  - region_picker_show() / region_picker_complete(submission) -> manage full-screen overlay selection and emit Region + thumbnail
+  - region_picker_show() / region_picker_complete(submission) / region_picker_cancel() -> manage full-screen overlay selection and emit Region + thumbnail
   - region_capture_thumbnail(rect) -> Result<Option<Base64Png>, Error>
-  - start_input_recording() / stop_input_recording() -> control global input recorder (authoring)
-  - inject_mouse_event(event: MouseEvent) / inject_keyboard_event(event: KeyboardEvent) -> direct input replay for tooling
+  - action_recorder_show() -> Result<Base64Png, Error> - Captures full-screen screenshot, returns as base64 PNG for Action Recorder UI
+  - action_recorder_close() -> restores main window after Action Recorder closes
 - Events to UI:
   - Channel: "loopautoma://event"; payload = Event (JSON)
   - Backpressure: events may be batched ≤100ms; if buffer >10_000, drop oldest and emit Error { message: "event_backpressure_drop" }
@@ -198,33 +198,32 @@ Ubuntu/X11 MVP (primary focus):
 - Automation (Input replay): implemented via the XTest extension on Ubuntu/X11 for deterministic pointer/keyboard synthesis, with layout-aware key mapping via XKB.
 - Note: requires an X11 session for MVP; Wayland remains out of scope.
 
-### InputCapture Implementation Details (Linux/X11)
+### Action Recorder: UI-Level Input Capture (Current Implementation)
 
-The Linux implementation of InputCapture evolved through several iterations to find the correct X11 approach:
+**Design Philosophy:** Rather than capturing OS-level input events across the entire system, the Action Recorder provides a controlled UI environment where users click and type directly on a screenshot. This approach is simpler, more secure, and avoids X11/Wayland compatibility issues.
 
-**Initial attempt (XInput2):** The first implementation used XInput2 with RAW event masks (`XIRawKeyPress`, `XIRawButtonPress`, `XIRawMotion`) to capture device-level input. However, `XISelectEvents` with RAW event masks consistently returned `BadValue` (error_code: 2, bad_value: 46) from the X server. Root cause: X11's security model rejects RAW event registration from windowless applications to prevent keylogging and malicious input capture.
+**How it works:**
+1. User clicks "Record Actions" button
+2. Main window minimizes, full-screen screenshot captured (reuses region_picker_show logic)
+3. Action Recorder window opens fullscreen with:
+   - Screenshot displayed at 80% scale (left/bottom aligned)
+   - Click handlers capture coordinates and convert to real screen positions
+   - Keyboard handlers buffer text input and capture special keys
+   - Right panel shows numbered action list with icons
+4. Each action gets a teardrop-shaped number marker overlaid at the click position
+5. On "Done", actions are converted to ActionConfig[] and added to the selected profile
 
-**Discovery (XRecord extension):** Research revealed that X11 provides the XRecord extension (part of the RECORD extension) specifically for recording and monitoring input events globally. XRecord was designed for legitimate recording use cases (screen recording, input playback tools, accessibility) and does not have the same security restrictions as XInput2 RAW events.
+**Coordinate scaling:** Click at display position (x_d, y_d) on 80% scaled screenshot → real screen coordinate (x_r, y_r) = (x_d / 0.8, y_d / 0.8). Markers positioned inversely: real coord (x_r, y_r) → display position (x_r * 0.8, y_r * 0.8).
 
-**Final implementation (rdev crate):** Rather than implement XRecord directly using x11rb (which has an incomplete/difficult record module API), the implementation uses the battle-tested `rdev` crate. rdev provides:
-- Proven XRecord implementation with 6000+ daily downloads
-- Cross-platform support (Linux/X11, macOS, Windows) behind a unified API
-- Simple callback-based interface via `rdev::listen(callback)`
-- Event types: KeyPress/KeyRelease, ButtonPress/ButtonRelease, MouseMove, Wheel
-- Active maintenance and real-world usage validation
+**Benefits over OS-level capture:**
+- No X11/Wayland compatibility issues
+- No elevated permissions required
+- No global input hooks or background threads
+- Simpler mental model: click where you want the action to happen
+- Visual feedback: see exactly what you're recording
+- Easy to adjust actions before committing
 
-**Known limitations of rdev:**
-- No raw keycodes provided (set to 0 in our domain events)
-- No separate modifier state tracking (all modifiers set to false)
-- Mouse button events don't include coordinates (set to 0,0; coordinates only available in MouseMove events)
-- `listen()` function blocks forever and cannot be stopped gracefully (by design of XRecord's blocking API)
-
-The implementation handles the blocking nature by spawning rdev's listener in a dedicated thread and checking the `running` atomic flag in the callback. When `stop()` is called, the flag is set to false and the thread handle is dropped without joining. The thread continues running in the background but silently ignores all events. The thread will be cleaned up when the process exits.
-
-This is an acceptable tradeoff since XRecord's `XRecordEnableContext` blocks until `XRecordDisableContext` is called from another thread (which rdev does not expose), and attempting to join the thread would hang indefinitely. Alternative approaches were attempted:
-- Calling `std::process::exit(0)` from the callback kills the entire process (unacceptable in a long-running Tauri app)
-- Joining the thread in `stop()` hangs forever waiting for `rdev::listen()` to return (which never happens)
-- The thread detachment approach is the only viable solution that keeps the application responsive
+**Removed from MVP:** OS-level InputCapture trait, rdev dependency, LinuxInputCapture implementation, start/stop_input_recording commands, InputEvent/KeyboardEvent/MouseEvent types. All removed in favor of the simpler UI-level approach.
 
 macOS (post‑MVP):
 - ScreenCapture via CGDisplayStream; Automation via Quartz Events; InputCapture via event taps.
@@ -234,19 +233,28 @@ Windows 11 (post‑MVP):
 
 All backends are hidden behind ScreenCapture, Automation, and InputCapture traits; selected via cfg(target_os) and feature flags.
 
-## Authoring helpers: regions and input recorder
+## Authoring helpers: regions and action recorder
 
 Authoring flows are supported by two helpers that expose extra context to the UI while keeping runtime logic OS-agnostic:
 
-- **Region overlay** — a full-screen transparent window used to define Rects and to highlight existing Regions:
-  - For selection, it maps pointer drags (upper-left → lower-right) to global screen coordinates and submits them to the backend as a RegionPickSubmission.
-  - For validation, it can briefly outline an existing Region on top of the desktop so authors can confirm the target area.
-- **Input recorder** — global keyboard/mouse hooks exposed through `start_input_recording` / `stop_input_recording`, emitting `loopautoma://input_event`. These events populate the Recording Bar timeline and are transformed into ActionSequence steps.
+- **Region overlay** — a full-screen transparent window used to define Rects:
+  - Maps pointer drags (upper-left → lower-right) to global screen coordinates and submits them to the backend as a RegionPickSubmission.
+  - Backend captures screenshot thumbnail of selected region for visual confirmation.
+  
+- **Action Recorder** — a full-screen UI overlay displaying a captured screenshot where users click and type to record actions:
+  - User clicks "Record Actions" → main window minimizes → screenshot captured
+  - Action Recorder window shows 80% scaled screenshot with click/keyboard handlers
+  - Clicks are captured with coordinate conversion (display → real screen coordinates)
+  - Keyboard input is buffered into text actions
+  - Each action gets a numbered teardrop marker overlay
+  - On completion, actions are converted to ActionConfig[] and added to the profile
+  - No OS-level input hooks required - all interaction happens within the UI
 
 Implementation notes:
 
-- If `LOOPAUTOMA_BACKEND=fake` is set, the commands succeed but emit synthetic events so UI flows remain testable.
-- When the authoring UI closes or profiles change, the UI calls `stop_input_recording` to release backend resources.
+- Both helpers reuse `capture_full_screen()` to capture desktop screenshots after minimizing the main window.
+- If `LOOPAUTOMA_BACKEND=fake` is set in tests, commands succeed but return placeholder data.
+- Action Recorder eliminates the need for OS-level input capture (XRecord, event taps, hooks), greatly simplifying the implementation and avoiding platform compatibility issues.
 
 ## Performance strategy (MVP)
 

@@ -102,13 +102,11 @@ export async function captureRegionThumbnail(rect: Rect): Promise<string | null>
   return (await callInvoke("region_capture_thumbnail", { rect })) as string | null;
 }
 
-export async function actionRecorderShow(): Promise<string> {
+export async function actionRecorderShow(): Promise<void> {
   if (!isDesktopMode()) {
-    // In web mode, return a blank screenshot
-    return `data:image/png;base64,${BLANK_PNG_BASE64}`;
+    throw new Error("Action Recorder requires desktop mode. Please run the Tauri app instead of the web preview.");
   }
-  const screenshot = (await callInvoke("action_recorder_show")) as string;
-  return `data:image/png;base64,${screenshot}`;
+  await callInvoke("action_recorder_show");
 }
 
 export async function actionRecorderClose(): Promise<void> {

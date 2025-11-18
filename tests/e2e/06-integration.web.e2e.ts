@@ -22,14 +22,14 @@ test.describe('Integration & Cross-Workflow - Web-Only Mode', () => {
     await expect(page.locator('main.container')).toBeVisible();
   });
 
-  test('7.3 - Input recording while monitor running fails gracefully', async ({ page }) => {
+  test('7.3 - Action Recorder while monitor running fails gracefully', async ({ page }) => {
     await startMonitor(page);
 
-    const recordButton = page.getByRole('button', { name: /^record$/i });
+    const recordButton = page.getByRole('button', { name: /record actions/i });
     await recordButton.click();
 
     await expect(page.locator('.alert, [role="alert"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: /^record$/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /record actions/i })).toBeVisible();
   });
 
   test('7.5 - Region capture error clears and reappears on retry', async ({ page }) => {

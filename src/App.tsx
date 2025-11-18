@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import reactLogo from "./assets/react.svg";
 import "./App.css";
 import { ProfileSelector } from "./components/ProfileSelector";
@@ -8,6 +8,7 @@ import { RecordingBar, toActions } from "./components/RecordingBar";
 import { RegionAuthoringPanel } from "./components/RegionAuthoringPanel";
 import { GraphComposer } from "./components/GraphComposer";
 import { CountdownTimer } from "./components/CountdownTimer";
+import { ActionRecorderWindow, type RecordedAction } from "./components/ActionRecorderWindow";
 
 import { useEventStream, useProfiles, useRunState } from "./store";
 import { normalizeProfilesConfig, Profile, ProfilesConfig } from "./types";
@@ -17,7 +18,7 @@ import { useEffectOnce } from "./hooks/useEffectOnce";
 import { registerBuiltins } from "./plugins/builtins";
 import { isDesktopEnvironment } from "./utils/runtime";
 import { AcceleratingNumberInput } from "./components/AcceleratingNumberInput";
-import { recordingEventsStore } from "./recordingEventsStore";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const THEME_STORAGE_KEY = "loopautoma.theme";
 const PALETTE_STORAGE_KEY = "loopautoma.palette";
@@ -83,6 +84,24 @@ const themeOptions: { id: ThemeChoice; label: string; icon: JSX.Element }[] = [
 ];
 
 export function App() {
+  // Check if we're in the action-recorder window
+  const windowLabel = useMemo(() => {
+    try {
+      return getCurrentWindow().label;
+    } catch {
+      return "main";
+    }
+  }, []);
+
+  // If this is the action-recorder window, render only that component
+  if (windowLabel === "action-recorder") {
+    return <ActionRecorderWindow />;
+  }
+
+  return <MainWindow />;
+}
+
+function MainWindow() {
   const { config, setConfig } = useProfiles();
   const { events, clear } = useEventStream();
   const { runningProfileId, setRunningProfileId } = useRunState();
@@ -90,7 +109,11 @@ export function App() {
   const [showGraph, setShowGraph] = useState(true);
   const [theme, setTheme] = useState<ThemeChoice>(isTestEnvironment ? "dark" : "system");
   const [palette, setPalette] = useState<PaletteChoice>("serene");
+  const [fontSize, setFontSize] = useState(13);
   const profiles = config?.profiles ?? [];
+  
+  // Use ref to ensure we always have latest profile in event listener
+  const selectedProfileRef = useRef<Profile | null>(null);
 
   useEffectOnce(() => {
     registerBuiltins();
@@ -186,8 +209,11 @@ export function App() {
 
   const selectedProfile = useMemo(() => profiles.find((p) => p.id === selectedId) ?? null, [profiles, selectedId]);
   const isRunning = Boolean(runningProfileId);
-
-
+  
+  // Keep ref in sync with selectedProfile
+  useEffect(() => {
+    selectedProfileRef.current = selectedProfile;
+  }, [selectedProfile]);
 
   const updateProfile = useCallback(async (updated: Profile) => {
     if (!config) return;
@@ -197,6 +223,67 @@ export function App() {
       : [...config.profiles, updated];
     await applyConfig({ version: config.version, profiles: nextProfiles });
   }, [applyConfig, config]);
+
+  // Subscribe to action recorder complete events
+  useEffect(() => {
+    if (!isDesktopEnvironment()) return;
+    
+    const unlisten = (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        return await listen<RecordedAction[]>("loopautoma://action_recorder_complete", (event) => {
+          const actions = event.payload;
+          const currentProfile = selectedProfileRef.current;
+          
+          if (!currentProfile) {
+            console.warn("[App] No selected profile, skipping action save");
+            return;
+          }
+          if (actions.length === 0) {
+            console.log("[App] No actions recorded, but closing normally");
+            return;
+          }
+
+          console.log("[App] Received", actions.length, "recorded action(s):", actions);
+
+          // Convert RecordedAction[] to profile actions
+          const events = actions.map((action) => {
+            if (action.type === "click") {
+              return {
+                t: "click" as const,
+                button: action.button,
+                x: action.x,
+                y: action.y,
+              };
+            } else {
+              return {
+                t: "type" as const,
+                text: action.text,
+              };
+            }
+          });
+
+          console.log("[App] Starting transformation of", events.length, "event(s)");
+          const newActions = toActions(events);
+          console.log("[App] Transformed to", newActions.length, "actions:", newActions);
+
+          console.log("[App] Updating profile with new actions");
+          void updateProfile({
+            ...currentProfile,
+            actions: [...currentProfile.actions, ...newActions],
+          });
+          console.log("[App] Profile updated successfully");
+        });
+      } catch (err) {
+        console.error("[App] Failed to set up action recorder event listener:", err);
+        return undefined;
+      }
+    })();
+
+    return () => {
+      void unlisten.then((fn) => fn?.());
+    };
+  }, [updateProfile]); // selectedProfile accessed via ref, not closure
 
   const quitApp = useCallback(async () => {
     try {
@@ -222,6 +309,14 @@ export function App() {
     }
   }, [theme]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.style.setProperty("--base-font-size", `${fontSize}px`);
+  }, [fontSize]);
+
+  const increaseFontSize = () => setFontSize((prev) => Math.min(prev + 1, 20));
+  const decreaseFontSize = () => setFontSize((prev) => Math.max(prev - 1, 10));
+
   const themeAttr = theme === "system" ? undefined : theme;
 
   return (
@@ -237,6 +332,24 @@ export function App() {
           </div>
         </div>
         <div className="top-right">
+          <div className="font-size-controls" role="group" aria-label="Font size">
+            <button
+              className="font-size-btn"
+              onClick={decreaseFontSize}
+              title="Decrease font size"
+              aria-label="Decrease font size"
+            >
+              −
+            </button>
+            <button
+              className="font-size-btn"
+              onClick={increaseFontSize}
+              title="Increase font size"
+              aria-label="Increase font size"
+            >
+              +
+            </button>
+          </div>
           <div className="theme-icons" role="group" aria-label="Color theme">
             {themeOptions.map((item) => (
               <button
@@ -425,43 +538,7 @@ export function App() {
               </div>
             </div>
           </div>
-          <RecordingBar
-            onStop={async (evts) => {
-              console.log("[App] onStop called with", evts.length, "events:", evts);
-              console.log("[App] selectedProfile:", selectedProfile?.id);
-              recordingEventsStore.info('app', `onStop callback invoked with ${evts.length} event(s)`, { eventCount: evts.length, profileId: selectedProfile?.id });
-
-              if (!selectedProfile) {
-                console.warn("[App] No selected profile, skipping action save");
-                recordingEventsStore.error('app', 'Cannot save actions: No profile selected');
-                return;
-              }
-              if (evts.length === 0) {
-                console.warn("[App] No events to save");
-                recordingEventsStore.warn('app', 'No events to transform - event buffer is empty');
-                return;
-              }
-
-              recordingEventsStore.info('transformation', `Starting transformation of ${evts.length} event(s)`, evts);
-              const newActions = toActions(evts);
-              console.log("[App] Transformed to actions:", newActions);
-              recordingEventsStore.success('transformation', `Transformed ${evts.length} event(s) into ${newActions.length} action(s)`, newActions);
-
-              recordingEventsStore.info('app', `Updating profile "${selectedProfile.name}" with ${newActions.length} new action(s)`);
-              await updateProfile({
-                ...selectedProfile,
-                actions: [...selectedProfile.actions, ...newActions],
-              });
-              console.log("[App] Profile updated with new actions");
-              recordingEventsStore.success('app', `Profile updated! Total actions: ${selectedProfile.actions.length + newActions.length}`, {
-                profileId: selectedProfile.id,
-                profileName: selectedProfile.name,
-                previousActionCount: selectedProfile.actions.length,
-                newActionCount: newActions.length,
-                totalActionCount: selectedProfile.actions.length + newActions.length
-              });
-            }}
-          />
+          <RecordingBar />
         </article>
 
         <article className="panel card regions-panel" aria-label="Regions">

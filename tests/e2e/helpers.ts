@@ -260,8 +260,8 @@ export type FakeDesktopOptions = {
  *   - `region_picker_cancel`: Sets state.overlayActive = false and emits RegionOverlay closed event.
  *   - `app_quit`: Resets all state (running, overlayActive, recording) and emits state-change events.
  *   - `region_capture_thumbnail`: Returns a blank PNG thumbnail.
- *   - `start_input_recording`: Sets state.recording = true and emits RecordingStateChanged event.
- *   - `stop_input_recording`: Sets state.recording = false and emits RecordingStateChanged event.
+ *   - `action_recorder_show`: Returns a fake screenshot as base64 PNG data URL.
+ *   - `action_recorder_close`: Closes Action Recorder (no-op in fake mode).
  *
  * State tracking:
  *   - The `state` object (exposed as `window.__LOOPAUTOMA_TEST__.state`) tracks:
@@ -338,13 +338,10 @@ export async function setupFakeDesktopMode(page: Page, options?: FakeDesktopOpti
           return;
         case "region_capture_thumbnail":
           return blank;
-        case "start_input_recording":
-          state.recording = true;
-          emit("loopautoma://event", { type: "RecordingStateChanged", state: "Recording" });
-          return;
-        case "stop_input_recording":
-          state.recording = false;
-          emit("loopautoma://event", { type: "RecordingStateChanged", state: "Stopped" });
+        case "action_recorder_show":
+          // Return a fake screenshot as base64 PNG data URL
+          return `data:image/png;base64,${blank}`;
+        case "action_recorder_close":
           return;
         default:
           console.warn("[FakeHarness] Unhandled fake invoke", cmd, args); // eslint-disable-line no-console

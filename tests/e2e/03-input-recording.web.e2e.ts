@@ -1,66 +1,41 @@
 /**
- * E2E Tests: Input Recording Workflow (Web-Only Mode)
- * Tests input recording behavior in web-only dev mode (expected to fail gracefully)
+ * E2E Tests: Action Recorder Workflow (Web-Only Mode)
+ * Tests Action Recorder behavior in web-only dev mode (expected to fail gracefully)
  */
 
 import { test, expect } from '@playwright/test';
-import { waitForAppReady, getRecordedEventCount } from './helpers';
+import { waitForAppReady } from './helpers';
 
-test.describe('Input Recording - Web-Only Mode', () => {
+test.describe('Action Recorder - Web-Only Mode', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await waitForAppReady(page);
   });
 
-  test('4.14 - Input recording fails gracefully in web-only mode', async ({ page }) => {
-    // Click Record button
-    const recordButton = page.getByRole('button', { name: /^record$/i });
+  test('4.14 - Action Recorder fails gracefully in web-only mode', async ({ page }) => {
+    // Click "Record Actions" button
+    const recordButton = page.getByRole('button', { name: /record actions/i });
     await expect(recordButton).toBeVisible();
     await recordButton.click();
 
-    // Should show error message (Tauri command not available or backend rejection)
-    await expect(page.locator('.alert, [role="alert"]')).toBeVisible({ timeout: 5000 });
+    // Should show error message (Tauri command not available)
+    await page.waitForTimeout(500);
     
-    // Error message should indicate limitation
-    const errorText = await page.locator('.alert, [role="alert"]').textContent();
-    expect(errorText).toBeTruthy();
+    // Error should be displayed in RecordingBar or as alert
+    const errorElement = page.locator('.alert, [role="alert"], .error-message');
+    await expect(errorElement.first()).toBeVisible({ timeout: 3000 });
     
-    // Recording chip should NOT appear
-    const recordingChip = page.locator('.running-chip', { hasText: 'Recording' });
-    await expect(recordingChip).not.toBeVisible();
+    // Action Recorder overlay should NOT appear
+    const actionRecorder = page.locator('.action-recorder');
+    await expect(actionRecorder).not.toBeVisible();
     
-    // Button should remain in "Record" state (not "Stop")
+    // Button should remain in "Record Actions" state
     await expect(recordButton).toBeVisible();
-    await expect(recordButton).toHaveText(/record/i);
+    await expect(recordButton).toHaveText(/record actions/i);
   });
 
-  test('4.14 - Save button disabled when no events recorded', async ({ page }) => {
-    const saveButton = page.getByRole('button', { name: /save as actionsequence/i });
-    
-    // Initially disabled (no events)
-    await expect(saveButton).toBeDisabled();
-    
-    // Event counter should show 0
-    const count = await getRecordedEventCount(page);
-    expect(count).toBe(0);
-  });
-
-  test('4.14 - Timeline shows empty state initially', async ({ page }) => {
-    const timeline = page.locator('.timeline-box');
-    await expect(timeline).toBeVisible();
-    
-    // Should show "No events yet" or similar
-    await expect(timeline).toContainText(/no events/i);
-  });
-
-  test('4.14 - Clear timeline button disabled when empty', async ({ page }) => {
-    const clearButton = page.locator('.timeline-box').getByRole('button', { name: /clear/i });
-    await expect(clearButton).toBeVisible();
-    await expect(clearButton).toBeDisabled();
-  });
-
-  test('4.14 - Recording bar visible and accessible', async ({ page }) => {
-    const recordButton = page.getByRole('button', { name: /^record$/i });
+  test('4.14 - RecordingBar accessible with keyboard', async ({ page }) => {
+    const recordButton = page.getByRole('button', { name: /record actions/i });
     
     // Button is keyboard accessible
     await recordButton.focus();
@@ -69,22 +44,14 @@ test.describe('Input Recording - Web-Only Mode', () => {
     // Has tooltip
     const title = await recordButton.getAttribute('title');
     expect(title).toBeTruthy();
-    expect(title).toMatch(/record/i);
   });
 
-  test('4.14 - Event counter displays correctly', async ({ page }) => {
-    // Check counter text format
-    const counterText = page.locator('text=/\\d+ recorded step\\(s\\)/');
-    await expect(counterText).toBeVisible();
+  test('4.14 - RecordingBar visible in UI', async ({ page }) => {
+    const recordButton = page.getByRole('button', { name: /record actions/i });
+    await expect(recordButton).toBeVisible();
     
-    const text = await counterText.textContent();
-    expect(text).toMatch(/\d+ recorded step\(s\)/);
-  });
-
-  test('4.14 - Timeline header visible', async ({ page }) => {
-    const header = page.locator('.timeline-header');
-    await expect(header).toBeVisible();
-    
-    await expect(header).toContainText(/live input timeline/i);
+    // Should have icon or clear label
+    const buttonText = await recordButton.textContent();
+    expect(buttonText?.trim()).toBeTruthy();
   });
 });

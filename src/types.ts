@@ -6,7 +6,6 @@ export type TriggerConfig = { type: string; check_interval_sec: number };
 export type ConditionConfig = { type: string; stable_ms: number; downscale: number };
 
 export type MouseButton = "Left" | "Right" | "Middle";
-export type Modifiers = { shift: boolean; control: boolean; alt: boolean; meta: boolean };
 export type ActionConfig =
   | { type: "Click"; x: number; y: number; button: MouseButton }
   | { type: "Type"; text: string }
@@ -50,35 +49,6 @@ export type Event =
   | { type: "WatchdogTripped"; reason: string }
   | { type: "Error"; message: string }
   | { type: "MonitorTick"; next_check_ms: number; cooldown_remaining_ms: number; condition_met: boolean };
-
-export type MouseInputEvent = {
-  event_type: "move" | { button_down: MouseButton } | { button_up: MouseButton } | Record<string, never>;
-  x: number;
-  y: number;
-  modifiers: Modifiers;
-  timestamp_ms: number;
-};
-
-export type KeyboardInputEvent = {
-  state: "down" | "up";
-  key: string;
-  code: number;
-  text?: string | null;
-  modifiers: Modifiers;
-  timestamp_ms: number;
-};
-
-export type ScrollInputEvent = {
-  delta_x: number;
-  delta_y: number;
-  modifiers: Modifiers;
-  timestamp_ms: number;
-};
-
-export type InputEvent =
-  | { kind: "mouse"; mouse: MouseInputEvent }
-  | { kind: "keyboard"; keyboard: KeyboardInputEvent }
-  | { kind: "scroll"; scroll: ScrollInputEvent };
 
 export type DisplayInfo = {
   id: number;

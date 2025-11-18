@@ -34,20 +34,6 @@ use serde::{Deserialize, Serialize};
 pub use soak::{run_soak, SoakConfig, SoakReport};
 use std::env;
 
-fn env_truthy(name: &str) -> bool {
-    matches!(
-        env::var(name).ok().as_deref(),
-        Some("1" | "true" | "TRUE" | "True" | "yes" | "YES" | "on" | "ON" | "y" | "Y")
-    )
-}
-
-fn is_release_runtime() -> bool {
-    if env_truthy("LOOPAUTOMA_TREAT_AS_RELEASE") {
-        return true;
-    }
-    !cfg!(debug_assertions)
-}
-
 fn default_profile() -> Profile {
     Profile {
         id: "keep-agent-001".into(),
@@ -57,9 +43,9 @@ fn default_profile() -> Profile {
                 id: "chat-out".into(),
                 rect: Rect {
                     x: 80,
-                    y: 120,
-                    width: 1200,
-                    height: 600,
+                    y: 100,
+                    width: 1000,
+                    height: 450,
                 },
                 name: Some("Agent Output".into()),
             },
@@ -67,9 +53,9 @@ fn default_profile() -> Profile {
                 id: "progress".into(),
                 rect: Rect {
                     x: 80,
-                    y: 740,
-                    width: 1200,
-                    height: 200,
+                    y: 560,
+                    width: 1000,
+                    height: 150,
                 },
                 name: Some("Progress Area".into()),
             },
@@ -299,21 +285,6 @@ fn make_automation() -> Box<dyn Automation + Send + Sync> {
     }
 }
 
-pub(crate) fn ensure_dev_injection_allowed(command: &str) -> Result<(), String> {
-    if is_release_runtime() {
-        return Err(format!(
-            "{command} is disabled in production builds. Input synthesis helpers only run in debug/dev builds; see doc/security.md for details."
-        ));
-    }
-    if env_truthy("LOOPAUTOMA_ALLOW_INJECT") {
-        Ok(())
-    } else {
-        Err(
-            "Input injection commands are disabled. Set LOOPAUTOMA_ALLOW_INJECT=1 while developing to enable dev-only input synthesis.".into(),
-        )
-    }
-}
-
 #[tauri::command]
 fn profiles_load(state: tauri::State<AppState>) -> Result<ProfilesConfig, String> {
     Ok(state.profiles.lock().unwrap().clone())
@@ -434,6 +405,7 @@ pub fn run() {
             region_capture_thumbnail,
             action_recorder_show,
             action_recorder_close,
+            action_recorder_complete,
             app_quit
         ])
         .run(tauri::generate_context!())
@@ -552,9 +524,47 @@ fn region_picker_cancel(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn action_recorder_close(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
+    if let Some(recorder) = app.get_webview_window("action-recorder") {
+        let _ = recorder.close();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn action_recorder_complete(
+    app: tauri::AppHandle,
+    actions: Vec<serde_json::Value>,
+) -> Result<(), String> {
+    // Emit actions to main window
+    app.emit("loopautoma://action_recorder_complete", &actions)
+        .map_err(|e| e.to_string())?;
+    
+    // Restore main window
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
+    
+    // Close recorder window
+    if let Some(recorder) = app.get_webview_window("action-recorder") {
+        let _ = recorder.close();
+    }
+    
+    Ok(())
+}
+
+#[tauri::command]
 fn app_quit(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(overlay) = app.get_webview_window("region-overlay") {
         let _ = overlay.close();
+    }
+    if let Some(recorder) = app.get_webview_window("action-recorder") {
+        let _ = recorder.close();
     }
     if let Some(main) = app.get_webview_window("main") {
         let _ = main.close();
@@ -685,12 +695,11 @@ fn encode_png_thumbnail(frame: &ScreenFrame) -> Option<String> {
 }
 
 #[tauri::command]
-fn action_recorder_show(app: tauri::AppHandle) -> Result<String, String> {
+fn action_recorder_show(app: tauri::AppHandle) -> Result<(), String> {
     // Check if Action Recorder window already exists
     if let Some(win) = app.get_webview_window("action-recorder") {
         let _ = win.set_focus();
-        // Return existing screenshot or capture new one
-        return capture_full_screen().map_err(|e| e.to_string());
+        return Ok(());
     }
     
     // Hide main window first
@@ -704,61 +713,25 @@ fn action_recorder_show(app: tauri::AppHandle) -> Result<String, String> {
     // Capture full screen screenshot
     let screenshot_base64 = capture_full_screen().map_err(|e| e.to_string())?;
     
-    Ok(screenshot_base64)
-}
-
-#[tauri::command]
-fn action_recorder_close(app: tauri::AppHandle) -> Result<(), String> {
-    if let Some(main) = app.get_webview_window("main") {
-        let _ = main.show();
-        let _ = main.set_focus();
-    }
-    if let Some(recorder) = app.get_webview_window("action-recorder") {
-        let _ = recorder.close();
-    }
+    // Build Action Recorder window with screenshot URL
+    let screenshot_url = format!("data:image/png;base64,{}", screenshot_base64);
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        "action-recorder",
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("Action Recorder")
+    .fullscreen(true)
+    .decorations(false)
+    .always_on_top(true)
+    .resizable(false)
+    .skip_taskbar(true)
+    .initialization_script(&format!(
+        r#"window.__ACTION_RECORDER_SCREENSHOT__ = "{}";"#,
+        screenshot_url
+    ))
+    .build()
+    .map_err(|e| e.to_string())?;
+    
     Ok(())
-}
-
-#[cfg(test)]
-mod dev_guard_tests {
-    use super::*;
-    use std::env;
-    use std::sync::{Mutex, OnceLock};
-
-    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
-    }
-
-    fn clear_env() {
-        env::remove_var("LOOPAUTOMA_ALLOW_INJECT");
-        env::remove_var("LOOPAUTOMA_TREAT_AS_RELEASE");
-    }
-
-    #[test]
-    fn rejects_without_flag() {
-        let _guard = env_lock();
-        clear_env();
-        assert!(ensure_dev_injection_allowed("test").is_err());
-    }
-
-    #[test]
-    fn rejects_release_mode_even_with_flag() {
-        let _guard = env_lock();
-        clear_env();
-        env::set_var("LOOPAUTOMA_ALLOW_INJECT", "1");
-        env::set_var("LOOPAUTOMA_TREAT_AS_RELEASE", "1");
-        let err = ensure_dev_injection_allowed("test").unwrap_err();
-        assert!(err.contains("production"));
-        clear_env();
-    }
-
-    #[test]
-    fn allows_with_flag_in_debug() {
-        let _guard = env_lock();
-        clear_env();
-        env::set_var("LOOPAUTOMA_ALLOW_INJECT", "1");
-        ensure_dev_injection_allowed("test").expect("flag should allow dev helper");
-        clear_env();
-    }
 }
