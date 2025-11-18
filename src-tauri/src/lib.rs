@@ -6,7 +6,7 @@ mod llm;
 mod monitor;
 #[cfg(any(
     feature = "os-linux-capture-xcap",
-    feature = "os-linux-input",
+    feature = "os-linux-automation",
     feature = "os-macos",
     feature = "os-windows"
 ))]
@@ -29,8 +29,6 @@ use image::{DynamicImage, ImageOutputFormat, RgbaImage};
 use tauri::Emitter; // for Window.emit
 use tauri::Manager;
 mod fakes;
-#[cfg(feature = "os-linux-input")]
-use crate::os::linux::LinuxInputCapture;
 use fakes::{FakeAutomation, FakeCapture};
 use serde::{Deserialize, Serialize};
 pub use soak::{run_soak, SoakConfig, SoakReport};
@@ -134,11 +132,6 @@ impl ProfilesConfig {
     }
 }
 
-#[derive(Default)]
-struct AuthoringState {
-    input_capture: Mutex<Option<Box<dyn InputCapture + Send>>>,
-}
-
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -148,7 +141,6 @@ fn greet(name: &str) -> String {
 struct AppState {
     profiles: Mutex<ProfilesConfig>,      // in-memory MVP
     runner: Mutex<Option<MonitorRunner>>, // current monitor runner
-    authoring: AuthoringState,
 }
 
 struct MonitorRunner {
@@ -275,7 +267,7 @@ fn make_automation() -> Box<dyn Automation + Send + Sync> {
     if env::var("LOOPAUTOMA_BACKEND").ok().as_deref() == Some("fake") {
         return Box::new(FakeAutomation);
     }
-    #[cfg(feature = "os-linux-input")]
+    #[cfg(feature = "os-linux-automation")]
     {
         return match crate::os::linux::LinuxAutomation::new() {
             Ok(auto) => Box::new(auto),
@@ -285,12 +277,12 @@ fn make_automation() -> Box<dyn Automation + Send + Sync> {
             }
         };
     }
-    #[cfg(all(not(feature = "os-linux-input"), feature = "os-macos"))]
+    #[cfg(all(not(feature = "os-linux-automation"), feature = "os-macos"))]
     {
         return Box::new(crate::os::macos::MacAutomation);
     }
     #[cfg(all(
-        not(feature = "os-linux-input"),
+        not(feature = "os-linux-automation"),
         not(feature = "os-macos"),
         feature = "os-windows"
     ))]
@@ -298,40 +290,12 @@ fn make_automation() -> Box<dyn Automation + Send + Sync> {
         return Box::new(crate::os::windows::WinAutomation);
     }
     #[cfg(all(
-        not(feature = "os-linux-input"),
+        not(feature = "os-linux-automation"),
         not(feature = "os-macos"),
         not(feature = "os-windows")
     ))]
     {
         Box::new(FakeAutomation)
-    }
-}
-
-fn make_input_capture() -> Option<Box<dyn InputCapture + Send>> {
-    #[cfg(feature = "os-linux-input")]
-    {
-        return Some(Box::new(LinuxInputCapture::default()));
-    }
-    #[cfg(all(not(feature = "os-linux-input"), feature = "os-macos"))]
-    {
-        // macOS backend placeholder
-        return None;
-    }
-    #[cfg(all(
-        not(feature = "os-linux-input"),
-        not(feature = "os-macos"),
-        feature = "os-windows"
-    ))]
-    {
-        return None;
-    }
-    #[cfg(all(
-        not(feature = "os-linux-input"),
-        not(feature = "os-macos"),
-        not(feature = "os-windows")
-    ))]
-    {
-        None
     }
 }
 
@@ -450,101 +414,6 @@ fn monitor_panic_stop(state: tauri::State<AppState>) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-fn check_input_prerequisites() -> Result<serde_json::Value, String> {
-    #[cfg(feature = "os-linux-input")]
-    {
-        let check = crate::os::linux::check_prerequisites();
-        serde_json::to_value(&check).map_err(|e| e.to_string())
-    }
-    #[cfg(not(feature = "os-linux-input"))]
-    {
-        Ok(serde_json::json!({
-            "feature_enabled": false,
-            "error_details": ["This build was compiled without os-linux-input feature"]
-        }))
-    }
-}
-
-#[tauri::command]
-fn start_input_recording(
-    window: tauri::Window,
-    state: tauri::State<AppState>,
-) -> Result<(), String> {
-    eprintln!("[TAURI COMMAND] start_input_recording() called!");
-    if env::var("LOOPAUTOMA_BACKEND").ok().as_deref() == Some("fake") {
-        eprintln!("[TAURI COMMAND] Rejecting: LOOPAUTOMA_BACKEND=fake");
-        return Err("Input capture is disabled because LOOPAUTOMA_BACKEND=fake. Remove that override to use the OS-level recorder.".into());
-    }
-    #[cfg(not(feature = "os-linux-input"))]
-    {
-        let _ = window;
-        let _ = state;
-        eprintln!("[TAURI COMMAND] Rejecting: feature not enabled");
-        return Err("This build was compiled without the os-linux-input backend. Rebuild with --features os-linux-input (see doc/developer.md) or keep LOOPAUTOMA_BACKEND=fake for UI-only authoring.".into());
-    }
-    #[cfg(feature = "os-linux-input")]
-    {
-        eprintln!("[TAURI COMMAND] Acquiring lock on input_capture state...");
-        let mut guard = state.authoring.input_capture.lock().unwrap();
-        if guard.is_some() {
-            eprintln!("[TAURI COMMAND] Capture already running, returning Ok");
-            return Ok(());
-        }
-        eprintln!("[TAURI COMMAND] Creating new input capture instance...");
-        let mut capture = make_input_capture().ok_or_else(|| {
-            "Input capture backend is missing. On Ubuntu 24.04 install the X11 dev packages listed in doc/developer.md (libx11-dev, libxext-dev, libxi-dev, libxtst-dev, libxkbcommon-x11-dev, etc.) and rebuild.".to_string()
-        })?;
-        let win = window.clone();
-        let callback = Arc::new(move |event: InputEvent| {
-            eprintln!("[TAURI CALLBACK] Emitting event: {:?}", event);
-            let result = win.emit("loopautoma://input_event", &event);
-            if let Err(e) = result {
-                eprintln!("[TAURI CALLBACK] Failed to emit: {:?}", e);
-            }
-        });
-        capture.start(callback).map_err(|e| format!("{e}. Make sure the X11/XKB libraries are installed (see doc/developer.md) and that the app is running in an X11 session."))?;
-        *guard = Some(capture);
-        return Ok(());
-    }
-    #[cfg(not(feature = "os-linux-input"))]
-    {
-        unreachable!("checked above");
-    }
-}
-
-#[tauri::command]
-fn stop_input_recording(state: tauri::State<AppState>) -> Result<(), String> {
-    let mut guard = state.authoring.input_capture.lock().unwrap();
-    if let Some(mut capture) = guard.take() {
-        capture.stop().map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
-#[tauri::command]
-fn inject_mouse_event(event: MouseEvent) -> Result<(), String> {
-    ensure_dev_injection_allowed("inject_mouse_event")?;
-    let automation = make_automation();
-    match event.event_type {
-        MouseEventType::Move => automation.move_cursor(event.x as u32, event.y as u32)?,
-        MouseEventType::ButtonDown(button) => automation.mouse_down(button)?,
-        MouseEventType::ButtonUp(button) => automation.mouse_up(button)?,
-    }
-    Ok(())
-}
-
-#[tauri::command]
-fn inject_keyboard_event(event: KeyboardEvent) -> Result<(), String> {
-    ensure_dev_injection_allowed("inject_keyboard_event")?;
-    let automation = make_automation();
-    match event.state {
-        KeyState::Down => automation.key_down(&event.key)?,
-        KeyState::Up => automation.key_up(&event.key)?,
-    }
-    Ok(())
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -557,17 +426,14 @@ pub fn run() {
             monitor_start,
             monitor_stop,
             monitor_panic_stop,
-            check_input_prerequisites,
-            start_input_recording,
-            stop_input_recording,
-            inject_mouse_event,
-            inject_keyboard_event,
             window_info,
             window_position,
             region_picker_show,
             region_picker_complete,
             region_picker_cancel,
             region_capture_thumbnail,
+            action_recorder_show,
+            action_recorder_close,
             app_quit
         ])
         .run(tauri::generate_context!())
@@ -816,6 +682,41 @@ fn encode_png_thumbnail(frame: &ScreenFrame) -> Option<String> {
         return None;
     }
     Some(Base64Standard.encode(buffer))
+}
+
+#[tauri::command]
+fn action_recorder_show(app: tauri::AppHandle) -> Result<String, String> {
+    // Check if Action Recorder window already exists
+    if let Some(win) = app.get_webview_window("action-recorder") {
+        let _ = win.set_focus();
+        // Return existing screenshot or capture new one
+        return capture_full_screen().map_err(|e| e.to_string());
+    }
+    
+    // Hide main window first
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.hide();
+    }
+    
+    // Give time for window to minimize and desktop to redraw
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    
+    // Capture full screen screenshot
+    let screenshot_base64 = capture_full_screen().map_err(|e| e.to_string())?;
+    
+    Ok(screenshot_base64)
+}
+
+#[tauri::command]
+fn action_recorder_close(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
+    if let Some(recorder) = app.get_webview_window("action-recorder") {
+        let _ = recorder.close();
+    }
+    Ok(())
 }
 
 #[cfg(test)]

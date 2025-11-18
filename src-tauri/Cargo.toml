@@ -41,14 +41,13 @@ windows = { version = "0.58", optional = true, features = [
 ] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-x11rb = { version = "0.13.2", optional = true, features = ["xinput", "xtest", "xkb", "record", "allow-unsafe-code"] }
+x11rb = { version = "0.13.2", optional = true, features = ["xinput", "xtest", "xkb", "allow-unsafe-code"] }
 xkbcommon = { version = "0.9.0", optional = true, features = ["x11"] }
-rdev = { version = "0.5", optional = true }
  
 [features]
-default = ["os-linux-capture-xcap", "os-linux-input", "llm-integration"]
+default = ["os-linux-capture-xcap", "os-linux-automation", "llm-integration"]
 os-linux-capture-xcap = ["xcap", "ahash"]
-os-linux-input = ["x11rb", "xkbcommon", "rdev"]
+os-linux-automation = ["x11rb", "xkbcommon"]
 os-macos = ["screenshots"]
 os-windows = ["screenshots", "windows"]
 llm-integration = ["reqwest", "tokio"]

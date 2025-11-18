@@ -562,6 +562,178 @@ Phase 6: Documentation and cleanup
 - Consider wiring the helper into automated smoke tests once CI can access an X11 environment.
 - Extend the helper to save/load recordings for regression tests if needed.
 
+### Task: Action Recorder - UI-level Input Capture (Simplified Recording)
+
+**Started:** 2025-11-18
+
+**User request (summary)**
+Replace OS-level keyboard/mouse capture (rdev thread-based hooks) with UI-level interaction on a scaled screenshot. User clicks/types directly on a screenshot representation instead of the entire desktop.
+
+**Detailed workflow:**
+1. User clicks "Record keyboard/mouse"
+2. App minimizes
+3. Full-screen screenshot captured (same screen app was on)
+4. Action Recorder window appears fullscreen:
+   - Screenshot shown at 80% width/height, left/bottom aligned
+   - Right panel: scrollable legend of numbered actions
+   - Top header: instructions, Start/Stop button, recording indicator (pulsing), refresh icon, zoom slider
+   - Numbers overlaid on screenshot in teardrop shapes (sharp top-left edge pointing to exact pixel)
+5. User clicks on screenshot → captures real screen X/Y coordinate (accounting for 80% scale)
+6. User types → all keys buffered into single text event (first key shows number overlay)
+7. Click "Stop Recording" → events propagated to profile as ActionSequence
+8. Non-printable keys rendered with bracket syntax: `[Alt+Enter]hello`
+
+**MVP Simplifications:**
+- No drag-and-drop repositioning of numbers (defer to post-MVP)
+- No re-entering to edit actions (defer to post-MVP)
+- Simple linear workflow: Record → Stop → Actions added
+- No undo/redo during recording (can delete actions after in profile editor)
+- Fixed 80% scale initially (zoom slider can be static MVP)
+- Single-screen only (no multi-monitor in MVP)
+
+**Context and constraints**
+- Must reuse existing screenshot capture logic (region_picker_show already does app minimize + screenshot)
+- Must maintain ≥90% test coverage
+- Remove rdev-based input capture completely (massive simplification)
+- Keep architecture clean: no OS logic in UI
+- Recording state stored in React component, not Rust backend
+
+**Plan (checklist)**
+
+**Phase 1: Remove existing thread-based input capture**
+- [ ] 1.1. Remove `rdev` dependency from `src-tauri/Cargo.toml`
+- [ ] 1.2. Delete `LinuxInputCapture` implementation in `src-tauri/src/os/linux.rs` (lines ~400-720)
+- [ ] 1.3. Remove `InputCapture` trait from `src-tauri/src/domain.rs`
+- [ ] 1.4. Remove `start_input_recording` and `stop_input_recording` Tauri commands from `src-tauri/src/lib.rs`
+- [ ] 1.5. Remove input recording test helper binary `src-tauri/src/bin/input_recorder.rs`
+- [ ] 1.6. Update architecture.md to document new UI-level capture approach
+- [ ] 1.7. Run `cargo test` to ensure Rust tests still pass (expect ~36 tests after removal)
+
+**Phase 2: Create Action Recorder UI component**
+- [ ] 2.1. Create `src/components/ActionRecorder.tsx` component:
+  - [ ] 2.1a. Fullscreen container with screenshot background (80% scale, left/bottom aligned)
+  - [ ] 2.1b. Top header with title, Start/Stop button, recording indicator, refresh button
+  - [ ] 2.1c. Right panel for action legend (scrollable list)
+  - [ ] 2.1d. Screenshot click handler → capture scaled X/Y → add click action
+  - [ ] 2.1e. Keyboard handler → buffer text until non-printable or stop → add type action
+  - [ ] 2.1f. Render numbered teardrop overlays at action positions
+- [ ] 2.2. Create `src/components/ActionNumberMarker.tsx` for teardrop-shaped number icon
+- [ ] 2.3. Add CSS styling for Action Recorder (fullscreen layout, teardrop SVG)
+- [ ] 2.4. Wire up Escape key to cancel recording
+
+**Phase 3: Update Tauri bridge and commands**
+- [ ] 3.1. Create new Tauri command `action_recorder_show()` (similar to region_picker_show):
+  - [ ] 3.1a. Hide main window
+  - [ ] 3.1b. Capture full-screen screenshot
+  - [ ] 3.1c. Return screenshot as base64 PNG
+- [ ] 3.2. Create Tauri command `action_recorder_close()` (restore main window)
+- [ ] 3.3. Add bridge functions in `src/tauriBridge.ts`:
+  - [ ] 3.3a. `actionRecorderShow() -> string` (returns screenshot base64)
+  - [ ] 3.3b. `actionRecorderClose()`
+- [ ] 3.4. Remove old `startInputRecording` and `stopInputRecording` from tauriBridge
+
+**Phase 4: Integrate Action Recorder into main UI**
+- [ ] 4.1. Update `RecordingBar.tsx`:
+  - [ ] 4.1a. Replace recording toggle with "Open Action Recorder" button
+  - [ ] 4.1b. Remove event subscription logic (no more Tauri events)
+  - [ ] 4.1c. Add callback prop `onRecordingComplete(actions: RecordingEvent[])`
+- [ ] 4.2. Update `App.tsx` to wire Action Recorder:
+  - [ ] 4.2a. Add state for Action Recorder visibility
+  - [ ] 4.2b. Pass onRecordingComplete callback to transform events → actions
+  - [ ] 4.2c. Auto-add actions to selected profile on completion
+- [ ] 4.3. Update profile editor to show "Record Actions" button
+
+**Phase 5: Coordinate scaling and number positioning**
+- [ ] 5.1. Add coordinate scaling logic:
+  - [ ] 5.1a. Screenshot displayed at 80% of original dimensions
+  - [ ] 5.1b. Click X/Y at scale 0.8 → multiply by 1.25 to get real screen coordinates
+  - [ ] 5.1c. Store real coordinates in action data
+- [ ] 5.2. Position number markers:
+  - [ ] 5.2a. Divide real coordinates by 1.25 to get display position (80% scale)
+  - [ ] 5.2b. Render teardrop with sharp top-left pointing to exact pixel
+- [ ] 5.3. Add zoom slider (static 80% for MVP):
+  - [ ] 5.3a. Store zoom level in state (default 0.8)
+  - [ ] 5.3b. Update scaling calculations to use zoom level
+  - [ ] 5.3c. Add scroll bars when zoomed (CSS overflow: auto)
+
+**Phase 6: Action legend and refresh**
+- [ ] 6.1. Render action list in right panel:
+  - [ ] 6.1a. Number prefix for each action
+  - [ ] 6.1b. Action type icon (mouse, keyboard)
+  - [ ] 6.1c. Action details (coordinates for click, text for type)
+  - [ ] 6.1d. Scrollable with fixed height
+- [ ] 6.2. Add refresh button:
+  - [ ] 6.2a. Clear all recorded actions
+  - [ ] 6.2b. Re-minimize main window
+  - [ ] 6.2c. Capture new screenshot
+  - [ ] 6.2d. Update Action Recorder with fresh screenshot
+
+**Phase 7: Clean up removed code**
+- [ ] 7.1. Remove `PrerequisiteCheck.tsx` component (no longer needed)
+- [ ] 7.2. Remove `RecordingLogsPanel.tsx` component (debugging UI for old capture)
+- [ ] 7.3. Remove `recordingEventsStore.ts` (event logging for old system)
+- [ ] 7.4. Remove `checkInputPrerequisites` Tauri command
+- [ ] 7.5. Remove old InputEvent types from `src/types.ts` (MouseInputEvent, KeyboardInputEvent, etc.)
+- [ ] 7.6. Update `doc/developer.md` to remove X11/XRecord troubleshooting sections
+- [ ] 7.7. Remove input recording diagnostics from `doc/inputRecordingDiagnostics.md`
+
+**Phase 8: Update tests**
+- [ ] 8.1. Update E2E test `tests/e2e/04-input-recording.tauri.e2e.ts`:
+  - [ ] 8.1a. Test opening Action Recorder window
+  - [ ] 8.1b. Test clicking on screenshot → action added
+  - [ ] 8.1c. Test typing on screenshot → text action added
+  - [ ] 8.1d. Test stop → actions converted to ActionConfig
+  - [ ] 8.1e. Test refresh → new screenshot captured
+- [ ] 8.2. Update unit tests for RecordingBar (remove event handling tests)
+- [ ] 8.3. Create tests for ActionRecorder component
+- [ ] 8.4. Create tests for ActionNumberMarker component
+- [ ] 8.5. Update fake test harness in `tests/e2e/helpers.ts`:
+  - [ ] 8.5a. Remove `start_input_recording` / `stop_input_recording` mocks
+  - [ ] 8.5b. Add `action_recorder_show` mock (returns blank PNG)
+  - [ ] 8.5c. Add `action_recorder_close` mock
+- [ ] 8.6. Run full test suite: `bun test && cargo test && bun run test:e2e`
+- [ ] 8.7. Verify coverage ≥90%
+
+**Phase 9: Documentation and polish**
+- [ ] 9.1. Update `doc/architecture.md`:
+  - [ ] 9.1a. Remove InputCapture trait documentation
+  - [ ] 9.1b. Document Action Recorder UI-level capture approach
+  - [ ] 9.1c. Update recording workflow description
+- [ ] 9.2. Update `README.md` with new recording workflow
+- [ ] 9.3. Create `doc/actionRecorder.md` with detailed UX documentation
+- [ ] 9.4. Update `doc/userManual.md` with Action Recorder instructions
+- [ ] 9.5. Remove X11/Wayland/XRecord references from all docs
+- [ ] 9.6. Add screenshots/diagrams of Action Recorder UI to docs
+- [ ] 9.7. Update PLANS.md task as complete
+
+**Progress log**
+- 2025-11-18 — Task created, plan drafted with 9 phases and 60+ steps
+- 2025-11-18 — Analyzed existing code: region_picker_show reusable, rdev capture ~300 lines to remove
+
+**Assumptions and open questions**
+- Assumption: 80% scale is good default for most screen sizes (adjustable post-MVP)
+- Assumption: User prefers clicking on screenshot vs full desktop (simpler mental model)
+- Assumption: Single text buffer per type action is sufficient (no per-character granularity)
+- Assumption: Teardrop marker design is clear enough (can iterate on styling)
+- Open question: Should we support click-and-drag for MoveCursor actions? (Defer to post-MVP)
+- Open question: Should we show a preview of the action before committing? (Defer to post-MVP)
+- Open question: Should we support editing individual actions in the legend? (Defer to post-MVP)
+
+**Follow‑ups / future work**
+- Add drag-and-drop repositioning of number markers
+- Add re-enter editing mode to adjust existing actions
+- Add action deletion with automatic renumbering
+- Add undo/redo during recording session
+- Add multi-monitor support
+- Add variable zoom levels (not just 80%)
+- Add click-and-drag to record MoveCursor sequences
+- Add visual preview/confirmation before committing actions
+- Add action grouping/folders in legend
+- Add export/import of recording sessions
+- Add playback preview in Action Recorder before saving
+
+---
+
 ## Completed tasks (archived)
 
 Completed tasks are archived in \`doc/plans/archive/\` with filenames following the pattern \`YYYY-MM-DD-<task-name>.md\`.

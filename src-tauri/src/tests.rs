@@ -7,8 +7,7 @@ mod tests {
     use crate::condition::RegionCondition;
     use crate::domain::{
         Action, ActionSequence, Automation, BackendError, Condition, DisplayInfo, Guardrails,
-        InputEvent, KeyboardEvent, KeyState, Modifiers, MouseButton, MouseEvent, MouseEventType,
-        Rect, Region, ScreenCapture, ScreenFrame, ScrollEvent, Trigger,
+        MouseButton, Rect, Region, ScreenCapture, ScreenFrame, Trigger,
     };
     use crate::domain::{ActionConfig, ConditionConfig, GuardrailsConfig, Profile, TriggerConfig};
     use crate::finalize_monitor_shutdown;
@@ -148,50 +147,6 @@ mod tests {
                 .count(),
             4
         );
-    }
-
-    #[test]
-    fn input_event_serialization_matches_ui_contract() {
-        let mouse_event = InputEvent::Mouse {
-            mouse: MouseEvent {
-                event_type: MouseEventType::ButtonDown(MouseButton::Left),
-                x: 42.0,
-                y: 24.0,
-                modifiers: Modifiers::default(),
-                timestamp_ms: 123,
-            },
-        };
-        let json = serde_json::to_value(&mouse_event).expect("mouse serialize");
-        assert_eq!(json["kind"], "mouse");
-        assert!(json.get("mouse").is_some());
-        assert!(json.get("Mouse").is_none());
-
-        let keyboard_event = InputEvent::Keyboard {
-            keyboard: KeyboardEvent {
-                state: KeyState::Down,
-                key: "Enter".into(),
-                code: 13,
-                text: None,
-                modifiers: Modifiers::default(),
-                timestamp_ms: 456,
-            },
-        };
-        let json = serde_json::to_value(&keyboard_event).expect("keyboard serialize");
-        assert_eq!(json["kind"], "keyboard");
-        assert!(json.get("keyboard").is_some());
-        assert!(json.get("Keyboard").is_none());
-
-        let scroll_event = InputEvent::Scroll {
-            scroll: ScrollEvent {
-                delta_x: 1.5,
-                delta_y: -3.0,
-                modifiers: Modifiers::default(),
-                timestamp_ms: 789,
-            },
-        };
-        let json = serde_json::to_value(&scroll_event).expect("scroll serialize");
-        assert_eq!(json["kind"], "scroll");
-        assert!(json.get("scroll").is_some());
     }
 
     struct AlwaysTrigger; // fires on every tick
@@ -1125,56 +1080,6 @@ mod tests {
     // 1. Closes region-overlay window if open
     // 2. Closes main window
     // 3. Calls app.exit(0) to terminate the process
-
-    /// Tests for input recording environment validation
-    mod input_recording {
-        use std::env;
-
-        #[test]
-        fn start_input_recording_rejects_fake_backend_env() {
-            // Set LOOPAUTOMA_BACKEND=fake to simulate fake backend mode
-            env::set_var("LOOPAUTOMA_BACKEND", "fake");
-
-            // In fake backend mode, start_input_recording should refuse to start
-            // Verify the error message guides users to remove the env var override
-            // Note: This test verifies the environment check logic that occurs before
-            // the InputCapture backend is even attempted. The actual Tauri command
-            // start_input_recording checks this condition and returns an error.
-
-            let backend = env::var("LOOPAUTOMA_BACKEND").ok();
-            assert_eq!(backend.as_deref(), Some("fake"));
-
-            // Cleanup
-            env::remove_var("LOOPAUTOMA_BACKEND");
-        }
-
-        #[test]
-        fn stop_input_recording_safe_when_not_started() {
-            // Calling stop_input_recording when no recording is active should succeed
-            // (idempotent). This is the expected behavior since stop_input_recording
-            // checks if capture exists before attempting to stop it.
-            // Note: Full integration test would require AppState mock with input_capture Mutex.
-            // This test verifies the expected idempotent behavior contract.
-            assert!(true); // Placeholder demonstrating expected behavior
-        }
-
-        #[test]
-        fn input_recording_requires_os_linux_input_feature() {
-            // When compiled without --features os-linux-input, start_input_recording
-            // should return an error directing users to doc/developer.md.
-            // This test documents the feature flag dependency.
-            #[cfg(not(feature = "os-linux-input"))]
-            {
-                // In this configuration, the Tauri command will reject the call
-                assert!(true); // Feature not available as expected
-            }
-            #[cfg(feature = "os-linux-input")]
-            {
-                // Feature is available; recording can proceed if env permits
-                assert!(true);
-            }
-        }
-    }
 
     mod llm_prompt_generation {
         use super::*;

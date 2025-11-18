@@ -1494,3 +1494,198 @@ button.ghost:hover {
   font-size: 12px;
   word-break: break-word;
 }
+
+/* Action Recorder Styles */
+.action-recorder {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--brand-bg);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+
+.action-recorder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: var(--brand-surface);
+  border-bottom: 1px solid var(--brand-border);
+}
+
+.action-recorder-title h2 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+  color: var(--brand-text);
+}
+
+.action-recorder-title p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--brand-muted);
+}
+
+.action-recorder-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.action-recorder-controls button.recording-active {
+  background: var(--brand-danger);
+  color: white;
+}
+
+.recording-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 4px;
+  color: var(--brand-danger);
+  font-size: 13px;
+  font-weight: 600;
+  animation: pulse-recording 2s ease-in-out infinite;
+}
+
+@keyframes pulse-recording {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.action-recorder-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.action-recorder-screenshot-panel {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 24px;
+  overflow: auto;
+}
+
+.action-recorder-screenshot {
+  position: relative;
+  background-size: cover;
+  background-position: top left;
+  background-repeat: no-repeat;
+  cursor: crosshair;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--brand-border);
+}
+
+.action-recorder-legend {
+  width: 320px;
+  background: var(--brand-surface);
+  border-left: 1px solid var(--brand-border);
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.action-recorder-legend h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: var(--brand-text);
+}
+
+.action-recorder-legend-empty {
+  color: var(--brand-muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.action-recorder-legend-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.action-recorder-legend-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--brand-card);
+  border-radius: 4px;
+  border: 1px solid var(--brand-border);
+}
+
+.action-recorder-legend-item .action-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  background: var(--brand-accent);
+  color: var(--brand-bg);
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.action-recorder-legend-item .action-icon {
+  font-size: 18px;
+}
+
+.action-recorder-legend-item .action-details {
+  flex: 1;
+  font-size: 13px;
+  color: var(--brand-text);
+  word-break: break-word;
+}
+
+.action-recorder-legend-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--brand-border);
+}
+
+.action-recorder-legend-actions button {
+  flex: 1;
+}
+
+/* Action Number Marker (Teardrop) */
+.action-number-marker {
+  position: absolute;
+  transform: translate(-2px, -2px); /* Position point at top-left */
+  pointer-events: none;
+  z-index: 100;
+}
+
+.action-number-marker-shape {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.action-number-marker-bg {
+  fill: var(--brand-accent);
+  stroke: var(--brand-text);
+  stroke-width: 1.5;
+}
+
+.action-number-marker-text {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  color: var(--brand-bg);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: none;
+}
+}

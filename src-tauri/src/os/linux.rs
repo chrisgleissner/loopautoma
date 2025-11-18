@@ -1,33 +1,20 @@
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 use crate::domain::{Automation, MouseButton};
 use crate::domain::{BackendError, DisplayInfo, Region, ScreenCapture, ScreenFrame};
-#[cfg(feature = "os-linux-input")]
-use crate::domain::{
-    InputCapture, InputEvent, InputEventCallback, KeyState, KeyboardEvent, Modifiers, MouseEvent,
-    MouseEventType, ScrollEvent,
-};
 
 #[cfg(feature = "os-linux-capture-xcap")]
 use ahash::AHasher;
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 use std::collections::HashMap;
 #[cfg(feature = "os-linux-capture-xcap")]
 use std::hash::{Hash, Hasher};
-#[cfg(feature = "os-linux-input")]
-use std::sync::mpsc::{sync_channel, SyncSender};
-#[cfg(feature = "os-linux-input")]
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, Mutex,
-};
-#[cfg(feature = "os-linux-input")]
-use std::thread::{self, JoinHandle};
+#[cfg(feature = "os-linux-automation")]
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 use x11rb::{
     connection::Connection,
     protocol::{
-        xinput::ConnectionExt as XInputExt,
         xproto::{self},
         xtest::ConnectionExt as XTestExt,
     },
@@ -36,7 +23,7 @@ use x11rb::{
 };
 #[cfg(feature = "os-linux-capture-xcap")]
 use xcap::Monitor;
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 use xkbcommon::xkb::{self, Context, Keycode, Keysym, ModMask};
 
 pub struct LinuxCapture;
@@ -131,14 +118,14 @@ impl ScreenCapture for LinuxCapture {
     }
 }
 
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 pub struct LinuxAutomation {
     conn: Arc<Mutex<XCBConnection>>,
     root: xproto::Window,
     keyboard: KeyboardLookup,
 }
 
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 impl LinuxAutomation {
     pub fn new() -> Result<Self, BackendError> {
         let (conn, screen_idx) = open_xcb_connection()?;
@@ -271,7 +258,7 @@ impl LinuxAutomation {
     }
 }
 
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 impl Automation for LinuxAutomation {
     fn move_cursor(&self, x: u32, y: u32) -> Result<(), String> {
         self.send_motion(x, y)
@@ -376,105 +363,22 @@ fn find_monitor<'a>(monitors: &'a [Monitor], region: &Region) -> Option<&'a Moni
         .or_else(|| monitors.first())
 }
 
-#[cfg(feature = "os-linux-input")]
-pub struct LinuxInputCapture {
-    instance_id: u64,
-    running: Arc<AtomicBool>,
-    handle: Option<JoinHandle<()>>,
-}
 
-#[cfg(feature = "os-linux-input")]
-impl Default for LinuxInputCapture {
-    fn default() -> Self {
-        use std::sync::atomic::AtomicU64;
-        static INSTANCE_COUNTER: AtomicU64 = AtomicU64::new(0);
-        let id = INSTANCE_COUNTER.fetch_add(1, Ordering::SeqCst);
-        eprintln!("[LinuxInputCapture] Creating NEW instance #{}", id);
-        Self {
-            instance_id: id,
-            running: Arc::new(AtomicBool::new(false)),
-            handle: None,
-        }
-    }
-}
 
-#[cfg(feature = "os-linux-input")]
-impl InputCapture for LinuxInputCapture {
-    fn start(&mut self, callback: InputEventCallback) -> Result<(), BackendError> {
-        eprintln!("[LinuxInputCapture] Instance #{} start() called", self.instance_id);
-        if self.running.swap(true, Ordering::SeqCst) {
-            eprintln!("[LinuxInputCapture] Instance #{} already running, returning early", self.instance_id);
-            return Ok(());
-        }
-        eprintln!("[LinuxInputCapture] Instance #{} setting running=true and spawning thread", self.instance_id);
-        let running = self.running.clone();
-        let instance_id = self.instance_id;
-        let cb = callback.clone();
-        let (ready_tx, ready_rx) = sync_channel(1);
-        let handle = thread::spawn(move || {
-            eprintln!("[LinuxInputCapture] Instance #{} thread started", instance_id);
-            if let Err(err) = run_input_loop(cb, running.clone(), Some(ready_tx), instance_id) {
-                eprintln!("[LinuxInputCapture] Instance #{} error: {}", instance_id, err);
-            }
-        });
-        match ready_rx.recv_timeout(Duration::from_secs(2)) {
-            Ok(Ok(())) => {
-                self.handle = Some(handle);
-                Ok(())
-            }
-            Ok(Err(err)) => {
-                self.running.store(false, Ordering::SeqCst);
-                let _ = handle.join();
-                Err(err)
-            }
-            Err(_) => {
-                self.running.store(false, Ordering::SeqCst);
-                let _ = handle.join();
-                Err(BackendError::new(
-                    "input_init_timeout",
-                    "Timed out while starting input recording. Ensure you are running an X11 session (not Wayland) and that the required X11/XInput packages are installed.",
-                ))
-            }
-        }
-    }
-
-    fn stop(&mut self) -> Result<(), BackendError> {
-        if !self.running.swap(false, Ordering::SeqCst) {
-            return Ok(());
-        }
-        // Don't join the handle - rdev::listen() blocks forever and there's no way
-        // to stop it gracefully. The thread will continue running in the background
-        // but will ignore all events after running is set to false. The thread will
-        // be cleaned up when the process exits. This is an acceptable tradeoff since
-        // XRecord's XRecordEnableContext has no graceful shutdown mechanism without
-        // calling XRecordDisableContext from another thread (which rdev doesn't expose).
-        self.handle.take(); // Drop the handle without joining
-        eprintln!("[LinuxInputCapture] Input recording stopped (thread detached)");
-        Ok(())
-    }
-}
-
-#[cfg(feature = "os-linux-input")]
-impl Drop for LinuxInputCapture {
-    fn drop(&mut self) {
-        let _ = self.stop();
-    }
-}
-
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 struct KeyEntry {
     keycode: u8,
     mods: ModMask,
 }
 
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 struct KeyboardLookup {
     entries: HashMap<u32, KeyEntry>,
     shift_mask: ModMask,
     shift_keycode: Option<u8>,
 }
 
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 impl KeyboardLookup {
     fn from_connection(conn: &XCBConnection) -> Result<Self, BackendError> {
         let context = Context::new(xkb::CONTEXT_NO_FLAGS);
@@ -539,15 +443,13 @@ impl KeyboardLookup {
     }
 }
 
-// XkbStateBundle removed - not needed with rdev-based input capture
-
 // Helper functions for LinuxAutomation (XTest-based input synthesis)
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 fn open_xcb_connection() -> Result<(XCBConnection, usize), BackendError> {
     XCBConnection::connect(None).map_err(|e| BackendError::new("x11_connect_failed", e.to_string()))
 }
 
-#[cfg(feature = "os-linux-input")]
+#[cfg(feature = "os-linux-automation")]
 fn core_keyboard_device_id(conn: &XCBConnection) -> Result<i32, BackendError> {
     let device_id = xkb::x11::get_core_keyboard_device_id(conn);
     if device_id == -1 {
@@ -560,286 +462,4 @@ fn core_keyboard_device_id(conn: &XCBConnection) -> Result<i32, BackendError> {
     }
 }
 
-#[cfg(feature = "os-linux-input")]
-fn run_input_loop(
-    callback: InputEventCallback,
-    running: Arc<AtomicBool>,
-    mut ready: Option<SyncSender<Result<(), BackendError>>>,
-    instance_id: u64,
-) -> Result<(), BackendError> {
-    let notify = |result: Result<(), BackendError>,
-                  ready: &mut Option<SyncSender<Result<(), BackendError>>>| {
-        if let Some(tx) = ready.take() {
-            let _ = tx.send(result);
-        }
-    };
 
-    eprintln!("[LinuxInputCapture] Instance #{} starting rdev event listener...", instance_id);
-    eprintln!("[LinuxInputCapture] Instance #{} DISPLAY={:?}, XDG_SESSION_TYPE={:?}", 
-              instance_id, std::env::var("DISPLAY"), std::env::var("XDG_SESSION_TYPE"));
-    
-    // Notify that we're ready before starting the blocking listen
-    notify(Ok(()), &mut ready);
-    
-    eprintln!("[LinuxInputCapture] Instance #{} about to call rdev::listen()...", instance_id);
-    
-    // Use rdev's listen function which uses XRecord internally
-    // Note: rdev::listen() blocks forever with no built-in way to stop it.
-    // XRecord's XRecordEnableContext blocks until XRecordDisableContext is called
-    // from another thread, which rdev doesn't expose. The solution is to let the
-    // thread run but stop processing events when running becomes false. The thread
-    // will be abandoned (leaked) when the app exits, which is acceptable since
-    // there's no way to gracefully shut down XRecord without X11 protocol access.
-    let result = rdev::listen(move |event| {
-        let is_running = running.load(Ordering::Relaxed);
-        eprintln!("[LinuxInputCapture] Instance #{} RAW CALLBACK INVOKED! event={:?}, running={}", instance_id, event.event_type, is_running);
-        
-        // Check if we should still process events
-        if !is_running {
-            eprintln!("[LinuxInputCapture] Instance #{} ignoring event (running=false)", instance_id);
-            return;
-        }
-        
-        eprintln!("[LinuxInputCapture] Event received: {:?}", event.event_type);
-        let timestamp_ms = now_ms();
-        
-        match event.event_type {
-            rdev::EventType::KeyPress(key) => {
-                eprintln!("[LinuxInputCapture] Calling domain callback for KeyPress");
-                let event = InputEvent::Keyboard {
-                    keyboard: KeyboardEvent {
-                    state: KeyState::Down,
-                    key: format!("{:?}", key),
-                    code: 0, // rdev doesn't provide raw keycode
-                    text: None,
-                    modifiers: Modifiers {
-                        shift: false, // rdev doesn't track modifiers separately
-                        control: false,
-                        alt: false,
-                        meta: false,
-                    },
-                    timestamp_ms,
-                    },
-                };
-                eprintln!("[LinuxInputCapture] About to invoke callback with: {:?}", event);
-                callback(event);
-                eprintln!("[LinuxInputCapture] Callback invoked successfully");
-            }
-            rdev::EventType::KeyRelease(key) => {
-                eprintln!("[LinuxInputCapture] Calling domain callback for KeyRelease");
-                callback(InputEvent::Keyboard {
-                    keyboard: KeyboardEvent {
-                        state: KeyState::Up,
-                        key: format!("{:?}", key),
-                        code: 0,
-                        text: None,
-                        modifiers: Modifiers {
-                            shift: false,
-                            control: false,
-                            alt: false,
-                            meta: false,
-                        },
-                        timestamp_ms,
-                    },
-                });
-            }
-            rdev::EventType::ButtonPress(button) => {
-                let btn = match button {
-                    rdev::Button::Left => MouseButton::Left,
-                    rdev::Button::Right => MouseButton::Right,
-                    rdev::Button::Middle => MouseButton::Middle,
-                    _ => return,
-                };
-                eprintln!("[LinuxInputCapture] Calling domain callback for ButtonPress");
-                // rdev doesn't provide coordinates with button events
-                callback(InputEvent::Mouse {
-                    mouse: MouseEvent {
-                        event_type: MouseEventType::ButtonDown(btn),
-                        x: 0.0,
-                        y: 0.0,
-                        modifiers: Modifiers {
-                            shift: false,
-                            control: false,
-                            alt: false,
-                            meta: false,
-                        },
-                        timestamp_ms,
-                    },
-                });
-            }
-            rdev::EventType::ButtonRelease(button) => {
-                let btn = match button {
-                    rdev::Button::Left => MouseButton::Left,
-                    rdev::Button::Right => MouseButton::Right,
-                    rdev::Button::Middle => MouseButton::Middle,
-                    _ => return,
-                };
-                callback(InputEvent::Mouse {
-                    mouse: MouseEvent {
-                        event_type: MouseEventType::ButtonUp(btn),
-                        x: 0.0,
-                        y: 0.0,
-                        modifiers: Modifiers {
-                            shift: false,
-                            control: false,
-                            alt: false,
-                            meta: false,
-                        },
-                        timestamp_ms,
-                    },
-                });
-            }
-            rdev::EventType::MouseMove { x, y } => {
-                eprintln!("[LinuxInputCapture] Calling domain callback for MouseMove");
-                let event = InputEvent::Mouse {
-                    mouse: MouseEvent {
-                        event_type: MouseEventType::Move,
-                        x,
-                        y,
-                        modifiers: Modifiers {
-                            shift: false,
-                            control: false,
-                            alt: false,
-                            meta: false,
-                        },
-                        timestamp_ms,
-                    },
-                };
-                eprintln!("[LinuxInputCapture] About to invoke callback with: {:?}", event);
-                callback(event);
-                eprintln!("[LinuxInputCapture] Callback invoked successfully");
-            }
-            rdev::EventType::Wheel { delta_x, delta_y } => {
-                eprintln!("[LinuxInputCapture] Calling domain callback for Wheel");
-                callback(InputEvent::Scroll {
-                    scroll: ScrollEvent {
-                        delta_x: delta_x as f64,
-                        delta_y: delta_y as f64,
-                        modifiers: Modifiers {
-                            shift: false,
-                            control: false,
-                            alt: false,
-                            meta: false,
-                        },
-                        timestamp_ms,
-                    },
-                });
-            }
-        }
-    });
-    
-    if let Err(err) = result {
-        eprintln!("[LinuxInputCapture] rdev listen error: {:?}", err);
-        return Err(BackendError::new("rdev_listen_failed", format!("{:?}", err)));
-    }
-    
-    Ok(())
-}
-
-// Old XInput event handling removed - now using XRecord
-
-// mouse_button_from_detail removed - rdev handles button mapping internally
-
-// no crop/resize helpers needed for the sampling hash path
-
-/// Diagnostic information about the system's input recording prerequisites
-#[cfg(feature = "os-linux-input")]
-#[derive(Debug, serde::Serialize)]
-pub struct PrerequisiteCheck {
-    pub x11_session: bool,
-    pub x11_connection: bool,
-    pub xinput_available: bool,
-    pub xtest_available: bool,
-    pub backend_not_fake: bool,
-    pub feature_enabled: bool,
-    pub display_env: String,
-    pub session_type: String,
-    pub error_details: Vec<String>,
-}
-
-#[cfg(feature = "os-linux-input")]
-pub fn check_prerequisites() -> PrerequisiteCheck {
-    let mut check = PrerequisiteCheck {
-        x11_session: false,
-        x11_connection: false,
-        xinput_available: false,
-        xtest_available: false,
-        backend_not_fake: true,
-        feature_enabled: true,
-        display_env: std::env::var("DISPLAY").unwrap_or_else(|_| "not set".to_string()),
-        session_type: std::env::var("XDG_SESSION_TYPE").unwrap_or_else(|_| "unknown".to_string()),
-        error_details: Vec::new(),
-    };
-
-    // Check session type
-    if check.session_type.to_lowercase() == "x11" {
-        check.x11_session = true;
-    } else {
-        check.error_details.push(format!(
-            "Not running X11 session (detected: {}). Input recording requires X11, not Wayland.",
-            check.session_type
-        ));
-    }
-
-    // Check LOOPAUTOMA_BACKEND
-    if let Ok(backend) = std::env::var("LOOPAUTOMA_BACKEND") {
-        if backend.to_lowercase() == "fake" {
-            check.backend_not_fake = false;
-            check.error_details.push(
-                "LOOPAUTOMA_BACKEND=fake is set. Unset it to enable real input recording."
-                    .to_string(),
-            );
-        }
-    }
-
-    // Try to connect to X11
-    match XCBConnection::connect(None) {
-        Ok((conn, _screen_num)) => {
-            check.x11_connection = true;
-
-            // Check XInput extension
-            match conn.xinput_xi_query_version(2, 0) {
-                Ok(cookie) => match cookie.reply() {
-                    Ok(reply) => {
-                        if reply.major_version >= 2 {
-                            check.xinput_available = true;
-                        } else {
-                            check.error_details.push(format!(
-                                "XInput version too old: {}.{}. Need 2.0+",
-                                reply.major_version, reply.minor_version
-                            ));
-                        }
-                    }
-                    Err(e) => {
-                        check
-                            .error_details
-                            .push(format!("XInput query failed: {}", e));
-                    }
-                },
-                Err(e) => {
-                    check
-                        .error_details
-                        .push(format!("XInput not available: {}", e));
-                }
-            }
-
-            // Check XTest extension
-            use x11rb::connection::RequestConnection;
-            if conn.extension_information("XTEST").ok().flatten().is_some() {
-                check.xtest_available = true;
-            } else {
-                check
-                    .error_details
-                    .push("XTest extension not available".to_string());
-            }
-        }
-        Err(e) => {
-            check.error_details.push(format!(
-                "Cannot connect to X11 server: {}. Check DISPLAY={} is correct.",
-                e, check.display_env
-            ));
-        }
-    }
-
-    check
-}

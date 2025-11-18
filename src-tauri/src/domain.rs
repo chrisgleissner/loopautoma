@@ -124,13 +124,6 @@ pub trait Automation {
     }
 }
 
-pub type InputEventCallback = Arc<dyn Fn(InputEvent) + Send + Sync>;
-
-pub trait InputCapture: Send {
-    fn start(&mut self, callback: InputEventCallback) -> Result<(), BackendError>;
-    fn stop(&mut self) -> Result<(), BackendError>;
-}
-
 /// ActionContext holds global variables that can be referenced by actions
 #[derive(Debug, Clone, Default)]
 pub struct ActionContext {
@@ -302,75 +295,6 @@ pub struct LLMPromptResponse {
     pub prompt: String,
     /// Risk level assessment (0.0 = low, 1.0 = high)
     pub risk: f64,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum InputEvent {
-    Mouse { mouse: MouseEvent },
-    Keyboard { keyboard: KeyboardEvent },
-    Scroll { scroll: ScrollEvent },
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MouseEvent {
-    pub event_type: MouseEventType,
-    pub x: f64,
-    pub y: f64,
-    pub modifiers: Modifiers,
-    pub timestamp_ms: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MouseEventType {
-    Move,
-    ButtonDown(MouseButton),
-    ButtonUp(MouseButton),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Modifiers {
-    pub shift: bool,
-    pub control: bool,
-    pub alt: bool,
-    pub meta: bool,
-}
-
-impl Default for Modifiers {
-    fn default() -> Self {
-        Self {
-            shift: false,
-            control: false,
-            alt: false,
-            meta: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct KeyboardEvent {
-    pub state: KeyState,
-    pub key: String,
-    pub code: u32,
-    pub text: Option<String>,
-    pub modifiers: Modifiers,
-    pub timestamp_ms: u64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum KeyState {
-    Down,
-    Up,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ScrollEvent {
-    pub delta_x: f64,
-    pub delta_y: f64,
-    pub modifiers: Modifiers,
-    pub timestamp_ms: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

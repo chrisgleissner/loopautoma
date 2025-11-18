@@ -102,42 +102,17 @@ export async function captureRegionThumbnail(rect: Rect): Promise<string | null>
   return (await callInvoke("region_capture_thumbnail", { rect })) as string | null;
 }
 
-export async function startInputRecording(): Promise<void> {
-  if (!isDesktopMode()) throw new Error("Input recording requires desktop mode. Please run the Tauri app to use this feature.");
-  await callInvoke("start_input_recording");
-}
-
-export async function stopInputRecording(): Promise<void> {
-  if (!isDesktopMode()) return; // best-effort no-op in web preview
-  await callInvoke("stop_input_recording");
-}
-
-export interface PrerequisiteCheck {
-  x11_session: boolean;
-  x11_connection: boolean;
-  xinput_available: boolean;
-  xtest_available: boolean;
-  backend_not_fake: boolean;
-  feature_enabled: boolean;
-  display_env: string;
-  session_type: string;
-  error_details: string[];
-}
-
-export async function checkInputPrerequisites(): Promise<PrerequisiteCheck> {
+export async function actionRecorderShow(): Promise<string> {
   if (!isDesktopMode()) {
-    return {
-      x11_session: false,
-      x11_connection: false,
-      xinput_available: false,
-      xtest_available: false,
-      backend_not_fake: true,
-      feature_enabled: false,
-      display_env: "not applicable",
-      session_type: "web",
-      error_details: ["Running in web preview mode"]
-    };
+    // In web mode, return a blank screenshot
+    return `data:image/png;base64,${BLANK_PNG_BASE64}`;
   }
-  return (await callInvoke("check_input_prerequisites")) as PrerequisiteCheck;
+  const screenshot = (await callInvoke("action_recorder_show")) as string;
+  return `data:image/png;base64,${screenshot}`;
+}
+
+export async function actionRecorderClose(): Promise<void> {
+  if (!isDesktopMode()) return; // treat as no-op in web preview
+  await callInvoke("action_recorder_close");
 }
 

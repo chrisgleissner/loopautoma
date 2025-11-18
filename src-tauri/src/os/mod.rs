@@ -1,4 +1,4 @@
-#[cfg(any(feature = "os-linux-capture-xcap", feature = "os-linux-input"))]
+#[cfg(any(feature = "os-linux-capture-xcap", feature = "os-linux-automation"))]
 pub mod linux;
 #[cfg(feature = "os-macos")]
 pub mod macos;
