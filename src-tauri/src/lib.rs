@@ -491,7 +491,11 @@ fn start_input_recording(
         })?;
         let win = window.clone();
         let callback = Arc::new(move |event: InputEvent| {
-            let _ = win.emit("loopautoma://input_event", &event);
+            eprintln!("[TAURI CALLBACK] Emitting event: {:?}", event);
+            let result = win.emit("loopautoma://input_event", &event);
+            if let Err(e) = result {
+                eprintln!("[TAURI CALLBACK] Failed to emit: {:?}", e);
+            }
         });
         capture.start(callback).map_err(|e| format!("{e}. Make sure the X11/XKB libraries are installed (see doc/developer.md) and that the app is running in an X11 session."))?;
         *guard = Some(capture);

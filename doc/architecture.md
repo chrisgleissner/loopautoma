@@ -219,7 +219,12 @@ The Linux implementation of InputCapture evolved through several iterations to f
 - Mouse button events don't include coordinates (set to 0,0; coordinates only available in MouseMove events)
 - `listen()` function blocks forever and cannot be stopped gracefully (by design of XRecord's blocking API)
 
-The implementation handles the blocking nature by checking the `running` atomic flag in the callback and calling `std::process::exit(0)` when stop is requested. This is the recommended approach since XRecord's `XRecordEnableContext` blocks until `XRecordDisableContext` is called from another thread, which rdev does not expose.
+The implementation handles the blocking nature by spawning rdev's listener in a dedicated thread and checking the `running` atomic flag in the callback. When `stop()` is called, the flag is set to false and the thread handle is dropped without joining. The thread continues running in the background but silently ignores all events. The thread will be cleaned up when the process exits.
+
+This is an acceptable tradeoff since XRecord's `XRecordEnableContext` blocks until `XRecordDisableContext` is called from another thread (which rdev does not expose), and attempting to join the thread would hang indefinitely. Alternative approaches were attempted:
+- Calling `std::process::exit(0)` from the callback kills the entire process (unacceptable in a long-running Tauri app)
+- Joining the thread in `stop()` hangs forever waiting for `rdev::listen()` to return (which never happens)
+- The thread detachment approach is the only viable solution that keeps the application responsive
 
 macOS (post‑MVP):
 - ScreenCapture via CGDisplayStream; Automation via Quartz Events; InputCapture via event taps.

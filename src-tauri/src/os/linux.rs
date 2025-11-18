@@ -431,9 +431,14 @@ impl InputCapture for LinuxInputCapture {
         if !self.running.swap(false, Ordering::SeqCst) {
             return Ok(());
         }
-        if let Some(handle) = self.handle.take() {
-            let _ = handle.join();
-        }
+        // Don't join the handle - rdev::listen() blocks forever and there's no way
+        // to stop it gracefully. The thread will continue running in the background
+        // but will ignore all events after running is set to false. The thread will
+        // be cleaned up when the process exits. This is an acceptable tradeoff since
+        // XRecord's XRecordEnableContext has no graceful shutdown mechanism without
+        // calling XRecordDisableContext from another thread (which rdev doesn't expose).
+        self.handle.take(); // Drop the handle without joining
+        eprintln!("[LinuxInputCapture] Input recording stopped (thread detached)");
         Ok(())
     }
 }
@@ -558,26 +563,38 @@ fn run_input_loop(
     };
 
     eprintln!("[LinuxInputCapture] Starting rdev event listener...");
+    eprintln!("[LinuxInputCapture] DISPLAY={:?}, XDG_SESSION_TYPE={:?}", 
+              std::env::var("DISPLAY"), std::env::var("XDG_SESSION_TYPE"));
     
     // Notify that we're ready before starting the blocking listen
     notify(Ok(()), &mut ready);
     
+    eprintln!("[LinuxInputCapture] About to call rdev::listen()...");
+    
     // Use rdev's listen function which uses XRecord internally
     // Note: rdev::listen() blocks forever with no built-in way to stop it.
     // XRecord's XRecordEnableContext blocks until XRecordDisableContext is called
-    // from another thread, which rdev doesn't expose. The solution is to exit
-    // the process when running becomes false.
+    // from another thread, which rdev doesn't expose. The solution is to let the
+    // thread run but stop processing events when running becomes false. The thread
+    // will be abandoned (leaked) when the app exits, which is acceptable since
+    // there's no way to gracefully shut down XRecord without X11 protocol access.
     let result = rdev::listen(move |event| {
-        if !running.load(Ordering::Relaxed) {
-            eprintln!("[LinuxInputCapture] Stop requested, exiting rdev listener...");
-            std::process::exit(0);
+        let is_running = running.load(Ordering::Relaxed);
+        eprintln!("[LinuxInputCapture] RAW CALLBACK INVOKED! event={:?}, running={}", event.event_type, is_running);
+        
+        // Check if we should still process events
+        if !is_running {
+            eprintln!("[LinuxInputCapture] Ignoring event (running=false)");
+            return;
         }
         
+        eprintln!("[LinuxInputCapture] Event received: {:?}", event.event_type);
         let timestamp_ms = now_ms();
         
         match event.event_type {
             rdev::EventType::KeyPress(key) => {
-                callback(InputEvent::Keyboard(KeyboardEvent {
+                eprintln!("[LinuxInputCapture] Calling domain callback for KeyPress");
+                let event = InputEvent::Keyboard(KeyboardEvent {
                     state: KeyState::Down,
                     key: format!("{:?}", key),
                     code: 0, // rdev doesn't provide raw keycode
@@ -589,9 +606,13 @@ fn run_input_loop(
                         meta: false,
                     },
                     timestamp_ms,
-                }));
+                });
+                eprintln!("[LinuxInputCapture] About to invoke callback with: {:?}", event);
+                callback(event);
+                eprintln!("[LinuxInputCapture] Callback invoked successfully");
             }
             rdev::EventType::KeyRelease(key) => {
+                eprintln!("[LinuxInputCapture] Calling domain callback for KeyRelease");
                 callback(InputEvent::Keyboard(KeyboardEvent {
                     state: KeyState::Up,
                     key: format!("{:?}", key),
@@ -613,6 +634,7 @@ fn run_input_loop(
                     rdev::Button::Middle => MouseButton::Middle,
                     _ => return,
                 };
+                eprintln!("[LinuxInputCapture] Calling domain callback for ButtonPress");
                 // rdev doesn't provide coordinates with button events
                 callback(InputEvent::Mouse(MouseEvent {
                     event_type: MouseEventType::ButtonDown(btn),
@@ -648,6 +670,7 @@ fn run_input_loop(
                 }));
             }
             rdev::EventType::MouseMove { x, y } => {
+                eprintln!("[LinuxInputCapture] Calling domain callback for MouseMove");
                 callback(InputEvent::Mouse(MouseEvent {
                     event_type: MouseEventType::Move,
                     x,
@@ -662,6 +685,7 @@ fn run_input_loop(
                 }));
             }
             rdev::EventType::Wheel { delta_x, delta_y } => {
+                eprintln!("[LinuxInputCapture] Calling domain callback for Wheel");
                 callback(InputEvent::Scroll(ScrollEvent {
                     delta_x: delta_x as f64,
                     delta_y: delta_y as f64,

@@ -383,6 +383,14 @@ Phase 6: Documentation and cleanup
   - Removed unused code: XkbStateBundle struct (~60 lines), mouse_button_from_detail function
   - Kept XKB helper functions (open_xcb_connection, core_keyboard_device_id) for LinuxAutomation
   - All tests passing: ✅ 39 Rust tests, ✅ 75 UI tests
+- 2025-11-18 — 🐛 **FIXED APP CRASH/HANG ON STOP**:
+  - Issue 1: std::process::exit(0) in callback was killing entire process (both test helper and Tauri app)
+  - Issue 2: Attempting to join thread running rdev::listen() hangs forever (blocks until manual Ctrl+C)
+  - Root cause: XRecord's XRecordEnableContext blocks indefinitely by design, no graceful shutdown
+  - Solution: Detach thread without joining; check running flag in callback to stop processing events
+  - Result: Both test helper and Tauri app return immediately from stop(), stay responsive
+  - Trade-off: Thread leaks but is cleaned up on process exit (acceptable given XRecord's blocking API)
+  - Note: Test helper appeared to "work" before because it exits shortly after stop(), hiding the hang
   - Ready to commit and close this critical showstopper!
 
 **Critical insights from code analysis**
