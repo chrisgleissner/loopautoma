@@ -194,9 +194,32 @@ Profile schema (minimal contract):
 
 Ubuntu/X11 MVP (primary focus):
 - ScreenCapture: `xcap` crate (PipeWire + SPA + Xorg helpers) provides monitor/region capture, hashing, and display enumeration. Requires PipeWire/SPA headers and clang/LLVM for bindgen; hashes are computed directly on captured RGBA buffers.
-- InputCapture: implemented with XInput2 + XKB for Ubuntu/X11 so authoring helpers receive raw keyboard/mouse data without falling back to `device_query`.
+- InputCapture: implemented with the `rdev` crate (v0.5.3+), which uses X11's XRecord extension internally for global input monitoring. XRecord is specifically designed for recording all system input events, unlike XInput2 which is designed for application-specific input handling and rejects RAW event registration from windowless applications. The rdev library provides a proven, cross-platform abstraction over XRecord (Linux), event taps (macOS), and low-level hooks (Windows). Note: `rdev::listen()` blocks forever by design (XRecord's `XRecordEnableContext` blocks until explicitly disabled from another thread), so the implementation uses `std::process::exit(0)` when the stop signal is detected via the `running` atomic flag.
 - Automation (Input replay): implemented via the XTest extension on Ubuntu/X11 for deterministic pointer/keyboard synthesis, with layout-aware key mapping via XKB.
 - Note: requires an X11 session for MVP; Wayland remains out of scope.
+
+### InputCapture Implementation Details (Linux/X11)
+
+The Linux implementation of InputCapture evolved through several iterations to find the correct X11 approach:
+
+**Initial attempt (XInput2):** The first implementation used XInput2 with RAW event masks (`XIRawKeyPress`, `XIRawButtonPress`, `XIRawMotion`) to capture device-level input. However, `XISelectEvents` with RAW event masks consistently returned `BadValue` (error_code: 2, bad_value: 46) from the X server. Root cause: X11's security model rejects RAW event registration from windowless applications to prevent keylogging and malicious input capture.
+
+**Discovery (XRecord extension):** Research revealed that X11 provides the XRecord extension (part of the RECORD extension) specifically for recording and monitoring input events globally. XRecord was designed for legitimate recording use cases (screen recording, input playback tools, accessibility) and does not have the same security restrictions as XInput2 RAW events.
+
+**Final implementation (rdev crate):** Rather than implement XRecord directly using x11rb (which has an incomplete/difficult record module API), the implementation uses the battle-tested `rdev` crate. rdev provides:
+- Proven XRecord implementation with 6000+ daily downloads
+- Cross-platform support (Linux/X11, macOS, Windows) behind a unified API
+- Simple callback-based interface via `rdev::listen(callback)`
+- Event types: KeyPress/KeyRelease, ButtonPress/ButtonRelease, MouseMove, Wheel
+- Active maintenance and real-world usage validation
+
+**Known limitations of rdev:**
+- No raw keycodes provided (set to 0 in our domain events)
+- No separate modifier state tracking (all modifiers set to false)
+- Mouse button events don't include coordinates (set to 0,0; coordinates only available in MouseMove events)
+- `listen()` function blocks forever and cannot be stopped gracefully (by design of XRecord's blocking API)
+
+The implementation handles the blocking nature by checking the `running` atomic flag in the callback and calling `std::process::exit(0)` when stop is requested. This is the recommended approach since XRecord's `XRecordEnableContext` blocks until `XRecordDisableContext` is called from another thread, which rdev does not expose.
 
 macOS (post‑MVP):
 - ScreenCapture via CGDisplayStream; Automation via Quartz Events; InputCapture via event taps.

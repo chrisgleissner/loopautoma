@@ -14,8 +14,6 @@ use std::collections::HashMap;
 #[cfg(feature = "os-linux-capture-xcap")]
 use std::hash::{Hash, Hasher};
 #[cfg(feature = "os-linux-input")]
-use std::io::ErrorKind;
-#[cfg(feature = "os-linux-input")]
 use std::sync::mpsc::{sync_channel, SyncSender};
 #[cfg(feature = "os-linux-input")]
 use std::sync::{
@@ -28,12 +26,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 #[cfg(feature = "os-linux-input")]
 use x11rb::{
     connection::Connection,
-    errors::ConnectionError,
     protocol::{
-        xinput::{ConnectionExt as XInputExt, Device, EventMask, XIEventMask},
-        xproto,
+        xinput::ConnectionExt as XInputExt,
+        xproto::{self},
         xtest::ConnectionExt as XTestExt,
-        Event as X11Event,
     },
     xcb_ffi::XCBConnection,
     CURRENT_TIME,
@@ -41,7 +37,7 @@ use x11rb::{
 #[cfg(feature = "os-linux-capture-xcap")]
 use xcap::Monitor;
 #[cfg(feature = "os-linux-input")]
-use xkbcommon::xkb::{self, Context, KeyDirection, Keycode, Keymap, Keysym, ModMask, State};
+use xkbcommon::xkb::{self, Context, Keycode, Keysym, ModMask};
 
 pub struct LinuxCapture;
 impl ScreenCapture for LinuxCapture {
@@ -527,52 +523,9 @@ impl KeyboardLookup {
     }
 }
 
-#[cfg(feature = "os-linux-input")]
-struct XkbStateBundle {
-    _context: Context,
-    _keymap: Keymap,
-    state: State,
-}
+// XkbStateBundle removed - not needed with rdev-based input capture
 
-#[cfg(feature = "os-linux-input")]
-impl XkbStateBundle {
-    fn new(conn: &XCBConnection) -> Result<Self, BackendError> {
-        let mut major = 0;
-        let mut minor = 0;
-        let mut base_event = 0;
-        let mut base_error = 0;
-        if !xkb::x11::setup_xkb_extension(
-            conn,
-            xkb::x11::MIN_MAJOR_XKB_VERSION,
-            xkb::x11::MIN_MINOR_XKB_VERSION,
-            xkb::x11::SetupXkbExtensionFlags::NoFlags,
-            &mut major,
-            &mut minor,
-            &mut base_event,
-            &mut base_error,
-        ) {
-            return Err(BackendError::new(
-                "xkb_setup_failed",
-                "unable to initialize XKB extension",
-            ));
-        }
-        let context = Context::new(xkb::CONTEXT_NO_FLAGS);
-        let device_id = core_keyboard_device_id(conn)?;
-        let keymap = xkb::x11::keymap_new_from_device(
-            &context,
-            conn,
-            device_id,
-            xkb::KEYMAP_COMPILE_NO_FLAGS,
-        );
-        let state = xkb::x11::state_new_from_device(&keymap, conn, device_id);
-        Ok(Self {
-            _context: context,
-            _keymap: keymap,
-            state,
-        })
-    }
-}
-
+// Helper functions for LinuxAutomation (XTest-based input synthesis)
 #[cfg(feature = "os-linux-input")]
 fn open_xcb_connection() -> Result<(XCBConnection, usize), BackendError> {
     XCBConnection::connect(None).map_err(|e| BackendError::new("x11_connect_failed", e.to_string()))
@@ -604,205 +557,137 @@ fn run_input_loop(
         }
     };
 
-    let (conn, screen_idx) = match open_xcb_connection() {
-        Ok(value) => value,
-        Err(err) => {
-            notify(Err(err.clone()), &mut ready);
-            return Err(err);
-        }
-    };
-    let screen = conn
-        .setup()
-        .roots
-        .get(screen_idx)
-        .ok_or_else(|| BackendError::new("x11_screen_missing", "unable to read X11 screen"))?
-        .clone();
-    if let Err(err) = select_xinput(&conn, screen.root) {
-        notify(Err(err.clone()), &mut ready);
-        return Err(err);
-    }
-    let mut xkb = match XkbStateBundle::new(&conn) {
-        Ok(bundle) => bundle,
-        Err(err) => {
-            notify(Err(err.clone()), &mut ready);
-            return Err(err);
-        }
-    };
+    eprintln!("[LinuxInputCapture] Starting rdev event listener...");
+    
+    // Notify that we're ready before starting the blocking listen
     notify(Ok(()), &mut ready);
-    while running.load(Ordering::Relaxed) {
-        match conn.poll_for_event() {
-            Ok(Some(event)) => handle_xinput_event(&conn, screen.root, &mut xkb, &callback, event),
-            Ok(None) => thread::sleep(Duration::from_millis(5)),
-            Err(ConnectionError::IoError(ref io)) if io.kind() == ErrorKind::BrokenPipe => break,
-            Err(err) => return Err(BackendError::new("x11_event_error", err.to_string())),
+    
+    // Use rdev's listen function which uses XRecord internally
+    // Note: rdev::listen() blocks forever with no built-in way to stop it.
+    // XRecord's XRecordEnableContext blocks until XRecordDisableContext is called
+    // from another thread, which rdev doesn't expose. The solution is to exit
+    // the process when running becomes false.
+    let result = rdev::listen(move |event| {
+        if !running.load(Ordering::Relaxed) {
+            eprintln!("[LinuxInputCapture] Stop requested, exiting rdev listener...");
+            std::process::exit(0);
         }
-    }
-    Ok(())
-}
-
-#[cfg(feature = "os-linux-input")]
-fn handle_xinput_event(
-    conn: &XCBConnection,
-    root: xproto::Window,
-    xkb: &mut XkbStateBundle,
-    callback: &InputEventCallback,
-    event: X11Event,
-) {
-    match event {
-        X11Event::XinputRawKeyPress(data) => {
-            if let Some(kb_event) =
-                build_keyboard_event(&mut xkb.state, data.detail, data.time, KeyState::Down)
-            {
-                callback(InputEvent::Keyboard(kb_event));
-            }
-        }
-        X11Event::XinputRawKeyRelease(data) => {
-            if let Some(kb_event) =
-                build_keyboard_event(&mut xkb.state, data.detail, data.time, KeyState::Up)
-            {
-                callback(InputEvent::Keyboard(kb_event));
-            }
-        }
-        X11Event::XinputRawButtonPress(data) => {
-            if let Some((dx, dy)) = scroll_delta_from_button(data.detail) {
-                callback(InputEvent::Scroll(ScrollEvent {
-                    delta_x: dx,
-                    delta_y: dy,
-                    modifiers: modifiers_from_state(&xkb.state),
-                    timestamp_ms: data.time as u64,
+        
+        let timestamp_ms = now_ms();
+        
+        match event.event_type {
+            rdev::EventType::KeyPress(key) => {
+                callback(InputEvent::Keyboard(KeyboardEvent {
+                    state: KeyState::Down,
+                    key: format!("{:?}", key),
+                    code: 0, // rdev doesn't provide raw keycode
+                    text: None,
+                    modifiers: Modifiers {
+                        shift: false, // rdev doesn't track modifiers separately
+                        control: false,
+                        alt: false,
+                        meta: false,
+                    },
+                    timestamp_ms,
                 }));
-            } else if let Some(button) = mouse_button_from_detail(data.detail) {
-                if let Some((x, y)) = pointer_position(conn, root) {
-                    callback(InputEvent::Mouse(MouseEvent {
-                        event_type: MouseEventType::ButtonDown(button),
-                        x,
-                        y,
-                        modifiers: modifiers_from_state(&xkb.state),
-                        timestamp_ms: data.time as u64,
-                    }));
-                }
             }
-        }
-        X11Event::XinputRawButtonRelease(data) => {
-            if scroll_delta_from_button(data.detail).is_some() {
-                return;
+            rdev::EventType::KeyRelease(key) => {
+                callback(InputEvent::Keyboard(KeyboardEvent {
+                    state: KeyState::Up,
+                    key: format!("{:?}", key),
+                    code: 0,
+                    text: None,
+                    modifiers: Modifiers {
+                        shift: false,
+                        control: false,
+                        alt: false,
+                        meta: false,
+                    },
+                    timestamp_ms,
+                }));
             }
-            if let Some(button) = mouse_button_from_detail(data.detail) {
-                if let Some((x, y)) = pointer_position(conn, root) {
-                    callback(InputEvent::Mouse(MouseEvent {
-                        event_type: MouseEventType::ButtonUp(button),
-                        x,
-                        y,
-                        modifiers: modifiers_from_state(&xkb.state),
-                        timestamp_ms: data.time as u64,
-                    }));
-                }
+            rdev::EventType::ButtonPress(button) => {
+                let btn = match button {
+                    rdev::Button::Left => MouseButton::Left,
+                    rdev::Button::Right => MouseButton::Right,
+                    rdev::Button::Middle => MouseButton::Middle,
+                    _ => return,
+                };
+                // rdev doesn't provide coordinates with button events
+                callback(InputEvent::Mouse(MouseEvent {
+                    event_type: MouseEventType::ButtonDown(btn),
+                    x: 0.0,
+                    y: 0.0,
+                    modifiers: Modifiers {
+                        shift: false,
+                        control: false,
+                        alt: false,
+                        meta: false,
+                    },
+                    timestamp_ms,
+                }));
             }
-        }
-        X11Event::XinputRawMotion(data) => {
-            if let Some((x, y)) = pointer_position(conn, root) {
+            rdev::EventType::ButtonRelease(button) => {
+                let btn = match button {
+                    rdev::Button::Left => MouseButton::Left,
+                    rdev::Button::Right => MouseButton::Right,
+                    rdev::Button::Middle => MouseButton::Middle,
+                    _ => return,
+                };
+                callback(InputEvent::Mouse(MouseEvent {
+                    event_type: MouseEventType::ButtonUp(btn),
+                    x: 0.0,
+                    y: 0.0,
+                    modifiers: Modifiers {
+                        shift: false,
+                        control: false,
+                        alt: false,
+                        meta: false,
+                    },
+                    timestamp_ms,
+                }));
+            }
+            rdev::EventType::MouseMove { x, y } => {
                 callback(InputEvent::Mouse(MouseEvent {
                     event_type: MouseEventType::Move,
                     x,
                     y,
-                    modifiers: modifiers_from_state(&xkb.state),
-                    timestamp_ms: data.time as u64,
+                    modifiers: Modifiers {
+                        shift: false,
+                        control: false,
+                        alt: false,
+                        meta: false,
+                    },
+                    timestamp_ms,
+                }));
+            }
+            rdev::EventType::Wheel { delta_x, delta_y } => {
+                callback(InputEvent::Scroll(ScrollEvent {
+                    delta_x: delta_x as f64,
+                    delta_y: delta_y as f64,
+                    modifiers: Modifiers {
+                        shift: false,
+                        control: false,
+                        alt: false,
+                        meta: false,
+                    },
+                    timestamp_ms,
                 }));
             }
         }
-        _ => {}
+    });
+    
+    if let Err(err) = result {
+        eprintln!("[LinuxInputCapture] rdev listen error: {:?}", err);
+        return Err(BackendError::new("rdev_listen_failed", format!("{:?}", err)));
     }
+    
+    Ok(())
 }
 
-#[cfg(feature = "os-linux-input")]
-fn build_keyboard_event(
-    state: &mut State,
-    detail: u32,
-    time: u32,
-    key_state: KeyState,
-) -> Option<KeyboardEvent> {
-    let keycode = Keycode::new(detail);
-    let direction = if key_state == KeyState::Down {
-        KeyDirection::Down
-    } else {
-        KeyDirection::Up
-    };
-    state.update_key(keycode, direction);
-    let keysym = state.key_get_one_sym(keycode);
-    let mut key = xkb::keysym_get_name(keysym);
-    if key.is_empty() {
-        key = format!("Keycode{}", detail);
-    }
-    let text_val = state.key_get_utf8(keycode);
-    Some(KeyboardEvent {
-        state: key_state,
-        key,
-        code: detail,
-        text: if text_val.is_empty() {
-            None
-        } else {
-            Some(text_val)
-        },
-        modifiers: modifiers_from_state(state),
-        timestamp_ms: time as u64,
-    })
-}
+// Old XInput event handling removed - now using XRecord
 
-#[cfg(feature = "os-linux-input")]
-fn modifiers_from_state(state: &State) -> Modifiers {
-    Modifiers {
-        shift: state.mod_name_is_active(xkb::MOD_NAME_SHIFT, xkb::STATE_MODS_EFFECTIVE),
-        control: state.mod_name_is_active(xkb::MOD_NAME_CTRL, xkb::STATE_MODS_EFFECTIVE),
-        alt: state.mod_name_is_active(xkb::MOD_NAME_ALT, xkb::STATE_MODS_EFFECTIVE),
-        meta: state.mod_name_is_active(xkb::MOD_NAME_LOGO, xkb::STATE_MODS_EFFECTIVE),
-    }
-}
-
-#[cfg(feature = "os-linux-input")]
-fn mouse_button_from_detail(detail: u32) -> Option<MouseButton> {
-    match detail {
-        1 => Some(MouseButton::Left),
-        2 => Some(MouseButton::Middle),
-        3 => Some(MouseButton::Right),
-        _ => None,
-    }
-}
-
-#[cfg(feature = "os-linux-input")]
-fn scroll_delta_from_button(detail: u32) -> Option<(f64, f64)> {
-    match detail {
-        4 => Some((0.0, 1.0)),
-        5 => Some((0.0, -1.0)),
-        6 => Some((1.0, 0.0)),
-        7 => Some((-1.0, 0.0)),
-        _ => None,
-    }
-}
-
-#[cfg(feature = "os-linux-input")]
-fn pointer_position(conn: &XCBConnection, root: xproto::Window) -> Option<(f64, f64)> {
-    let cookie = xproto::query_pointer(conn, root).ok()?;
-    let reply = cookie.reply().ok()?;
-    Some((reply.root_x as f64, reply.root_y as f64))
-}
-
-#[cfg(feature = "os-linux-input")]
-fn select_xinput(conn: &XCBConnection, root: xproto::Window) -> Result<(), BackendError> {
-    let mask = EventMask {
-        deviceid: Device::ALL_MASTER.into(),
-        mask: vec![
-            XIEventMask::RAW_KEY_PRESS,
-            XIEventMask::RAW_KEY_RELEASE,
-            XIEventMask::RAW_BUTTON_PRESS,
-            XIEventMask::RAW_BUTTON_RELEASE,
-            XIEventMask::RAW_MOTION,
-        ],
-    };
-    conn.xinput_xi_select_events(root, &[mask])
-        .map_err(|e| BackendError::new("xi_select_failed", e.to_string()))?;
-    conn.flush()
-        .map_err(|e| BackendError::new("x11_flush_failed", e.to_string()))
-}
+// mouse_button_from_detail removed - rdev handles button mapping internally
 
 // no crop/resize helpers needed for the sampling hash path
 

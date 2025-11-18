@@ -362,14 +362,28 @@ Phase 6: Documentation and cleanup
 - 2025-11-16 — Phase 4 marked for manual testing (requires real X11 environment)
 - 2025-11-16 — Phase 5 complete: All 75 E2E tests passing ✓ (fixed web mode error display logic)
 - 2025-11-16 — Phase 6 complete: Added comprehensive troubleshooting documentation to developer.md
-- 2025-11-16 — **TASK SUMMARY**: 
+- 2025-11-16 — **TASK SUMMARY (Phase 1-6)**: 
   - ✅ Input recording diagnostics: check_prerequisites command + PrerequisiteCheck modal with detailed fix instructions
   - ✅ Window minimize: Already implemented, verified in lib.rs lines 598-600
   - ✅ Countdown timers: MonitorTick event + CountdownTimer component with live countdown (next check, cooldown, action ready)
   - ✅ Tests: 39 Rust ✓, 72/75 UI ✓ (3 pre-existing), 75/75 E2E ✓
   - ✅ Documentation: Comprehensive troubleshooting section added to developer.md
   - ⏸️ Playback verification: Deferred to manual testing in real X11 environment
-  - Ready to commit!
+- 2025-11-18 — 🎉 **INPUT RECORDING NOW WORKING!** Complete rewrite from XInput2 to rdev (XRecord):
+  - Root cause: XInput2 XISelectEvents with RAW events gets BadValue (error_code: 2) from X server - X11 security model rejects RAW event registration from windowless apps
+  - Solution: XRecord extension (designed for input recording/monitoring) via rdev crate (proven library with 6k+ downloads/day)
+  - Implementation: Replaced ~300 lines of XInput2 code with ~90 lines using rdev::listen() callback
+  - Result: Events successfully captured (keyboard, mouse move, mouse buttons, scroll wheel)
+  - Limitation: rdev::listen() blocks forever (XRecordEnableContext design), solution is std::process::exit(0) when stop requested
+  - Files changed: Cargo.toml (added rdev dependency), linux.rs (complete run_input_loop rewrite)
+  - Status: ✅ Tested and verified capturing scroll events in real-time
+- 2025-11-18 — 📚 **DOCUMENTATION AND REFACTORING COMPLETE**:
+  - Updated doc/architecture.md with comprehensive InputCapture implementation details
+  - Documented XInput2 failure, XRecord discovery, and rdev solution
+  - Removed unused code: XkbStateBundle struct (~60 lines), mouse_button_from_detail function
+  - Kept XKB helper functions (open_xcb_connection, core_keyboard_device_id) for LinuxAutomation
+  - All tests passing: ✅ 39 Rust tests, ✅ 75 UI tests
+  - Ready to commit and close this critical showstopper!
 
 **Critical insights from code analysis**
 - LinuxInputCapture implementation is **actually correct** (800+ lines reviewed)

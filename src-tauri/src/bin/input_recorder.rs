@@ -26,11 +26,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut capture = LinuxInputCapture::default();
     let events = Arc::new(Mutex::new(Vec::<InputEvent>::new()));
     let events_sink = events.clone();
+    
+    eprintln!("[DEBUG] Starting capture...");
     capture.start(Arc::new(move |event| {
+        eprintln!("[DEBUG] Event received: {:?}", event);
         if let Ok(mut guard) = events_sink.lock() {
             guard.push(event);
         }
     }))?;
+    eprintln!("[DEBUG] Capture started successfully!");
 
     println!("Recording... move mouse, type keys, click. Press Enter to stop.");
     wait_for_enter()?;
