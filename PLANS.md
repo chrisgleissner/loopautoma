@@ -1284,6 +1284,42 @@ Phase 9: CRITICAL FIX - Replace actions and system theme (COMPLETED)
     - XWarpPointer API works fine without live XKB device
     - Only keyboard text→keycode mapping needs fallback
     - Static US QWERTY covers 95% of use cases
+- 2025-11-19 — Phase 17: **✅ AUTOMATION WORKING! USER CONFIRMED SUCCESS** 🎉
+  - **USER REPORT**: Typing and clicking working perfectly!
+    - Cursor visibly moves to target position
+    - Clicks register in target applications
+    - Text appears character-by-character
+    - Special key [Enter] executes correctly
+  - **LOGS CONFIRM**:
+    ```
+    [Automation] Typing text: "hello world[Enter]" (18 chars)
+    [Automation] Typing char 'h' (keysym=68) / Key DOWN keycode=43 / Key UP keycode=43
+    [Automation] Pressing special key: [Enter] / Key DOWN keycode=36 / Key UP keycode=36
+    [Automation] Finished typing 11 characters
+    ```
+  - **COMPLETE END-TO-END VERIFICATION**:
+    - ✅ XKB fallback to static US QWERTY works
+    - ✅ XWarpPointer physically moves cursor
+    - ✅ Mouse button press/release working
+    - ✅ Keyboard character typing working
+    - ✅ Special key syntax [Enter] working
+    - ✅ Comprehensive logging showing every action
+  - **DOCUMENTATION UPDATED**:
+    - README.md: Added X11 library requirements with install command
+    - doc/install.md: New section "Required X11 Libraries for Automation"
+    - doc/developer.md: New section "Action Playback and Automation"
+      - Documents XKB fallback behavior (live vs static)
+      - Explains static US QWERTY keymap coverage
+      - Troubleshooting for cursor, clicks, typing, special keys
+      - How to enable detailed [Automation] logging
+  - **FILES CHANGED**:
+    - README.md: Added libx11/libxi/libxtst dependencies
+    - doc/install.md: New "Required X11 Libraries" section with install command
+    - doc/developer.md: New 80+ line section on automation and XKB fallback
+  - **STATUS**: ✅✅✅ CRITICAL SHOWSTOPPER FULLY RESOLVED
+    - Action recorder persistence: ✅ Working (Phase 13)
+    - Action playback: ✅ Working (Phases 14-17)
+    - User can now record and play back actions successfully!
 
 **Assumptions and open questions**
 - Assumption: 80% screenshot scale is correct for action recorder

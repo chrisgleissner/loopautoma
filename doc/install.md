@@ -10,6 +10,29 @@ This guide covers installation of Loop Automa on Ubuntu 24.04 (X11 session). mac
 - **Architecture**: x86_64 (amd64)
 - **Desktop Environment**: Any (GNOME, KDE, XFCE, etc.)
 
+### Required X11 Libraries for Automation
+
+Loop Automa uses X11 automation APIs for cursor movement, mouse clicks, and keyboard input. The following system libraries are **required**:
+
+```bash
+# Install X11 automation dependencies (Ubuntu/Debian)
+sudo apt install -y \
+  libx11-dev \
+  libxext-dev \
+  libxi-dev \
+  libxtst-dev \
+  libxkbcommon-dev \
+  libxkbcommon-x11-dev
+```
+
+These libraries provide:
+
+- **libxi-dev**: XInput2 extension for input device access
+- **libxtst-dev**: XTest extension for simulating keyboard/mouse events
+- **libxkbcommon-x11-dev**: Keyboard layout mapping and keysym conversion
+
+**Note**: Pre-built .deb packages automatically install these dependencies. Manual installation is only needed if you're using the AppImage or building from source.
+
 ### Checking Your Display Server
 
 Loop Automa requires an X11 session for screen capture, input recording, and input automation. To check your current session type:

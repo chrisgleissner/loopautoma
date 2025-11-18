@@ -255,3 +255,83 @@ The modal includes copy-pasteable fix commands for each issue.
 - If you must use Wayland, input recording will not work (X11-specific)
 - Consider using XWayland in the interim, though native Wayland support may come in a future release via libei
 
+### Action Playback and Automation
+
+Action playback uses X11's XTest extension for mouse/keyboard simulation and XWarpPointer for cursor movement.
+
+#### Keyboard Mapping (XKB Fallback)
+
+The app attempts to use live XKB keyboard mapping from your X11 session, but will automatically fall back to a static US QWERTY keymap if XKB initialization fails. You'll see one of these logs:
+
+**Success (live XKB):**
+```
+[XKB] Successfully found core keyboard with device_id=3
+[LinuxAutomation] Using live XKB keymap from X11
+```
+
+**Fallback (static QWERTY):**
+```
+[XKB] get_core_keyboard_device_id returned: -1
+[XKB] Falling back to static US QWERTY keymap
+[LinuxAutomation] Keyboard lookup initialized successfully with 67 key mappings
+```
+
+**This is normal and expected** in Tauri apps and sandboxed environments. The static fallback covers:
+- All lowercase letters (a-z)
+- All uppercase letters (A-Z with shift)
+- Numbers (0-9)
+- Special keys: Enter, Escape, Tab, Space, Backspace
+
+**Non-US Keyboard Layouts:**
+If you use a non-US layout and XKB fallback occurs, some keys may not type correctly. To enable live XKB:
+- Ensure `libxkbcommon-x11-dev` is installed
+- Run the app from a terminal (not launcher) to inherit full X11 context
+- Check X11 security policies (`xhost` settings)
+
+#### Detailed Automation Logging
+
+To see detailed logs of every cursor move, click, and keystroke:
+
+```bash
+bun run tauri dev 2>&1 | grep "\[Automation\]"
+```
+
+You should see logs like:
+```
+[Automation] Moving cursor to (70, 251)
+[Automation] Cursor now at (70, 251), target was (70, 251)
+[Automation] Mouse Left button DOWN
+[Automation] Mouse Left button UP
+[Automation] Typing text: "hello world[Enter]" (18 chars)
+[Automation] Typing char 'h' (keysym=68)
+[Automation] Key DOWN keycode=43
+[Automation] Key UP keycode=43
+...
+[Automation] Pressing special key: [Enter]
+[Automation] Key DOWN keycode=36
+[Automation] Key UP keycode=36
+[Automation] Finished typing 11 characters
+```
+
+#### Common Playback Issues
+
+**Cursor doesn't move visibly**
+- The app uses `XWarpPointer` to physically move the cursor (not just generate motion events)
+- Verify X11 works with `xdotool` (install with `sudo apt install xdotool` if needed): `xdotool mousemove 500 500` should move cursor to (500, 500)
+- Some window managers may restrict cursor warping; check WM security settings
+
+**Clicks don't register in target window**
+- Window may need to be focused first (add a click action before typing)
+- Some apps ignore synthetic events for security (e.g., sudo prompts, lock screens)
+- Try adding a small delay (50-100ms) before clicking
+
+**Text doesn't appear or wrong characters typed**
+- If using non-US layout with XKB fallback, switch to live XKB or use US QWERTY
+- Check that target window has focus and accepts keyboard input
+- Some apps filter synthetic keyboard events (rare)
+
+**Special keys like [Enter] don't work**
+- Verify bracket syntax: `[Enter]` not `{Enter}` or `<Enter>`
+- Check logs to confirm special key was detected and sent
+- Available keys: Enter, Escape, Tab, Space, Backspace (case-insensitive)
+

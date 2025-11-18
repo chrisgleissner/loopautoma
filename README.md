@@ -45,7 +45,13 @@ sudo apt install ./loopautoma_*.deb
 loopautoma
 ```
 
-**Note**: Linux requires an X11 session (not Wayland). Check with `echo "$XDG_SESSION_TYPE"` — if it shows `wayland`, switch to X11 at the login screen.
+**Note**: Linux requires an X11 session (not Wayland) and X11 automation libraries. Check with `echo "$XDG_SESSION_TYPE"` — if it shows `wayland`, switch to X11 at the login screen. Install dependencies with:
+
+```bash
+sudo apt install -y libx11-dev libxi-dev libxtst-dev libxkbcommon-dev libxkbcommon-x11-dev
+```
+
+See [doc/install.md](doc/install.md) for detailed setup instructions.
 
 ### Using the Keep AI Agent Active Preset
 
