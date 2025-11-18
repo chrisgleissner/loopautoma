@@ -307,9 +307,9 @@ pub struct LLMPromptResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum InputEvent {
-    Mouse(MouseEvent),
-    Keyboard(KeyboardEvent),
-    Scroll(ScrollEvent),
+    Mouse { mouse: MouseEvent },
+    Keyboard { keyboard: KeyboardEvent },
+    Scroll { scroll: ScrollEvent },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

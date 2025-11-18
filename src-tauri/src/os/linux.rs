@@ -606,7 +606,8 @@ fn run_input_loop(
         match event.event_type {
             rdev::EventType::KeyPress(key) => {
                 eprintln!("[LinuxInputCapture] Calling domain callback for KeyPress");
-                let event = InputEvent::Keyboard(KeyboardEvent {
+                let event = InputEvent::Keyboard {
+                    keyboard: KeyboardEvent {
                     state: KeyState::Down,
                     key: format!("{:?}", key),
                     code: 0, // rdev doesn't provide raw keycode
@@ -618,26 +619,29 @@ fn run_input_loop(
                         meta: false,
                     },
                     timestamp_ms,
-                });
+                    },
+                };
                 eprintln!("[LinuxInputCapture] About to invoke callback with: {:?}", event);
                 callback(event);
                 eprintln!("[LinuxInputCapture] Callback invoked successfully");
             }
             rdev::EventType::KeyRelease(key) => {
                 eprintln!("[LinuxInputCapture] Calling domain callback for KeyRelease");
-                callback(InputEvent::Keyboard(KeyboardEvent {
-                    state: KeyState::Up,
-                    key: format!("{:?}", key),
-                    code: 0,
-                    text: None,
-                    modifiers: Modifiers {
-                        shift: false,
-                        control: false,
-                        alt: false,
-                        meta: false,
+                callback(InputEvent::Keyboard {
+                    keyboard: KeyboardEvent {
+                        state: KeyState::Up,
+                        key: format!("{:?}", key),
+                        code: 0,
+                        text: None,
+                        modifiers: Modifiers {
+                            shift: false,
+                            control: false,
+                            alt: false,
+                            meta: false,
+                        },
+                        timestamp_ms,
                     },
-                    timestamp_ms,
-                }));
+                });
             }
             rdev::EventType::ButtonPress(button) => {
                 let btn = match button {
@@ -648,18 +652,20 @@ fn run_input_loop(
                 };
                 eprintln!("[LinuxInputCapture] Calling domain callback for ButtonPress");
                 // rdev doesn't provide coordinates with button events
-                callback(InputEvent::Mouse(MouseEvent {
-                    event_type: MouseEventType::ButtonDown(btn),
-                    x: 0.0,
-                    y: 0.0,
-                    modifiers: Modifiers {
-                        shift: false,
-                        control: false,
-                        alt: false,
-                        meta: false,
+                callback(InputEvent::Mouse {
+                    mouse: MouseEvent {
+                        event_type: MouseEventType::ButtonDown(btn),
+                        x: 0.0,
+                        y: 0.0,
+                        modifiers: Modifiers {
+                            shift: false,
+                            control: false,
+                            alt: false,
+                            meta: false,
+                        },
+                        timestamp_ms,
                     },
-                    timestamp_ms,
-                }));
+                });
             }
             rdev::EventType::ButtonRelease(button) => {
                 let btn = match button {
@@ -668,50 +674,56 @@ fn run_input_loop(
                     rdev::Button::Middle => MouseButton::Middle,
                     _ => return,
                 };
-                callback(InputEvent::Mouse(MouseEvent {
-                    event_type: MouseEventType::ButtonUp(btn),
-                    x: 0.0,
-                    y: 0.0,
-                    modifiers: Modifiers {
-                        shift: false,
-                        control: false,
-                        alt: false,
-                        meta: false,
+                callback(InputEvent::Mouse {
+                    mouse: MouseEvent {
+                        event_type: MouseEventType::ButtonUp(btn),
+                        x: 0.0,
+                        y: 0.0,
+                        modifiers: Modifiers {
+                            shift: false,
+                            control: false,
+                            alt: false,
+                            meta: false,
+                        },
+                        timestamp_ms,
                     },
-                    timestamp_ms,
-                }));
+                });
             }
             rdev::EventType::MouseMove { x, y } => {
                 eprintln!("[LinuxInputCapture] Calling domain callback for MouseMove");
-                let event = InputEvent::Mouse(MouseEvent {
-                    event_type: MouseEventType::Move,
-                    x,
-                    y,
-                    modifiers: Modifiers {
-                        shift: false,
-                        control: false,
-                        alt: false,
-                        meta: false,
+                let event = InputEvent::Mouse {
+                    mouse: MouseEvent {
+                        event_type: MouseEventType::Move,
+                        x,
+                        y,
+                        modifiers: Modifiers {
+                            shift: false,
+                            control: false,
+                            alt: false,
+                            meta: false,
+                        },
+                        timestamp_ms,
                     },
-                    timestamp_ms,
-                });
+                };
                 eprintln!("[LinuxInputCapture] About to invoke callback with: {:?}", event);
                 callback(event);
                 eprintln!("[LinuxInputCapture] Callback invoked successfully");
             }
             rdev::EventType::Wheel { delta_x, delta_y } => {
                 eprintln!("[LinuxInputCapture] Calling domain callback for Wheel");
-                callback(InputEvent::Scroll(ScrollEvent {
-                    delta_x: delta_x as f64,
-                    delta_y: delta_y as f64,
-                    modifiers: Modifiers {
-                        shift: false,
-                        control: false,
-                        alt: false,
-                        meta: false,
+                callback(InputEvent::Scroll {
+                    scroll: ScrollEvent {
+                        delta_x: delta_x as f64,
+                        delta_y: delta_y as f64,
+                        modifiers: Modifiers {
+                            shift: false,
+                            control: false,
+                            alt: false,
+                            meta: false,
+                        },
+                        timestamp_ms,
                     },
-                    timestamp_ms,
-                }));
+                });
             }
         }
     });

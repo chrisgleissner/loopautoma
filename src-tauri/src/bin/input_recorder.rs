@@ -85,15 +85,15 @@ fn wait_for_enter() -> io::Result<()> {
 fn summarize_keyboard(events: &[InputEvent]) -> String {
     let mut output = String::new();
     for event in events {
-        if let InputEvent::Keyboard(key) = event {
-            if key.state != KeyState::Down {
+        if let InputEvent::Keyboard { keyboard } = event {
+            if keyboard.state != KeyState::Down {
                 continue;
             }
-            if let Some(text) = &key.text {
+            if let Some(text) = &keyboard.text {
                 output.push_str(text);
                 continue;
             }
-            let fragment = match key.key.as_str() {
+            let fragment = match keyboard.key.as_str() {
                 "Return" | "Enter" => "[Enter]".to_string(),
                 "Space" => " ".to_string(),
                 "Tab" => "[Tab]".to_string(),
@@ -114,7 +114,7 @@ fn summarize_keyboard(events: &[InputEvent]) -> String {
 fn summarize_mouse(events: &[InputEvent]) -> String {
     let mut clicks = Vec::new();
     for event in events {
-        if let InputEvent::Mouse(mouse) = event {
+        if let InputEvent::Mouse { mouse } = event {
             if let MouseEventType::ButtonDown(button) = mouse.event_type {
                 clicks.push(format!(
                     "x={:.0}, y={:.0}, {}",

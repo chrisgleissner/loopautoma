@@ -7,7 +7,8 @@ mod tests {
     use crate::condition::RegionCondition;
     use crate::domain::{
         Action, ActionSequence, Automation, BackendError, Condition, DisplayInfo, Guardrails,
-        MouseButton, Rect, Region, ScreenCapture, ScreenFrame, Trigger,
+        InputEvent, KeyboardEvent, KeyState, Modifiers, MouseButton, MouseEvent, MouseEventType,
+        Rect, Region, ScreenCapture, ScreenFrame, ScrollEvent, Trigger,
     };
     use crate::domain::{ActionConfig, ConditionConfig, GuardrailsConfig, Profile, TriggerConfig};
     use crate::finalize_monitor_shutdown;
@@ -147,6 +148,50 @@ mod tests {
                 .count(),
             4
         );
+    }
+
+    #[test]
+    fn input_event_serialization_matches_ui_contract() {
+        let mouse_event = InputEvent::Mouse {
+            mouse: MouseEvent {
+                event_type: MouseEventType::ButtonDown(MouseButton::Left),
+                x: 42.0,
+                y: 24.0,
+                modifiers: Modifiers::default(),
+                timestamp_ms: 123,
+            },
+        };
+        let json = serde_json::to_value(&mouse_event).expect("mouse serialize");
+        assert_eq!(json["kind"], "mouse");
+        assert!(json.get("mouse").is_some());
+        assert!(json.get("Mouse").is_none());
+
+        let keyboard_event = InputEvent::Keyboard {
+            keyboard: KeyboardEvent {
+                state: KeyState::Down,
+                key: "Enter".into(),
+                code: 13,
+                text: None,
+                modifiers: Modifiers::default(),
+                timestamp_ms: 456,
+            },
+        };
+        let json = serde_json::to_value(&keyboard_event).expect("keyboard serialize");
+        assert_eq!(json["kind"], "keyboard");
+        assert!(json.get("keyboard").is_some());
+        assert!(json.get("Keyboard").is_none());
+
+        let scroll_event = InputEvent::Scroll {
+            scroll: ScrollEvent {
+                delta_x: 1.5,
+                delta_y: -3.0,
+                modifiers: Modifiers::default(),
+                timestamp_ms: 789,
+            },
+        };
+        let json = serde_json::to_value(&scroll_event).expect("scroll serialize");
+        assert_eq!(json["kind"], "scroll");
+        assert!(json.get("scroll").is_some());
     }
 
     struct AlwaysTrigger; // fires on every tick
