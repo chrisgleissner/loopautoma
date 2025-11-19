@@ -265,17 +265,20 @@ To prevent uncontrolled growth of this file:
   - [x] 4.4f. Test ActionSequence early stopping on termination
   - [x] 4.4g. All 50 tests passing ✅ (verified 3x)
 
-**Phase 5: Heartbeat Watchdog (Airflow Pattern)**
-- [ ] 5.1. Add heartbeat_timeout_ms to Guardrails
-- [ ] 5.2. Add last_action_progress: Option<Instant> to Monitor
-- [ ] 5.3. Update ActionSequence.run() to touch last_action_progress
-  - [ ] 5.3a. Set monitor.last_action_progress = Some(now) on each action start
-- [ ] 5.4. Check heartbeat in Monitor.tick()
-  - [ ] 5.4a. If last_action_progress is Some and now - last_action_progress > heartbeat_timeout_ms
-  - [ ] 5.4b. Emit WatchdogTripped { reason: "heartbeat_stalled" }
-  - [ ] 5.4c. Call stop() to terminate loop
-- [ ] 5.5. Add heartbeat_stalled to Event type
-- [ ] 5.6. Update EventLog UI to show heartbeat warnings
+**Phase 5: Heartbeat Watchdog (Airflow Pattern)** ✅ COMPLETE
+- [x] 5.1. Add heartbeat_timeout_ms to Guardrails
+- [x] 5.2. Add last_action_progress: Option<Instant> to Monitor
+- [x] 5.3. Update ActionSequence.run() to touch last_action_progress
+  - [x] 5.3a. Set monitor.last_action_progress = Some(now) on each action start
+- [x] 5.4. Check heartbeat in Monitor.tick()
+  - [x] 5.4a. If last_action_progress is Some and now - last_action_progress > heartbeat_timeout_ms
+  - [x] 5.4b. Emit WatchdogTripped { reason: "heartbeat_stalled" }
+  - [x] 5.4c. Call stop() to terminate loop
+- [x] 5.5. Add heartbeat_stalled to Event type (reuses existing WatchdogTripped)
+- [x] 5.6. Update EventLog UI to show heartbeat warnings (Event already emitted)
+- [x] 5.7. Comprehensive testing (1 new test)
+  - [x] 5.7a. Test heartbeat stall detection with timeout
+  - [x] 5.7b. All 51 tests passing ✅ (verified 3x)
 
 **Phase 6: Audio Notifications (rodio)**
 - [ ] 6.1. Add rodio dependency to Cargo.toml
@@ -490,6 +493,7 @@ To prevent uncontrolled growth of this file:
 - 2025-01-19 — Phase 3.7 COMPLETE: Implemented ocr_mode in LLMPromptGenerationAction.execute() (~40 lines). Local mode: extracts text with LinuxOCR, appends to system prompt, sends text-only to LLM (empty images vec). Vision mode: captures screenshots, sends images to LLM (original behavior). Changed OcrMode::default() to Vision (no Tesseract required).
 - 2025-01-19 — Phase 3.8 COMPLETE: Added 5 comprehensive OCR tests (ocr_mode serialization, defaults, LLM action mode switching, Guardrails fields, Monitor termination logic). All 44 Rust tests passing ✅ (verified 3x). Total Phase 3: 156 steps complete across 3.0-3.8. Ready for Phase 4.
 - 2025-01-19 — Phase 4 COMPLETE: Implemented TerminationCheck action with three modes (context, ocr, ai_query). Added TerminationCheck variant to ActionConfig, implemented TerminationCheckAction struct (~120 lines) with regex matching, OCR text extraction, and LLM task_complete detection. Updated ActionSequence.run() to check should_terminate after each action and stop early with TerminationCheckTriggered event. Added 6 comprehensive tests covering all modes + early sequence stopping. All 50 tests passing ✅ (verified 3x). Commit: 8745798.
+- 2025-01-19 — Phase 5 COMPLETE: Implemented heartbeat watchdog (Airflow pattern) for stall detection. Added heartbeat_timeout to Guardrails (Option<Duration>) and heartbeat_timeout_ms to GuardrailsConfig (Option<u64>). Added last_action_progress field to Monitor, touched before action execution. Monitor checks heartbeat timeout in tick() and emits WatchdogTripped with "heartbeat_stalled" reason. Updated all test initializations with heartbeat fields. Added 1 comprehensive test for stall detection. All 51 tests passing ✅ (verified 3x). Commit: e053207.
 
 **Assumptions and open questions**
 - Assumption: uni-ocr provides sufficient OCR accuracy for English text (primary use case)

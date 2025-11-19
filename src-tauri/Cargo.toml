@@ -37,6 +37,7 @@ reqwest = { version = "0.12", features = ["json"], optional = true }
 tokio = { version = "1", features = ["rt", "rt-multi-thread"], optional = true }
 uni-ocr = { version = "0.1.5", optional = true }
 regex = "1"
+rodio = { version = "0.18", optional = true }
 windows = { version = "0.58", optional = true, features = [
 	"Win32_Foundation",
 	"Win32_UI_Input_KeyboardAndMouse",
@@ -48,10 +49,11 @@ x11rb = { version = "0.13.2", optional = true, features = ["xinput", "xtest", "x
 xkbcommon = { version = "0.9.0", optional = true, features = ["x11"] }
  
 [features]
-default = ["os-linux-capture-xcap", "os-linux-automation", "llm-integration", "ocr-integration"]
+default = ["os-linux-capture-xcap", "os-linux-automation", "llm-integration", "ocr-integration", "audio-notifications"]
 os-linux-capture-xcap = ["xcap", "ahash"]
 os-linux-automation = ["x11rb", "xkbcommon"]
 os-macos = ["screenshots"]
 os-windows = ["screenshots", "windows"]
 llm-integration = ["reqwest", "tokio"]
 ocr-integration = ["uni-ocr", "tokio"]
+audio-notifications = ["rodio"]

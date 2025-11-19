@@ -5,6 +5,8 @@ use std::sync::Arc;
 
 const OPENAI_KEY_ENTRY: &str = "openai_api_key";
 const OPENAI_MODEL_ENTRY: &str = "openai_model";
+const AUDIO_ENABLED_ENTRY: &str = "audio_enabled";
+const AUDIO_VOLUME_ENTRY: &str = "audio_volume";
 
 pub struct SecureStorage<R: tauri::Runtime> {
     store: Arc<Store<R>>,
@@ -77,6 +79,48 @@ impl<R: tauri::Runtime> SecureStorage<R> {
         self.store.save()
             .map_err(|e| format!("Failed to save model to storage: {}", e))?;
         
+        Ok(())
+    }
+
+    /// Get audio enabled setting
+    pub fn get_audio_enabled(&self) -> Result<bool, String> {
+        match self.store.get(AUDIO_ENABLED_ENTRY) {
+            Some(value) => {
+                value.as_bool()
+                    .ok_or("Invalid audio_enabled format in storage".to_string())
+            }
+            None => Ok(true) // Default to enabled
+        }
+    }
+
+    /// Set audio enabled setting
+    pub fn set_audio_enabled(&self, enabled: bool) -> Result<(), String> {
+        self.store.set(AUDIO_ENABLED_ENTRY, serde_json::json!(enabled));
+        self.store.save()
+            .map_err(|e| format!("Failed to save audio setting: {}", e))?;
+        Ok(())
+    }
+
+    /// Get audio volume (0.0 to 1.0)
+    pub fn get_audio_volume(&self) -> Result<f32, String> {
+        match self.store.get(AUDIO_VOLUME_ENTRY) {
+            Some(value) => {
+                value.as_f64()
+                    .ok_or("Invalid audio_volume format in storage".to_string())
+                    .map(|v| v as f32)
+            }
+            None => Ok(0.5) // Default to 50%
+        }
+    }
+
+    /// Set audio volume (0.0 to 1.0)
+    pub fn set_audio_volume(&self, volume: f32) -> Result<(), String> {
+        if !(0.0..=1.0).contains(&volume) {
+            return Err("Volume must be between 0.0 and 1.0".to_string());
+        }
+        self.store.set(AUDIO_VOLUME_ENTRY, serde_json::json!(volume));
+        self.store.save()
+            .map_err(|e| format!("Failed to save volume: {}", e))?;
         Ok(())
     }
 }

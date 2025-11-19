@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod action;
+mod audio;
 mod condition;
 pub mod domain;
 mod llm;
@@ -465,6 +466,12 @@ pub fn run() {
             delete_openai_key,
             get_openai_model,
             set_openai_model,
+            audio_test_intervention,
+            audio_test_completed,
+            audio_set_enabled,
+            audio_get_enabled,
+            audio_set_volume,
+            audio_get_volume,
             app_quit
         ])
         .run(tauri::generate_context!())
@@ -840,5 +847,51 @@ fn set_openai_model(model: String, state: tauri::State<AppState>) -> Result<(), 
     match &state.secure_storage {
         Some(storage) => storage.set_openai_model(&model),
         None => Err("Secure storage not initialized".to_string()),
+    }
+}
+
+// Audio notification commands
+
+#[tauri::command]
+fn audio_test_intervention() -> Result<(), String> {
+    let notifier = audio::create_audio_notifier()?;
+    notifier.play_intervention_needed()
+}
+
+#[tauri::command]
+fn audio_test_completed() -> Result<(), String> {
+    let notifier = audio::create_audio_notifier()?;
+    notifier.play_profile_ended()
+}
+
+#[tauri::command]
+fn audio_set_enabled(enabled: bool, state: tauri::State<AppState>) -> Result<(), String> {
+    match &state.secure_storage {
+        Some(storage) => storage.set_audio_enabled(enabled),
+        None => Err("Secure storage not initialized".to_string()),
+    }
+}
+
+#[tauri::command]
+fn audio_get_enabled(state: tauri::State<AppState>) -> Result<bool, String> {
+    match &state.secure_storage {
+        Some(storage) => storage.get_audio_enabled(),
+        None => Ok(true), // Default to enabled
+    }
+}
+
+#[tauri::command]
+fn audio_set_volume(volume: f32, state: tauri::State<AppState>) -> Result<(), String> {
+    match &state.secure_storage {
+        Some(storage) => storage.set_audio_volume(volume),
+        None => Err("Secure storage not initialized".to_string()),
+    }
+}
+
+#[tauri::command]
+fn audio_get_volume(state: tauri::State<AppState>) -> Result<f32, String> {
+    match &state.secure_storage {
+        Some(storage) => storage.get_audio_volume(),
+        None => Ok(0.5), // Default to 50%
     }
 }
