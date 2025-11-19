@@ -2,7 +2,6 @@
 ///
 /// Provides trait-based abstraction for audio playback with rodio backend.
 
-use std::io::Cursor;
 use std::sync::{Arc, Mutex};
 
 /// Trait for audio notification playback
@@ -14,9 +13,11 @@ pub trait AudioNotifier: Send + Sync {
     fn play_profile_ended(&self) -> Result<(), String>;
     
     /// Set volume (0.0 to 1.0)
+    #[allow(dead_code)]
     fn set_volume(&self, volume: f32) -> Result<(), String>;
     
     /// Enable or disable audio notifications
+    #[allow(dead_code)]
     fn set_enabled(&self, enabled: bool);
     
     /// Check if audio is enabled
@@ -24,12 +25,14 @@ pub trait AudioNotifier: Send + Sync {
 }
 
 /// Mock audio notifier for testing
+#[allow(dead_code)]
 pub struct MockAudioNotifier {
     enabled: Arc<Mutex<bool>>,
     volume: Arc<Mutex<f32>>,
 }
 
 impl MockAudioNotifier {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             enabled: Arc::new(Mutex::new(true)),
@@ -75,11 +78,12 @@ impl AudioNotifier for MockAudioNotifier {
 #[cfg(feature = "audio-notifications")]
 mod rodio_impl {
     use super::*;
-    use rodio::{Decoder, OutputStream, Sink};
+    use rodio::OutputStream;
     
     /// Rodio-based audio notifier
     pub struct RodioAudioNotifier {
         enabled: Arc<Mutex<bool>>,
+        #[allow(dead_code)]
         volume: Arc<Mutex<f32>>,
         intervention_data: &'static [u8],
         completion_data: &'static [u8],
