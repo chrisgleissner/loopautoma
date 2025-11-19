@@ -42,7 +42,7 @@ function RegionConditionEditor({ value, onChange }: ConditionEditorProps) {
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
       <label
-        title="Minimum time the regions must be unchanged"
+        title="Regions must be unchanged (stable) for this duration before actions trigger. Set to same value as check interval to trigger on first stable evaluation."
         style={{ display: "flex", alignItems: "center", gap: 6 }}
       >
         <span>Stable (s)</span>

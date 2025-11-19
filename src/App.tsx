@@ -107,7 +107,7 @@ function MainWindow() {
   const { runningProfileId, setRunningProfileId } = useRunState();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showGraph, setShowGraph] = useState(true);
-  const [theme, setTheme] = useState<ThemeChoice>(isTestEnvironment ? "dark" : "system");
+  const [theme, setTheme] = useState<ThemeChoice>("dark");
   const [palette, setPalette] = useState<PaletteChoice>("serene");
   const [fontSize, setFontSize] = useState(13);
   const profiles = config?.profiles ?? [];

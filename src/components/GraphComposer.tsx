@@ -154,38 +154,15 @@ export function GraphComposer({ profile, onChange }: { profile: Profile | null; 
                   )}
                 </div>
                 <div className="action-row-editor">
-                  <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <select
-                      value={a.type}
-                      onChange={(e) => {
-                        const t = e.target.value;
-                        const def: ActionConfig = t === "Type"
-                          ? { type: "Type", text: "" }
-                          : t === "LLMPromptGeneration"
-                            ? { type: "LLMPromptGeneration", region_ids: [], risk_threshold: 0.5 }
-                            : { type: "Click", x: 0, y: 0, button: "Left" };
-                        const next = [...profile.actions];
-                        next[i] = def;
-                        onChange({ ...profile, actions: next });
-                      }}
-                      title="Change the action type"
-                    >
-                      {actionTypes.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                  </label>
                   {Editor && (
-                    <span>
-                      <Editor
-                        value={a}
-                        onChange={(next) => {
-                          const arr = [...profile.actions];
-                          arr[i] = next;
-                          onChange({ ...profile, actions: arr });
-                        }}
-                      />
-                    </span>
+                    <Editor
+                      value={a}
+                      onChange={(next) => {
+                        const arr = [...profile.actions];
+                        arr[i] = next;
+                        onChange({ ...profile, actions: arr });
+                      }}
+                    />
                   )}
                 </div>
               </li>

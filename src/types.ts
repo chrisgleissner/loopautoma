@@ -74,8 +74,8 @@ export const defaultPresetProfile = (): Profile => ({
   id: "profile-" + Date.now().toString(36),
   name: "New Profile",
   regions: [],
-  trigger: { type: "IntervalTrigger", check_interval_sec: 60 },
-  condition: { type: "RegionCondition", stable_ms: 8000, downscale: 4 },
+  trigger: { type: "IntervalTrigger", check_interval_sec: 5 },
+  condition: { type: "RegionCondition", stable_ms: 5000, downscale: 4 },
   actions: [],
   guardrails: { cooldown_ms: 5000 },
 });
