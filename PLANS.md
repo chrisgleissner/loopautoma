@@ -119,6 +119,364 @@ To prevent uncontrolled growth of this file:
 
 ## Active tasks
 
+### Task: Intelligent Termination System - AI Completion, OCR, Guardrails, and Audio Notifications
+
+**Started:** 2025-11-19
+
+**User request (summary)**
+- Implement complete intelligent termination system for automation profiles
+- Profiles must stop automatically based on multiple signals:
+  - AI determines task is finished (structured response schema)
+  - OCR detects completion text patterns
+  - Guardrails detect success/failure keywords
+  - Timeouts or failure limits reached
+  - Heartbeat indicates profile loop has stalled
+- Add configurable audio notifications for user intervention and profile completion
+
+**Context and constraints**
+- Must maintain test coverage ≥90% throughout
+- Follow existing architecture patterns (Tauri commands, React components, trait-based backends)
+- OCR must be offline/local (uni-ocr crate)
+- Audio must be cross-platform (rodio crate)
+- No breaking changes to existing Profile schema (only additions)
+- Termination logic must be composable (multiple conditions can trigger)
+
+**Plan (checklist)**
+
+**Phase 1: Design and Architecture**
+- [ ] 1.1. Create doc/terminationPatterns.md with comprehensive design
+  - [ ] 1.1a. Document structured AI response schema (continuation_prompt, continuation_prompt_risk, task_complete, task_complete_reason)
+  - [ ] 1.1b. Document OCR integration strategy (uni-ocr, regex patterns, region targeting)
+  - [ ] 1.1c. Document hybrid termination conditions (guardrails + TerminationCheck action + heartbeat)
+  - [ ] 1.1d. Document audio notification system (rodio, two notification types, secure storage)
+  - [ ] 1.1e. Provide complete examples for each termination pattern
+- [ ] 1.2. Update architecture.md with termination contracts
+  - [ ] 1.2a. Add TerminationConditions section to Guardrails
+  - [ ] 1.2b. Document TerminationCheck action interface
+  - [ ] 1.2c. Document OCRCapture trait
+  - [ ] 1.2d. Document AudioNotifier trait
+  - [ ] 1.2e. Document heartbeat watchdog behavior
+
+**Phase 2: Structured AI Response Schema** ✅ COMPLETE
+- [x] 2.1. Update LLMPromptResponse struct in domain.rs
+  - [x] 2.1a. Add continuation_prompt: Option<String>
+  - [x] 2.1b. Add continuation_prompt_risk: f64
+  - [x] 2.1c. Add task_complete: bool
+  - [x] 2.1d. Add task_complete_reason: Option<String>
+  - [x] 2.1e. Update serde derives and validation
+- [x] 2.2. Modify OpenAI client to enforce new schema
+  - [x] 2.2a. Update system prompt to specify exact JSON structure
+  - [x] 2.2b. Add JSON validation after response parsing
+  - [x] 2.2c. Implement retry logic (max 3 attempts)
+  - [x] 2.2d. Add correction prompt for malformed responses
+- [x] 2.3. Implement fallback keyword parsing
+  - [x] 2.3a. Scan response text for completion indicators (DONE, COMPLETE, FINISHED, TASK_COMPLETE)
+  - [x] 2.3b. Scan for continuation indicators (CONTINUE, NEXT, MORE_WORK)
+  - [x] 2.3c. Set task_complete based on keyword detection
+  - [x] 2.3d. Extract continuation_prompt from text
+- [x] 2.4. Update ActionContext to handle continuation flow
+  - [x] 2.4a. Add should_terminate flag
+  - [x] 2.4b. Store continuation_prompt for next iteration
+  - [x] 2.4c. Store task_complete_reason
+- [x] 2.5. Update Monitor to check ActionContext.should_terminate
+  - [x] 2.5a. After ActionSequence.run(), check context flag
+  - [x] 2.5b. If true, emit MonitorStateChanged(Stopped) with reason
+  - [x] 2.5c. Call stop() to terminate gracefully
+- [x] 2.6. Comprehensive testing
+  - [x] 2.6a. Test task_complete=true triggers termination
+  - [x] 2.6b. Test continuation_prompt with risk validation
+  - [x] 2.6c. Test ActionContext termination flag propagation
+  - [x] 2.6d. Test Monitor stops when context.should_terminate=true
+  - [x] 2.6e. Test Monitor continues when LLM returns continuation
+  - [x] 2.6f. All 39 Rust tests passing
+
+**Phase 3: Offline OCR Integration (uni-ocr)**
+- [ ] 3.1. Add uni-ocr dependency to Cargo.toml
+  - [ ] 3.1a. Add uni-ocr = "0.7" (latest stable)
+  - [ ] 3.1b. Add regex = "1" for pattern matching
+- [ ] 3.2. Create OCRCapture trait in domain.rs
+  - [ ] 3.2a. fn extract_text(region: &Region) -> Result<String, String>
+  - [ ] 3.2b. fn extract_text_cached(region: &Region) -> Result<String, String>
+  - [ ] 3.2c. Add cache invalidation strategy (time-based or hash-based)
+- [ ] 3.3. Implement LinuxOCRCapture in os/linux.rs
+  - [ ] 3.3a. Use uni-ocr with English language pack
+  - [ ] 3.3b. Implement region capture → OCR → text extraction
+  - [ ] 3.3c. Add caching layer (HashMap<RegionId, (String, Instant)>)
+  - [ ] 3.3d. Implement threaded nonblocking extraction (spawn task)
+- [ ] 3.4. Add OCR configuration to Guardrails
+  - [ ] 3.4a. success_keywords: Vec<String> (regex patterns)
+  - [ ] 3.4b. failure_keywords: Vec<String> (regex patterns)
+  - [ ] 3.4c. ocr_termination_pattern: Option<String> (regex)
+  - [ ] 3.4d. ocr_region_ids: Vec<String> (which regions to scan)
+- [ ] 3.5. Implement OCR-based termination in Monitor.tick()
+  - [ ] 3.5a. After condition evaluates, scan OCR regions
+  - [ ] 3.5b. Check for success_keywords → terminate with success reason
+  - [ ] 3.5c. Check for failure_keywords → terminate with failure reason
+  - [ ] 3.5d. Check for ocr_termination_pattern → terminate with pattern match reason
+
+**Phase 4: TerminationCheck Action**
+- [ ] 4.1. Add TerminationCheck variant to ActionConfig
+  - [ ] 4.1a. check_type: "context" | "ocr" | "ai_query"
+  - [ ] 4.1b. context_vars: Vec<String> (variables to inspect)
+  - [ ] 4.1c. ocr_region_ids: Vec<String>
+  - [ ] 4.1d. ai_query_prompt: Option<String>
+  - [ ] 4.1e. termination_condition: String (regex or logic expression)
+- [ ] 4.2. Implement TerminationCheck::run() in action.rs
+  - [ ] 4.2a. For context check: inspect ActionContext variables
+  - [ ] 4.2b. For OCR check: extract text and match pattern
+  - [ ] 4.2c. For AI query: call LLM with custom prompt, check task_complete
+  - [ ] 4.2d. Set context.should_terminate = true if condition met
+  - [ ] 4.2e. Set context.termination_reason
+- [ ] 4.3. Update ActionSequence.run() to check should_terminate
+  - [ ] 4.3a. After each action, check context.should_terminate
+  - [ ] 4.3b. If true, stop sequence early and return
+  - [ ] 4.3c. Emit Event::TerminationCheckTriggered with reason
+
+**Phase 5: Heartbeat Watchdog (Airflow Pattern)**
+- [ ] 5.1. Add heartbeat_timeout_ms to Guardrails
+- [ ] 5.2. Add last_action_progress: Option<Instant> to Monitor
+- [ ] 5.3. Update ActionSequence.run() to touch last_action_progress
+  - [ ] 5.3a. Set monitor.last_action_progress = Some(now) on each action start
+- [ ] 5.4. Check heartbeat in Monitor.tick()
+  - [ ] 5.4a. If last_action_progress is Some and now - last_action_progress > heartbeat_timeout_ms
+  - [ ] 5.4b. Emit WatchdogTripped { reason: "heartbeat_stalled" }
+  - [ ] 5.4c. Call stop() to terminate loop
+- [ ] 5.5. Add heartbeat_stalled to Event type
+- [ ] 5.6. Update EventLog UI to show heartbeat warnings
+
+**Phase 6: Audio Notifications (rodio)**
+- [ ] 6.1. Add rodio dependency to Cargo.toml
+  - [ ] 6.1a. Add rodio = "0.18" (latest stable)
+  - [ ] 6.1b. Add platform-specific audio backend features
+- [ ] 6.2. Create audio subsystem (src-tauri/src/audio.rs)
+  - [ ] 6.2a. Define AudioNotifier trait
+  - [ ] 6.2b. Implement RodioAudioNotifier
+  - [ ] 6.2c. Add two notification sound files (intervention.wav, completed.wav)
+  - [ ] 6.2d. Load sounds at initialization
+- [ ] 6.3. Add notification methods
+  - [ ] 6.3a. play_intervention_needed() → plays alarm sound
+  - [ ] 6.3b. play_profile_ended() → plays completion chime
+  - [ ] 6.3c. set_volume(level: f32) → 0.0-1.0 range
+  - [ ] 6.3d. set_enabled(enabled: bool)
+- [ ] 6.4. Store audio preferences in secure storage
+  - [ ] 6.4a. Add get_audio_enabled() → bool
+  - [ ] 6.4b. Add set_audio_enabled(enabled: bool)
+  - [ ] 6.4c. Add get_audio_volume() → f32
+  - [ ] 6.4d. Add set_audio_volume(volume: f32)
+- [ ] 6.5. Wire audio into Monitor
+  - [ ] 6.5a. Add AudioNotifier reference to Monitor
+  - [ ] 6.5b. On WatchdogTripped → play_intervention_needed()
+  - [ ] 6.5c. On OCR failure_keywords → play_intervention_needed()
+  - [ ] 6.5d. On max_consecutive_failures → play_intervention_needed()
+  - [ ] 6.5e. On graceful termination (task_complete=true) → play_profile_ended()
+- [ ] 6.6. Add Tauri commands for audio control
+  - [ ] 6.6a. audio_test_intervention() → test intervention sound
+  - [ ] 6.6b. audio_test_completed() → test completion sound
+  - [ ] 6.6c. audio_set_volume(volume: f32)
+  - [ ] 6.6d. audio_set_enabled(enabled: bool)
+
+**Phase 7: UI Updates**
+- [ ] 7.1. Update profile editor with termination fields
+  - [ ] 7.1a. Add "Termination Conditions" section
+  - [ ] 7.1b. Add success_keywords text area (one per line)
+  - [ ] 7.1c. Add failure_keywords text area (one per line)
+  - [ ] 7.1d. Add max_consecutive_failures number input
+  - [ ] 7.1e. Add action_timeout_ms number input
+  - [ ] 7.1f. Add heartbeat_timeout_ms number input
+- [ ] 7.2. Add OCR pattern section
+  - [ ] 7.2a. Add ocr_termination_pattern text input with regex hint
+  - [ ] 7.2b. Add OCR region selector (multi-select from profile regions)
+  - [ ] 7.2c. Add "Test OCR" button to preview extracted text
+- [ ] 7.3. Add AI adaptive mode toggle
+  - [ ] 7.3a. "Enable AI Task Completion" checkbox
+  - [ ] 7.3b. Help text explaining structured response schema
+  - [ ] 7.3c. Warning if no API key configured
+- [ ] 7.4. Update SettingsPanel with notification settings
+  - [ ] 7.4a. Add "Audio Notifications" section
+  - [ ] 7.4b. Add enable/disable toggle
+  - [ ] 7.4c. Add volume slider (0-100%)
+  - [ ] 7.4d. Add "Test Intervention Sound" button
+  - [ ] 7.4e. Add "Test Completion Sound" button
+- [ ] 7.5. Add ProfileInsights warnings
+  - [ ] 7.5a. Warn if no termination conditions configured
+  - [ ] 7.5b. Warn if max_runtime is missing
+  - [ ] 7.5c. Suggest adding success_keywords or ocr_pattern
+  - [ ] 7.5d. Warn if AI adaptive mode enabled but no API key
+
+**Phase 8: Rust Tests**
+- [ ] 8.1. Test guardrails with new termination fields
+  - [ ] 8.1a. Test success_keywords detection
+  - [ ] 8.1b. Test failure_keywords detection
+  - [ ] 8.1c. Test max_consecutive_failures limit
+  - [ ] 8.1d. Test action_timeout triggering
+  - [ ] 8.1e. Test heartbeat_timeout detection
+- [ ] 8.2. Test OCR extraction
+  - [ ] 8.2a. Create mock images with known text
+  - [ ] 8.2b. Test uni-ocr extraction accuracy
+  - [ ] 8.2c. Test regex pattern matching
+  - [ ] 8.2d. Test caching behavior
+- [ ] 8.3. Test LLM schema parsing
+  - [ ] 8.3a. Test valid structured response
+  - [ ] 8.3b. Test retry logic on malformed JSON
+  - [ ] 8.3c. Test fallback keyword parsing
+  - [ ] 8.3d. Test continuation_prompt extraction
+- [ ] 8.4. Test TerminationCheck action
+  - [ ] 8.4a. Test context variable inspection
+  - [ ] 8.4b. Test OCR-based termination
+  - [ ] 8.4c. Test AI query termination
+  - [ ] 8.4d. Test should_terminate flag setting
+- [ ] 8.5. Test heartbeat watchdog
+  - [ ] 8.5a. Test normal heartbeat updates
+  - [ ] 8.5b. Test stalled heartbeat detection
+  - [ ] 8.5c. Test watchdog event emission
+- [ ] 8.6. Verify coverage ≥90%
+  - [ ] 8.6a. Run cargo llvm-cov
+  - [ ] 8.6b. Identify uncovered branches
+  - [ ] 8.6c. Add tests to reach 90%+ threshold
+
+**Phase 9: UI Tests**
+- [ ] 9.1. Test profile editor termination fields
+  - [ ] 9.1a. Test success_keywords input and validation
+  - [ ] 9.1b. Test failure_keywords input and validation
+  - [ ] 9.1c. Test timeout inputs (action, heartbeat)
+  - [ ] 9.1d. Test AI adaptive mode toggle
+- [ ] 9.2. Test OCR pattern section
+  - [ ] 9.2a. Test pattern input with regex validation
+  - [ ] 9.2b. Test region selector multi-select
+  - [ ] 9.2c. Test "Test OCR" button (mocked)
+- [ ] 9.3. Test notification settings panel
+  - [ ] 9.3a. Test enable/disable toggle
+  - [ ] 9.3b. Test volume slider updates
+  - [ ] 9.3c. Test sound test buttons (mocked)
+- [ ] 9.4. Test ProfileInsights warnings
+  - [ ] 9.4a. Test missing termination condition warning
+  - [ ] 9.4b. Test missing API key warning
+  - [ ] 9.4c. Test warning dismissal
+- [ ] 9.5. Test event bridge for termination events
+  - [ ] 9.5a. Test TerminationCheckTriggered event
+  - [ ] 9.5b. Test WatchdogTripped(heartbeat_stalled) event
+  - [ ] 9.5c. Test MonitorStateChanged(Stopped) with reason
+- [ ] 9.6. Verify coverage ≥90%
+
+**Phase 10: E2E Tests**
+- [ ] 10.1. Test AI-driven completion
+  - [ ] 10.1a. Start monitor with AI adaptive mode
+  - [ ] 10.1b. Mock LLM response with task_complete=true
+  - [ ] 10.1c. Verify monitor stops gracefully
+  - [ ] 10.1d. Verify completion sound plays
+- [ ] 10.2. Test OCR-driven completion
+  - [ ] 10.2a. Start monitor with ocr_termination_pattern
+  - [ ] 10.2b. Update region to show completion text
+  - [ ] 10.2c. Verify OCR detects pattern
+  - [ ] 10.2d. Verify monitor stops with success reason
+- [ ] 10.3. Test multi-level timeout
+  - [ ] 10.3a. Configure action_timeout, heartbeat_timeout, max_runtime
+  - [ ] 10.3b. Trigger action_timeout (slow action)
+  - [ ] 10.3c. Verify watchdog trips
+  - [ ] 10.3d. Trigger heartbeat_timeout (stalled loop)
+  - [ ] 10.3e. Verify different reason in event
+- [ ] 10.4. Test heartbeat watchdog
+  - [ ] 10.4a. Start monitor with heartbeat_timeout=5s
+  - [ ] 10.4b. Simulate stalled action (doesn't update progress)
+  - [ ] 10.4c. Verify watchdog trips after 5s
+  - [ ] 10.4d. Verify intervention sound plays
+- [ ] 10.5. Test sound dispatch logic
+  - [ ] 10.5a. Configure audio enabled=true
+  - [ ] 10.5b. Trigger intervention scenarios (watchdog, failure_keywords)
+  - [ ] 10.5c. Verify correct sound plays each time
+  - [ ] 10.5d. Configure audio enabled=false
+  - [ ] 10.5e. Verify no sounds play
+- [ ] 10.6. Test continuation_prompt risk propagation
+  - [ ] 10.6a. Mock LLM response with high continuation_prompt_risk
+  - [ ] 10.6b. Verify risk is stored in context
+  - [ ] 10.6c. Verify subsequent actions can access risk value
+  - [ ] 10.6d. Verify monitor logs risk warning
+
+**Phase 11: Documentation**
+- [ ] 11.1. Complete doc/terminationPatterns.md
+  - [ ] 11.1a. Add real-world examples for each pattern
+  - [ ] 11.1b. Add best practices section
+  - [ ] 11.1c. Add troubleshooting guide
+  - [ ] 11.1d. Add performance considerations
+- [ ] 11.2. Update architecture.md
+  - [ ] 11.2a. Add TerminationConditions to Guardrails contract
+  - [ ] 11.2b. Document TerminationCheck action
+  - [ ] 11.2c. Document OCRCapture trait
+  - [ ] 11.2d. Document AudioNotifier trait
+  - [ ] 11.2e. Document heartbeat watchdog mechanism
+  - [ ] 11.2f. Add termination flow diagram
+- [ ] 11.3. Update userManual.md
+  - [ ] 11.3a. Add "Setting Up Termination Conditions" section
+  - [ ] 11.3b. Document each termination type with examples
+  - [ ] 11.3c. Add audio notification configuration guide
+  - [ ] 11.3d. Add OCR pattern writing guide
+  - [ ] 11.3e. Add AI adaptive mode setup guide
+- [ ] 11.4. Update README.md
+  - [ ] 11.4a. Add intelligent termination to features list
+  - [ ] 11.4b. Add brief overview of termination options
+  - [ ] 11.4c. Link to terminationPatterns.md for details
+
+**Phase 12: Final Integration and Verification**
+- [ ] 12.1. Run full Rust test suite
+  - [ ] 12.1a. cargo test --all --locked
+  - [ ] 12.1b. Fix any failing tests
+  - [ ] 12.1c. Verify coverage ≥90%
+- [ ] 12.2. Run full UI test suite
+  - [ ] 12.2a. bun test
+  - [ ] 12.2b. Fix any failing tests
+  - [ ] 12.2c. Verify coverage ≥90%
+- [ ] 12.3. Run E2E test suite
+  - [ ] 12.3a. bun run test:e2e
+  - [ ] 12.3b. Fix any failing tests
+  - [ ] 12.3c. Verify all termination scenarios pass
+- [ ] 12.4. Manual testing
+  - [ ] 12.4a. Test AI-driven completion with real OpenAI API
+  - [ ] 12.4b. Test OCR with real screen content
+  - [ ] 12.4c. Test audio notifications on all platforms
+  - [ ] 12.4d. Test heartbeat watchdog with slow actions
+  - [ ] 12.4e. Test graceful vs forced termination
+- [ ] 12.5. Build release artifacts
+  - [ ] 12.5a. bun run build
+  - [ ] 12.5b. Test AppImage on Ubuntu
+  - [ ] 12.5c. Verify no warnings or errors
+- [ ] 12.6. Update PLANS.md
+  - [ ] 12.6a. Mark task as complete
+  - [ ] 12.6b. Document any deferred work
+  - [ ] 12.6c. Add follow-up items
+- [ ] 12.7. Commit with conventional message
+  - [ ] 12.7a. git add all changed files
+  - [ ] 12.7b. git commit -m "feat: intelligent termination system with AI, OCR, and audio"
+  - [ ] 12.7c. git push origin main
+
+**Progress log**
+- 2025-01-19 — Task created, comprehensive 12-phase plan drafted (136 steps)
+- 2025-01-19 — Phase 1 COMPLETE: Created doc/terminationPatterns.md, updated architecture.md
+- 2025-01-19 — Phase 2 COMPLETE: Extended LLM schema with structured termination, added tests, all 39 tests passing
+
+**Assumptions and open questions**
+- Assumption: uni-ocr provides sufficient OCR accuracy for English text (primary use case)
+- Assumption: rodio provides cross-platform audio with acceptable latency
+- Assumption: Users prefer audio notifications over visual-only alerts
+- Assumption: Structured AI schema is more reliable than free-form responses
+- Assumption: Heartbeat timeout of 30-60s is appropriate default
+- Open question: Should we support multiple OCR languages?
+- Open question: Should continuation_prompt automatically trigger next iteration?
+- Open question: Should we add visual progress indicator for OCR extraction?
+- Open question: Should audio be configurable per-profile or global only?
+- Open question: Should we add email/webhook notifications for termination events?
+
+**Follow‑ups / future work**
+- Support for multiple OCR languages (French, German, Spanish, etc.)
+- Custom audio files (user-provided .wav/.mp3)
+- Email/webhook notifications for termination events
+- Visual progress indicator for OCR extraction
+- Per-profile audio notification settings
+- Termination history/log with timestamps and reasons
+- Export termination events to CSV/JSON
+- Integration with external monitoring tools (Prometheus, Grafana)
+- Machine learning-based termination prediction
+- Cloud-based OCR services (Google Cloud Vision, AWS Textract) as alternatives
+
 ### Task: Major UX Overhaul - AI Integration, Simplified Condition Logic, and Visual Improvements
 
 **Started:** 2025-11-19

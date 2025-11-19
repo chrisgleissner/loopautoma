@@ -21,17 +21,21 @@ pub struct MockLLMClient {
 impl MockLLMClient {
     pub fn new() -> Self {
         Self {
-            mock_response: LLMPromptResponse {
-                prompt: "continue".to_string(),
-                risk: 0.1,
-            },
+            mock_response: LLMPromptResponse::continuation("continue".to_string(), 0.1),
         }
     }
 
     #[cfg(test)]
     pub fn with_response(prompt: String, risk: f64) -> Self {
         Self {
-            mock_response: LLMPromptResponse { prompt, risk },
+            mock_response: LLMPromptResponse::continuation(prompt, risk),
+        }
+    }
+    
+    #[cfg(test)]
+    pub fn with_completion(reason: String) -> Self {
+        Self {
+            mock_response: LLMPromptResponse::completed(reason),
         }
     }
 }
@@ -75,7 +79,7 @@ mod real_client {
         content: Vec<MessageContent>,
     }
 
-    #[derive(Serialize)]
+    #[derive(Serialize, Clone)]
     #[serde(tag = "type")]
     enum MessageContent {
         #[serde(rename = "text")]
@@ -84,7 +88,7 @@ mod real_client {
         ImageUrl { image_url: ImageUrl },
     }
 
-    #[derive(Serialize)]
+    #[derive(Serialize, Clone)]
     struct ImageUrl {
         url: String,
     }
@@ -127,80 +131,28 @@ mod real_client {
         fn build_system_message(&self, system_prompt: Option<&str>, risk_guidance: &str) -> String {
             let base_prompt = system_prompt.unwrap_or(
                 "You are an AI assistant helping with desktop automation. \
-                 Generate a safe, concise prompt based on the screen content provided.",
+                 Analyze the screen content and determine if the task is complete.",
             );
 
             format!(
                 "{}\n\n{}\n\n\
                  Return ONLY a JSON object with this exact structure:\n\
-                 {{\n  \"prompt\": \"<your generated prompt text, max 200 chars>\",\n  \"risk\": <risk level 0.0-1.0>\n}}\n\n\
-                 Do not include any explanation or additional text.",
+                 {{\n\
+                   \"continuation_prompt\": \"<text for next action, or null if complete>\",\n\
+                   \"continuation_prompt_risk\": <risk level 0.0-1.0>,\n\
+                   \"task_complete\": <true|false>,\n\
+                   \"task_complete_reason\": \"<explanation if complete, or null>\"\n\
+                 }}\n\n\
+                 Examples:\n\
+                 - Task complete: {{\"continuation_prompt\": null, \"continuation_prompt_risk\": 0.0, \"task_complete\": true, \"task_complete_reason\": \"All tests passed\"}}\n\
+                 - Task continuing: {{\"continuation_prompt\": \"click Run button\", \"continuation_prompt_risk\": 0.2, \"task_complete\": false, \"task_complete_reason\": null}}\n\n\
+                 Do not include any explanation or additional text outside the JSON.",
                 base_prompt, risk_guidance
             )
         }
-    }
-
-    impl LLMClient for OpenAIClient {
-        fn generate_prompt(
-            &self,
-            _regions: &[Region],
-            region_images: Vec<Vec<u8>>,
-            system_prompt: Option<&str>,
-            risk_guidance: &str,
-        ) -> Result<LLMPromptResponse, String> {
-            // Build the request
-            let mut content = vec![MessageContent::Text {
-                text: self.build_system_message(system_prompt, risk_guidance),
-            }];
-
-            // Add images as base64 data URLs
-            for image_png in region_images {
-                let base64_image =
-                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &image_png);
-                let data_url = format!("data:image/png;base64,{}", base64_image);
-                content.push(MessageContent::ImageUrl {
-                    image_url: ImageUrl { url: data_url },
-                });
-            }
-
-            let request = OpenAIRequest {
-                model: self.model.clone(),
-                messages: vec![OpenAIMessage {
-                    role: "user".to_string(),
-                    content,
-                }],
-                max_tokens: 300,
-                temperature: 0.7,
-            };
-
-            // Make the HTTP request synchronously using tokio runtime
-            let runtime = tokio::runtime::Runtime::new()
-                .map_err(|e| format!("Failed to create tokio runtime: {}", e))?;
-
-            let response = runtime.block_on(async {
-                let client = reqwest::Client::new();
-                client
-                    .post(&self.api_endpoint)
-                    .header("Authorization", format!("Bearer {}", self.api_key))
-                    .header("Content-Type", "application/json")
-                    .json(&request)
-                    .send()
-                    .await
-                    .map_err(|e| format!("HTTP request failed: {}", e))?
-                    .json::<OpenAIResponse>()
-                    .await
-                    .map_err(|e| format!("Failed to parse response: {}", e))
-            })?;
-
-            // Parse the JSON response
-            let content = response
-                .choices
-                .first()
-                .ok_or("No response from LLM")?
-                .message
-                .content
-                .trim();
-
+        
+        /// Parse LLM response with fallback keyword detection
+        fn parse_response(&self, content: &str) -> Result<LLMPromptResponse, String> {
             // Extract JSON from potential markdown code blocks
             let json_str = if content.starts_with("```json") {
                 content
@@ -216,14 +168,154 @@ mod real_client {
                 content
             };
 
-            let llm_response: LLMPromptResponse = serde_json::from_str(json_str).map_err(|e| {
-                format!(
-                    "Failed to parse LLM JSON response: {}. Content: {}",
-                    e, json_str
-                )
-            })?;
+            // Try to parse as structured JSON
+            if let Ok(response) = serde_json::from_str::<LLMPromptResponse>(json_str) {
+                return Ok(response);
+            }
+            
+            // Fallback: keyword-based parsing
+            eprintln!("Warning: Failed to parse structured LLM response, using keyword fallback");
+            
+            let content_upper = content.to_uppercase();
+            
+            // Check for completion keywords
+            let task_complete = content_upper.contains("DONE")
+                || content_upper.contains("COMPLETE")
+                || content_upper.contains("FINISHED")
+                || content_upper.contains("TASK_COMPLETE");
+            
+            if task_complete {
+                let reason = if content_upper.contains("SUCCESS") || content_upper.contains("PASSED") {
+                    "Task completed successfully".to_string()
+                } else if content_upper.contains("FAIL") || content_upper.contains("ERROR") {
+                    "Task completed with errors".to_string()
+                } else {
+                    "Task completed".to_string()
+                };
+                return Ok(LLMPromptResponse::completed(reason));
+            }
+            
+            // Check for continuation keywords
+            if content_upper.contains("CONTINUE") || content_upper.contains("NEXT") || content_upper.contains("MORE") {
+                // Try to extract continuation text
+                let prompt = if let Some(idx) = content.find("continue") {
+                    content[idx..].lines().next().unwrap_or("continue").to_string()
+                } else {
+                    "continue".to_string()
+                };
+                return Ok(LLMPromptResponse::continuation(prompt, 0.3));
+            }
+            
+            // Default: treat as continuation with low risk
+            Ok(LLMPromptResponse::continuation(
+                content.lines().next().unwrap_or("continue").to_string(),
+                0.3
+            ))
+        }
+    }
 
-            Ok(llm_response)
+    impl LLMClient for OpenAIClient {
+        fn generate_prompt(
+            &self,
+            _regions: &[Region],
+            region_images: Vec<Vec<u8>>,
+            system_prompt: Option<&str>,
+            risk_guidance: &str,
+        ) -> Result<LLMPromptResponse, String> {
+            const MAX_RETRIES: usize = 3;
+            
+            // Build the base content with images
+            let mut content = vec![MessageContent::Text {
+                text: self.build_system_message(system_prompt, risk_guidance),
+            }];
+
+            // Add images as base64 data URLs
+            for image_png in region_images {
+                let base64_image =
+                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &image_png);
+                let data_url = format!("data:image/png;base64,{}", base64_image);
+                content.push(MessageContent::ImageUrl {
+                    image_url: ImageUrl { url: data_url },
+                });
+            }
+
+            // Make the HTTP request synchronously using tokio runtime
+            let runtime = tokio::runtime::Runtime::new()
+                .map_err(|e| format!("Failed to create tokio runtime: {}", e))?;
+
+            let mut last_error = String::new();
+            
+            for attempt in 1..=MAX_RETRIES {
+                let request = OpenAIRequest {
+                    model: self.model.clone(),
+                    messages: vec![OpenAIMessage {
+                        role: "user".to_string(),
+                        content: content.clone(),
+                    }],
+                    max_tokens: 300,
+                    temperature: 0.7,
+                };
+
+                let response = runtime.block_on(async {
+                    let client = reqwest::Client::new();
+                    client
+                        .post(&self.api_endpoint)
+                        .header("Authorization", format!("Bearer {}", self.api_key))
+                        .header("Content-Type", "application/json")
+                        .json(&request)
+                        .send()
+                        .await
+                        .map_err(|e| format!("HTTP request failed: {}", e))?
+                        .json::<OpenAIResponse>()
+                        .await
+                        .map_err(|e| format!("Failed to parse response: {}", e))
+                });
+
+                match response {
+                    Ok(resp) => {
+                        let response_content = resp
+                            .choices
+                            .first()
+                            .ok_or("No response from LLM")?
+                            .message
+                            .content
+                            .trim();
+
+                        // Try to parse response with fallback
+                        match self.parse_response(response_content) {
+                            Ok(llm_response) => return Ok(llm_response),
+                            Err(e) => {
+                                last_error = e.clone();
+                                eprintln!("Attempt {}/{} failed: {}", attempt, MAX_RETRIES, e);
+                                
+                                if attempt < MAX_RETRIES {
+                                    // Add correction prompt for next attempt
+                                    content.insert(0, MessageContent::Text {
+                                        text: format!(
+                                            "Previous response was invalid JSON. Error: {}. \
+                                             Please return ONLY valid JSON with the exact structure specified.",
+                                            e
+                                        ),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        last_error = e.clone();
+                        eprintln!("HTTP request attempt {}/{} failed: {}", attempt, MAX_RETRIES, e);
+                        
+                        if attempt < MAX_RETRIES {
+                            std::thread::sleep(std::time::Duration::from_millis(500 * attempt as u64));
+                        }
+                    }
+                }
+            }
+
+            Err(format!(
+                "Failed after {} attempts. Last error: {}",
+                MAX_RETRIES, last_error
+            ))
         }
     }
 

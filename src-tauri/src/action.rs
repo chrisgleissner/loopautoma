@@ -104,29 +104,51 @@ impl Action for LLMPromptGenerationAction {
             &risk_guidance,
         )?;
 
-        // 5. Validate risk threshold
-        if llm_response.risk > self.risk_threshold {
+        // 5. Check if task is complete (new structured termination)
+        if llm_response.task_complete {
+            let reason = llm_response.task_complete_reason.clone()
+                .unwrap_or_else(|| "LLM signaled task complete".to_string());
+            context.request_termination(reason);
+            
+            // Still set variables for logging/inspection
+            if let Some(ref prompt) = llm_response.continuation_prompt {
+                context.set(&self.variable_name, prompt.clone());
+            }
+            context.set("task_complete", "true");
+            
+            return Ok(());
+        }
+
+        // 6. Validate continuation prompt exists
+        let continuation_prompt = llm_response.continuation_prompt.as_ref()
+            .ok_or("LLM did not provide continuation_prompt")?;
+
+        // 7. Validate risk threshold (use new continuation_prompt_risk)
+        let risk = llm_response.continuation_prompt_risk;
+        if risk > self.risk_threshold {
             // Play audible alarm
             self.play_alarm();
             return Err(format!(
                 "Risk threshold exceeded: {} > {} (generated prompt: '{}')",
-                llm_response.risk, self.risk_threshold, llm_response.prompt
+                risk, self.risk_threshold, continuation_prompt
             ));
         }
 
-        // 6. Validate prompt
-        if llm_response.prompt.is_empty() {
-            return Err("LLM returned empty prompt".to_string());
+        // 8. Validate prompt
+        if continuation_prompt.is_empty() {
+            return Err("LLM returned empty continuation_prompt".to_string());
         }
-        if llm_response.prompt.len() > 200 {
+        if continuation_prompt.len() > 200 {
             return Err(format!(
                 "LLM prompt too long: {} characters (max 200)",
-                llm_response.prompt.len()
+                continuation_prompt.len()
             ));
         }
 
-        // 7. Set the variable in context
-        context.set(&self.variable_name, llm_response.prompt);
+        // 9. Set the variables in context
+        context.set(&self.variable_name, continuation_prompt.clone());
+        context.set("continuation_prompt_risk", risk.to_string());
+        context.set("task_complete", "false");
 
         Ok(())
     }

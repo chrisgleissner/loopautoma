@@ -152,5 +152,13 @@ impl<'a> Monitor<'a> {
                 self.activation_log.push_back(now);
             }
         }
+        
+        // Check for termination request from actions (e.g., LLM task completion)
+        if self.context.is_termination_requested() {
+            let reason = self.context.termination_reason.clone()
+                .unwrap_or_else(|| "termination_requested".to_string());
+            out_events.push(Event::WatchdogTripped { reason });
+            self.stop(out_events);
+        }
     }
 }

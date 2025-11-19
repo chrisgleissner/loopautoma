@@ -124,15 +124,22 @@ pub trait Automation {
 }
 
 /// ActionContext holds global variables that can be referenced by actions
+/// and flags for controlling execution flow (e.g., termination)
 #[derive(Debug, Clone, Default)]
 pub struct ActionContext {
     pub variables: HashMap<String, String>,
+    /// Flag set by TerminationCheck or LLM actions to signal monitor should stop
+    pub should_terminate: bool,
+    /// Reason for termination (if should_terminate is true)
+    pub termination_reason: Option<String>,
 }
 
 impl ActionContext {
     pub fn new() -> Self {
         Self {
             variables: HashMap::new(),
+            should_terminate: false,
+            termination_reason: None,
         }
     }
 
@@ -152,6 +159,17 @@ impl ActionContext {
             result = result.replace(&pattern, value);
         }
         result
+    }
+    
+    /// Request termination of the monitor
+    pub fn request_termination(&mut self, reason: impl Into<String>) {
+        self.should_terminate = true;
+        self.termination_reason = Some(reason.into());
+    }
+    
+    /// Check if termination has been requested
+    pub fn is_termination_requested(&self) -> bool {
+        self.should_terminate
     }
 }
 
@@ -288,17 +306,71 @@ pub struct GuardrailsConfig {
     pub cooldown_ms: u64,
 }
 
-/// Response from LLM for prompt generation
+/// Response from LLM for prompt generation with intelligent termination support
 ///
-/// Note: This struct derives `PartialEq` but not `Eq` because it contains a floating-point
-/// field (`risk: f64`). Floating-point comparisons are intentionally partial rather than
-/// total equality, as per Rust best practices.
+/// Note: This struct derives `PartialEq` but not `Eq` because it contains floating-point
+/// fields (`risk`, `continuation_prompt_risk`). Floating-point comparisons are intentionally
+/// partial rather than total equality, as per Rust best practices.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LLMPromptResponse {
-    /// The generated prompt text (max ~200 characters)
+    /// The generated prompt text (max ~200 characters) - DEPRECATED in favor of continuation_prompt
+    #[serde(default)]
     pub prompt: String,
-    /// Risk level assessment (0.0 = low, 1.0 = high)
+    /// Risk level assessment (0.0 = low, 1.0 = high) - DEPRECATED in favor of continuation_prompt_risk
+    #[serde(default)]
     pub risk: f64,
+    
+    // New structured termination fields
+    /// Text to use for next iteration if task not complete, null if task is complete
+    #[serde(default)]
+    pub continuation_prompt: Option<String>,
+    /// Risk level (0.0-1.0) of the continuation prompt
+    #[serde(default)]
+    pub continuation_prompt_risk: f64,
+    /// True if task is finished (success or failure), false if more work remains
+    #[serde(default)]
+    pub task_complete: bool,
+    /// Human-readable explanation of why task is complete (if task_complete is true)
+    #[serde(default)]
+    pub task_complete_reason: Option<String>,
+}
+
+impl LLMPromptResponse {
+    /// Create a simple response (backward compatibility with old schema)
+    pub fn simple(prompt: String, risk: f64) -> Self {
+        Self {
+            prompt: prompt.clone(),
+            risk,
+            continuation_prompt: Some(prompt),
+            continuation_prompt_risk: risk,
+            task_complete: false,
+            task_complete_reason: None,
+        }
+    }
+    
+    /// Create a task completion response
+    pub fn completed(reason: String) -> Self {
+        Self {
+            prompt: String::new(),
+            risk: 0.0,
+            continuation_prompt: None,
+            continuation_prompt_risk: 0.0,
+            task_complete: true,
+            task_complete_reason: Some(reason),
+        }
+    }
+    
+    /// Create a continuation response
+    pub fn continuation(prompt: String, risk: f64) -> Self {
+        Self {
+            prompt: prompt.clone(),
+            risk,
+            continuation_prompt: Some(prompt),
+            continuation_prompt_risk: risk,
+            task_complete: false,
+            task_complete_reason: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

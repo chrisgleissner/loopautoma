@@ -367,9 +367,254 @@ The UI (`src/components/SettingsPanel.tsx`) provides a single settings dialog fo
 
 For detailed security best practices and troubleshooting, see [doc/secureStorage.md](secureStorage.md).
 
+## Intelligent Termination System
+
+Profiles terminate automatically based on multiple concurrent signals, eliminating the need for manual intervention.
+
+### Termination Signals
+
+1. **AI Task Completion** — LLM analyzes screen content and returns structured response with `task_complete: true`
+2. **OCR Pattern Matching** — Offline OCR detects success/failure keywords in specified regions (uni-ocr)
+3. **Guardrail Limits** — Max runtime, max activations, consecutive failures, action timeout
+4. **Heartbeat Watchdog** — Detects stuck loops when no progress for N milliseconds (Airflow pattern)
+5. **TerminationCheck Action** — Explicit action to inspect context/OCR/AI and decide termination
+
+Any signal can trigger termination. Monitor emits detailed events and plays audio notifications.
+
+### Structured AI Response Schema
+
+All LLM calls return JSON with exact structure:
+
+```typescript
+{
+  continuation_prompt: string | null,       // Text for next iteration, null if complete
+  continuation_prompt_risk: number,         // Risk level 0.0-1.0 of continuation
+  task_complete: boolean,                   // True if task finished
+  task_complete_reason: string | null       // Explanation of completion
+}
+```
+
+**Retry Logic:**
+- Invalid JSON → retry with correction prompt (max 3 attempts)
+- Fallback keyword parsing: scan for DONE/COMPLETE/FINISHED → `task_complete: true`
+- All failures → log error and continue (don't terminate)
+
+**Variable Expansion:**
+- `continuation_prompt` stored in ActionContext
+- Available to subsequent Type actions via `$continuation_prompt`
+- `task_complete_reason` logged in termination event
+
+### OCRCapture Trait
+
+```rust
+pub trait OCRCapture: Send + Sync {
+    /// Extract text from region using OCR (uni-ocr)
+    fn extract_text(&self, region: &Region) -> Result<String, String>;
+    
+    /// Extract text with 1-second cache (invalidated by region hash change)
+    fn extract_text_cached(&self, region: &Region) -> Result<String, String>;
+}
+```
+
+**Implementation:** LinuxOCRCapture uses uni-ocr (Tesseract-based) with English language pack. Threaded nonblocking extraction. Cache per region using `parking_lot::RwLock<HashMap<RegionId, (String, Instant)>>`.
+
+**Accuracy Tips:**
+- High contrast regions (white on black or vice versa)
+- Large fonts (min 12pt)
+- Sans-serif fonts (Arial, Helvetica)
+- No overlays or semi-transparent UI
+
+### TerminationCheck Action
+
+Explicit action for mid-sequence termination logic:
+
+```typescript
+{
+  type: "TerminationCheck",
+  check_type: "context" | "ocr" | "ai_query",
+  context_vars?: string[],              // Variables to inspect for context check
+  ocr_region_ids?: string[],            // Regions to scan for OCR check
+  termination_condition: string,        // Regex or logic expression
+  ai_query_prompt?: string              // Custom prompt for AI query check
+}
+```
+
+**Execution:**
+1. `context` check: inspect ActionContext variables against condition
+2. `ocr` check: extract text from regions and match regex pattern
+3. `ai_query` check: call LLM with custom prompt, check `task_complete`
+4. If condition met: set `context.should_terminate = true` and stop sequence early
+
+**Example:**
+
+```json
+{
+  "actions": [
+    { "type": "Type", "text": "check status" },
+    { "type": "Key", "key": "Enter" },
+    {
+      "type": "TerminationCheck",
+      "check_type": "ocr",
+      "ocr_region_ids": ["result-panel"],
+      "termination_condition": "(?i)(complete|finished|done)"
+    }
+  ]
+}
+```
+
+### Heartbeat Watchdog
+
+**Mechanism:** Tracks `last_action_progress: Option<Instant>` in Monitor. Each action in ActionSequence updates this timestamp. If no progress for `heartbeat_timeout_ms`, watchdog trips.
+
+**Airflow Pattern:** Inspired by Apache Airflow's task heartbeat. Detects:
+- Stuck actions (waiting for UI that never appears)
+- Infinite loops in action logic
+- Long-running external processes that hang
+
+**Configuration:**
+
+```json
+{
+  "guardrails": {
+    "heartbeat_timeout_ms": 60000  // 60 seconds
+  }
+}
+```
+
+**Behavior:**
+- On timeout: emit `WatchdogTripped { reason: "heartbeat_stalled" }`
+- Play intervention audio notification
+- Stop monitor gracefully
+
+### AudioNotifier Trait
+
+```rust
+pub trait AudioNotifier: Send + Sync {
+    /// Play urgent alarm (watchdog, failures, intervention needed)
+    fn play_intervention_needed(&self);
+    
+    /// Play completion chime (graceful termination, success)
+    fn play_profile_ended(&self);
+    
+    /// Set volume 0.0-1.0
+    fn set_volume(&mut self, volume: f32);
+    
+    /// Enable/disable audio
+    fn set_enabled(&mut self, enabled: bool);
+}
+```
+
+**Implementation:** RodioAudioNotifier using rodio crate v0.18+. Two embedded WAV files:
+- `intervention.wav` — Urgent alarm tone (500ms, 3 beeps)
+- `completed.wav` — Pleasant completion chime (300ms)
+
+**Storage:** Audio preferences in secure storage (OS keyring):
+- `audio_enabled`: bool (default: true)
+- `audio_volume`: f32 (default: 0.7)
+
+**UI Controls:**
+- Settings panel: enable/disable toggle, volume slider (0-100%)
+- Test buttons for each sound type
+
+### Guardrails Extensions
+
+```typescript
+type GuardrailsConfig = {
+  // Existing
+  max_runtime_ms?: number;
+  max_activations_per_hour?: number;
+  cooldown_ms: number;
+  
+  // New termination fields
+  action_timeout_ms?: number;              // Stop if single action > N ms
+  heartbeat_timeout_ms?: number;           // Stop if no progress for N ms
+  max_consecutive_failures?: number;       // Stop after N failed sequences
+  success_keywords?: string[];             // Regex patterns for success
+  failure_keywords?: string[];             // Regex patterns for failure
+  ocr_termination_pattern?: string;        // General regex for OCR
+  ocr_region_ids?: string[];               // Which regions to scan
+};
+```
+
+**Validation:**
+- At least one termination condition recommended (UI warning if none)
+- Patterns must be valid regex
+- `action_timeout_ms` > 0
+- `heartbeat_timeout_ms` >= 10000 (10s minimum)
+- `max_consecutive_failures` >= 3 (recommended)
+
+### Monitor Termination Flow
+
+```text
+Monitor.tick()
+  ├─ Check max_runtime → WatchdogTripped?
+  ├─ Check heartbeat_timeout → WatchdogTripped(heartbeat_stalled)?
+  ├─ Trigger.should_fire() → TriggerFired?
+  ├─ Check cooldown → skip?
+  ├─ Condition.evaluate() → ConditionEvaluated
+  ├─ Scan OCR regions for success/failure keywords → terminate?
+  ├─ Check max_activations_per_hour → WatchdogTripped?
+  ├─ ActionSequence.run()
+  │   ├─ For each action:
+  │   │   ├─ Check action_timeout → timeout?
+  │   │   ├─ Execute action
+  │   │   ├─ Update heartbeat: last_action_progress = Some(now)
+  │   │   ├─ If TerminationCheck: inspect + set should_terminate
+  │   │   └─ If context.should_terminate → stop early
+  │   └─ Return success/failure
+  ├─ If LLMPromptGeneration returned task_complete=true → terminate
+  ├─ Track consecutive failures → max_consecutive_failures?
+  ├─ Play audio: intervention (failures) or completed (success)
+  └─ Emit events: TerminationCheckTriggered, TaskCompleted, OCRPatternMatched
+```
+
+### New Event Types
+
+```rust
+pub enum Event {
+    // ... existing events ...
+    TerminationCheckTriggered { reason: String },
+    TaskCompleted { reason: String },
+    OCRPatternMatched { pattern: String, text: String },
+    HeartbeatStalled { elapsed_ms: u64 },
+}
+```
+
+### Example: AI-Driven Build Monitoring
+
+```json
+{
+  "name": "Monitor CI Build",
+  "regions": [
+    {"id": "build-log", "rect": {"x": 100, "y": 200, "width": 1200, "height": 600}},
+    {"id": "status", "rect": {"x": 100, "y": 850, "width": 400, "height": 100}}
+  ],
+  "trigger": {"type": "IntervalTrigger", "check_interval_sec": 30},
+  "condition": {"type": "RegionCondition", "consecutive_checks": 1, "expect_change": true},
+  "actions": [
+    {
+      "type": "LLMPromptGeneration",
+      "region_ids": ["build-log", "status"],
+      "risk_threshold": 0.5,
+      "task_completion_check": true,
+      "completion_prompt": "Check if build is complete. Look for 'BUILD SUCCESS' or 'BUILD FAILURE' messages."
+    }
+  ],
+  "guardrails": {
+    "max_runtime_ms": 1800000,
+    "heartbeat_timeout_ms": 120000,
+    "success_keywords": ["BUILD SUCCESS"],
+    "failure_keywords": ["BUILD FAILURE", "ERROR", "FAILED"]
+  }
+}
+```
+
+For detailed examples and best practices, see [doc/terminationPatterns.md](terminationPatterns.md).
+
 ## Monitor semantics (state machine)
 
 - States: Stopped → Running → Stopping → Stopped
 - Start: monitor_start(profileId) when in Stopped → Running
-- Tick: on Trigger tick, evaluate Condition; if true and guardrails allow, execute ActionSequence; apply cooldown
-- Stop command: transition to Stopping; prevent scheduling of new actions; allow in‑flight Action to finish; emit MonitorStateChanged; then Stopped
+- Tick: on Trigger tick, evaluate Condition; if true and guardrails allow, execute ActionSequence; apply cooldown; check termination signals
+- Termination: any signal (AI, OCR, guardrails, heartbeat, TerminationCheck) can trigger stop
+- Stop command: transition to Stopping; prevent scheduling of new actions; allow in‑flight Action to finish; emit MonitorStateChanged with reason; play audio; then Stopped

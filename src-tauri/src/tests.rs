@@ -1291,6 +1291,94 @@ mod tests {
             assert_eq!(context.get("risk"), Some("0.5"));
             assert_eq!(context.get("nonexistent"), None);
         }
+        
+        #[test]
+        fn llm_action_sets_termination_on_task_complete() {
+            let auto = FakeAuto::new();
+            let regions = vec![Region {
+                id: "r1".to_string(),
+                rect: Rect {
+                    x: 0,
+                    y: 0,
+                    width: 100,
+                    height: 100,
+                },
+                name: Some("Test Region".to_string()),
+            }];
+
+            // Create LLM client that returns task_complete=true
+            let completion_client = Arc::new(MockLLMClient::with_completion(
+                "Build succeeded, all tests passed".to_string()
+            ));
+
+            let action = LLMPromptGenerationAction {
+                region_ids: vec!["r1".to_string()],
+                risk_threshold: 0.5,
+                system_prompt: None,
+                variable_name: "prompt".to_string(),
+                all_regions: regions,
+                capture: make_test_capture(),
+                llm_client: completion_client,
+            };
+
+            let mut context = ActionContext::new();
+            let result = action.execute(&auto, &mut context);
+
+            assert!(result.is_ok(), "Action should succeed");
+            assert!(context.is_termination_requested(), "Should request termination");
+            assert_eq!(
+                context.termination_reason,
+                Some("Build succeeded, all tests passed".to_string())
+            );
+            assert_eq!(context.get("task_complete"), Some("true"));
+        }
+        
+        #[test]
+        fn llm_action_stores_continuation_prompt_and_risk() {
+            let auto = FakeAuto::new();
+            let regions = vec![Region {
+                id: "r1".to_string(),
+                rect: Rect {
+                    x: 0,
+                    y: 0,
+                    width: 100,
+                    height: 100,
+                },
+                name: Some("Test Region".to_string()),
+            }];
+
+            let action = LLMPromptGenerationAction {
+                region_ids: vec!["r1".to_string()],
+                risk_threshold: 0.5,
+                system_prompt: None,
+                variable_name: "prompt".to_string(),
+                all_regions: regions,
+                capture: make_test_capture(),
+                llm_client: make_test_llm_client(),
+            };
+
+            let mut context = ActionContext::new();
+            let result = action.execute(&auto, &mut context);
+
+            assert!(result.is_ok(), "Action should succeed");
+            assert!(!context.is_termination_requested(), "Should not request termination");
+            assert_eq!(context.get("prompt"), Some("continue"));
+            assert_eq!(context.get("continuation_prompt_risk"), Some("0.1"));
+            assert_eq!(context.get("task_complete"), Some("false"));
+        }
+        
+        #[test]
+        fn action_context_termination_request() {
+            let mut context = ActionContext::new();
+            
+            assert!(!context.is_termination_requested());
+            assert_eq!(context.termination_reason, None);
+            
+            context.request_termination("test reason");
+            
+            assert!(context.is_termination_requested());
+            assert_eq!(context.termination_reason, Some("test reason".to_string()));
+        }
 
         #[test]
         fn action_context_expand_handles_missing_variables() {
@@ -1405,6 +1493,146 @@ mod tests {
 
             assert_eq!(regions.len(), 1);
             assert_eq!(monitor.actions.actions.len(), 3);
+        }
+    }
+    
+
+    
+    mod monitor_termination {
+        use super::*;
+        use crate::action::LLMPromptGenerationAction;
+        use crate::llm::MockLLMClient;
+        use crate::Event;
+        use std::sync::Arc;
+        use std::time::{Duration, Instant};
+        
+        // Re-use TestCapture from parent module
+        struct TestCapture;
+        impl ScreenCapture for TestCapture {
+            fn hash_region(&self, _region: &Region, _downscale: u32) -> u64 {
+                42
+            }
+            fn capture_region(&self, region: &Region) -> Result<ScreenFrame, BackendError> {
+                let width = region.rect.width.min(10);
+                let height = region.rect.height.min(10);
+                let bytes = vec![255u8; (width * height * 4) as usize];
+                Ok(ScreenFrame {
+                    display: DisplayInfo {
+                        id: 0,
+                        name: Some("Test Display".to_string()),
+                        x: 0,
+                        y: 0,
+                        width: 1920,
+                        height: 1080,
+                        scale_factor: 1.0,
+                        is_primary: true,
+                    },
+                    width,
+                    height,
+                    stride: width * 4,
+                    bytes,
+                    timestamp_ms: 0,
+                })
+            }
+            fn displays(&self) -> Result<Vec<DisplayInfo>, BackendError> {
+                Ok(vec![])
+            }
+        }
+        
+        #[test]
+        fn monitor_stops_on_llm_task_complete() {
+            // Create a monitor with an LLM action that signals completion
+            let completion_client = Arc::new(MockLLMClient::with_completion(
+                "Task completed successfully".to_string()
+            ));
+            
+            let regions = vec![Region {
+                id: "r1".to_string(),
+                rect: Rect { x: 0, y: 0, width: 100, height: 100 },
+                name: Some("Test".to_string()),
+            }];
+            
+            let capture = Arc::new(TestCapture);
+            
+            let llm_action = LLMPromptGenerationAction {
+                region_ids: vec!["r1".to_string()],
+                risk_threshold: 0.9,
+                system_prompt: None,
+                variable_name: "prompt".to_string(),
+                all_regions: regions.clone(),
+                capture: capture as Arc<dyn ScreenCapture + Send + Sync>,
+                llm_client: completion_client as Arc<dyn crate::llm::LLMClient + Send + Sync>,
+            };
+            
+            let trigger = Box::new(IntervalTrigger::new(Duration::from_millis(100)));
+            let condition = Box::new(RegionCondition::new(1, false));
+            let actions = ActionSequence::new(vec![Box::new(llm_action)]);
+            let guardrails = Guardrails::default();
+            
+            let mut monitor = Monitor::new(trigger, condition, actions, guardrails);
+            
+            let mut events = Vec::new();
+            monitor.start(&mut events);
+            
+            let auto = FakeAuto::new();
+            let capture_trait: &dyn ScreenCapture = &TestCapture;
+            
+            // First tick should run action and detect termination
+            monitor.tick(Instant::now(), &regions, capture_trait, &auto, &mut events);
+            
+            // Monitor should be stopped due to termination
+            assert!(monitor.started_at.is_none(), "Monitor should stop after task completion");
+            
+            // Should have WatchdogTripped event
+            let has_watchdog_event = events.iter().any(|e| matches!(e, Event::WatchdogTripped { .. }));
+            assert!(has_watchdog_event, "Should emit WatchdogTripped event on termination");
+        }
+        
+        #[test]
+        fn monitor_continues_when_llm_returns_continuation() {
+            // Create a monitor with an LLM action that returns continuation
+            let continue_client = Arc::new(MockLLMClient::new()); // Returns continuation by default
+            
+            let regions = vec![Region {
+                id: "r1".to_string(),
+                rect: Rect { x: 0, y: 0, width: 100, height: 100 },
+                name: Some("Test".to_string()),
+            }];
+            
+            let capture = Arc::new(TestCapture);
+            
+            let llm_action = LLMPromptGenerationAction {
+                region_ids: vec!["r1".to_string()],
+                risk_threshold: 0.9,
+                system_prompt: None,
+                variable_name: "prompt".to_string(),
+                all_regions: regions.clone(),
+                capture: capture as Arc<dyn ScreenCapture + Send + Sync>,
+                llm_client: continue_client as Arc<dyn crate::llm::LLMClient + Send + Sync>,
+            };
+            
+            let trigger = Box::new(IntervalTrigger::new(Duration::from_millis(100)));
+            let condition = Box::new(RegionCondition::new(1, false));
+            let actions = ActionSequence::new(vec![Box::new(llm_action)]);
+            let guardrails = Guardrails::default();
+            
+            let mut monitor = Monitor::new(trigger, condition, actions, guardrails);
+            
+            let mut events = Vec::new();
+            monitor.start(&mut events);
+            
+            let auto = FakeAuto::new();
+            let capture_trait: &dyn ScreenCapture = &TestCapture;
+            
+            // First tick should run action but NOT terminate
+            monitor.tick(Instant::now(), &regions, capture_trait, &auto, &mut events);
+            
+            // Monitor should still be running
+            assert!(monitor.started_at.is_some(), "Monitor should continue when LLM returns continuation");
+            
+            // Should NOT have WatchdogTripped event
+            let has_watchdog_event = events.iter().any(|e| matches!(e, Event::WatchdogTripped { .. }));
+            assert!(!has_watchdog_event, "Should not emit WatchdogTripped for continuation");
         }
     }
 }
