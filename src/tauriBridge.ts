@@ -119,3 +119,34 @@ export async function actionRecorderComplete(actions: any[]): Promise<void> {
   await callInvoke("action_recorder_complete", { actions });
 }
 
+// Audio notification functions
+export async function audioTestIntervention(): Promise<void> {
+  if (!isDesktopMode()) return; // no-op in web preview
+  await callInvoke("audio_test_intervention");
+}
+
+export async function audioTestCompleted(): Promise<void> {
+  if (!isDesktopMode()) return; // no-op in web preview
+  await callInvoke("audio_test_completed");
+}
+
+export async function audioSetEnabled(enabled: boolean): Promise<void> {
+  if (!isDesktopMode()) return; // no-op in web preview
+  await callInvoke("audio_set_enabled", { enabled });
+}
+
+export async function audioGetEnabled(): Promise<boolean> {
+  if (!isDesktopMode()) return false;
+  return (await callInvoke("audio_get_enabled")) as boolean;
+}
+
+export async function audioSetVolume(volume: number): Promise<void> {
+  if (!isDesktopMode()) return; // no-op in web preview
+  await callInvoke("audio_set_volume", { volume });
+}
+
+export async function audioGetVolume(): Promise<number> {
+  if (!isDesktopMode()) return 0.5;
+  return (await callInvoke("audio_get_volume")) as number;
+}
+

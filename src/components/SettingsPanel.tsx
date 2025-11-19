@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getOpenAIKeyStatus, setOpenAIKey, deleteOpenAIKey, getOpenAIModel, setOpenAIModel } from "../tauriSecureStorage";
+import { audioTestIntervention, audioTestCompleted, audioSetEnabled, audioGetEnabled, audioSetVolume, audioGetVolume } from "../tauriBridge";
 import { ModelSelector } from "./ModelSelector";
 
 interface SettingsPanelProps {
@@ -25,6 +26,11 @@ export function SettingsPanel({
     const [statusMessage, setStatusMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [selectedModel, setSelectedModel] = useState("gpt-4o");
+    
+    // Audio notification states
+    const [audioEnabled, setAudioEnabledState] = useState(false);
+    const [audioVolume, setAudioVolumeState] = useState(0.5);
+    const [audioStatusMessage, setAudioStatusMessage] = useState("");
 
     useEffect(() => {
         if (isOpen) {
@@ -39,6 +45,13 @@ export function SettingsPanel({
 
             const model = await getOpenAIModel();
             setSelectedModel(model || "gpt-4o");
+            
+            // Load audio settings
+            const enabled = await audioGetEnabled();
+            setAudioEnabledState(enabled);
+            
+            const volume = await audioGetVolume();
+            setAudioVolumeState(volume);
         } catch (error) {
             console.error("Failed to load settings:", error);
         }
@@ -192,6 +205,136 @@ export function SettingsPanel({
                             />
                             <span style={{ fontSize: 12, opacity: 0.7 }}>px</span>
                         </label>
+                    </div>
+                </section>
+
+                {/* Audio Notifications Section */}
+                <section style={{ marginBottom: 32 }}>
+                    <h3 style={{ fontSize: 18, marginBottom: 16, borderBottom: `1px solid ${theme === "dark" ? "#444" : "#ddd"}`, paddingBottom: 8 }}>
+                        Audio Notifications
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 8 }}>
+                            Play audio alerts when automation needs intervention or completes successfully.
+                        </div>
+                        
+                        <label style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <input
+                                type="checkbox"
+                                checked={audioEnabled}
+                                onChange={async (e) => {
+                                    const enabled = e.target.checked;
+                                    setAudioEnabledState(enabled);
+                                    try {
+                                        await audioSetEnabled(enabled);
+                                        setAudioStatusMessage(`✓ Audio notifications ${enabled ? "enabled" : "disabled"}`);
+                                        setTimeout(() => setAudioStatusMessage(""), 3000);
+                                    } catch (error) {
+                                        setAudioStatusMessage(`Error: ${error}`);
+                                    }
+                                }}
+                                style={{ cursor: "pointer" }}
+                            />
+                            <span>Enable audio notifications</span>
+                        </label>
+                        
+                        <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                <span style={{ width: 100 }}>Volume:</span>
+                                <input
+                                    type="range"
+                                    min={0}
+                                    max={1}
+                                    step={0.1}
+                                    value={audioVolume}
+                                    onChange={(e) => setAudioVolumeState(Number(e.target.value))}
+                                    onMouseUp={async (e) => {
+                                        const volume = Number((e.target as HTMLInputElement).value);
+                                        try {
+                                            await audioSetVolume(volume);
+                                            setAudioStatusMessage(`✓ Volume set to ${Math.round(volume * 100)}%`);
+                                            setTimeout(() => setAudioStatusMessage(""), 3000);
+                                        } catch (error) {
+                                            setAudioStatusMessage(`Error: ${error}`);
+                                        }
+                                    }}
+                                    style={{ flex: 1 }}
+                                    disabled={!audioEnabled}
+                                />
+                                <span style={{ width: 50, textAlign: "right", fontSize: 12 }}>
+                                    {Math.round(audioVolume * 100)}%
+                                </span>
+                            </div>
+                        </label>
+                        
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await audioTestIntervention();
+                                        setAudioStatusMessage("✓ Playing intervention sound");
+                                        setTimeout(() => setAudioStatusMessage(""), 3000);
+                                    } catch (error) {
+                                        setAudioStatusMessage(`Error: ${error}`);
+                                    }
+                                }}
+                                disabled={!audioEnabled}
+                                style={{
+                                    padding: "8px 16px",
+                                    borderRadius: 4,
+                                    border: `1px solid ${theme === "dark" ? "#555" : "#ccc"}`,
+                                    backgroundColor: theme === "dark" ? "#3d3d3d" : "#f5f5f5",
+                                    color: "inherit",
+                                    cursor: audioEnabled ? "pointer" : "not-allowed",
+                                    opacity: audioEnabled ? 1 : 0.5,
+                                }}
+                            >
+                                🔔 Test Intervention Sound
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await audioTestCompleted();
+                                        setAudioStatusMessage("✓ Playing completion sound");
+                                        setTimeout(() => setAudioStatusMessage(""), 3000);
+                                    } catch (error) {
+                                        setAudioStatusMessage(`Error: ${error}`);
+                                    }
+                                }}
+                                disabled={!audioEnabled}
+                                style={{
+                                    padding: "8px 16px",
+                                    borderRadius: 4,
+                                    border: `1px solid ${theme === "dark" ? "#555" : "#ccc"}`,
+                                    backgroundColor: theme === "dark" ? "#3d3d3d" : "#f5f5f5",
+                                    color: "inherit",
+                                    cursor: audioEnabled ? "pointer" : "not-allowed",
+                                    opacity: audioEnabled ? 1 : 0.5,
+                                }}
+                            >
+                                ✅ Test Completion Sound
+                            </button>
+                        </div>
+                        
+                        {audioStatusMessage && (
+                            <div
+                                style={{
+                                    padding: "8px 12px",
+                                    borderRadius: 4,
+                                    backgroundColor: audioStatusMessage.startsWith("✓")
+                                        ? theme === "dark"
+                                            ? "#1b3d1b"
+                                            : "#e8f5e9"
+                                        : theme === "dark"
+                                            ? "#3d1f1f"
+                                            : "#ffebee",
+                                    color: audioStatusMessage.startsWith("✓") ? "#4caf50" : "#d32f2f",
+                                    fontSize: 13,
+                                }}
+                            >
+                                {audioStatusMessage}
+                            </div>
+                        )}
                     </div>
                 </section>
 

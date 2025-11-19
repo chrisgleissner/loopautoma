@@ -1924,3 +1924,103 @@ button.ghost:hover {
   pointer-events: none;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
+/* Termination Conditions Editor Styles */
+.termination-conditions {
+  display: grid;
+  gap: 16px;
+  padding: 12px;
+  background: var(--brand-surface);
+  border-radius: 6px;
+  border: 1px solid var(--brand-border);
+}
+
+.termination-section {
+  display: grid;
+  gap: 12px;
+}
+
+.termination-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--brand-text);
+}
+
+.termination-subsection-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--brand-accent);
+}
+
+.termination-help-text {
+  font-size: 12px;
+  color: var(--brand-muted);
+  margin: 0;
+}
+
+.termination-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  font-family: "Fira Code", "SF Mono", Monaco, Consolas, monospace;
+  font-size: 12px;
+  background: var(--brand-surface-alt);
+  color: var(--brand-text);
+  border: 1px solid var(--brand-border);
+  border-radius: 4px;
+  resize: vertical;
+}
+
+.termination-textarea:focus {
+  outline: none;
+  border-color: var(--brand-accent);
+}
+
+.form-group {
+  display: grid;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brand-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-group .help-text {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--brand-muted);
+}
+
+.ocr-region-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--brand-surface-alt);
+  border-radius: 4px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 3px;
+  transition: background 0.15s ease;
+}
+
+.checkbox-label:hover {
+  background: var(--brand-border);
+}
+
+.checkbox-label input[type="checkbox"] {
+  cursor: pointer;
+}

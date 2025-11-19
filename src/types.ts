@@ -25,6 +25,15 @@ export type GuardrailsConfig = {
   max_runtime_ms?: number;
   max_activations_per_hour?: number;
   cooldown_ms: number;
+  // Intelligent termination fields (Phase 7)
+  heartbeat_timeout_ms?: number;
+  ocr_mode?: "local" | "vision";
+  success_keywords?: string[];
+  failure_keywords?: string[];
+  ocr_termination_pattern?: string;
+  ocr_region_ids?: string[];
+  max_consecutive_failures?: number;
+  action_timeout_ms?: number;
 };
 
 export type Profile = {

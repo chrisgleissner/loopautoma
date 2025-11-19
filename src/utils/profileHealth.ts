@@ -67,6 +67,28 @@ export function auditProfile(profile: Profile | null): ProfileHealth {
     if (!profile.guardrails.max_activations_per_hour) {
       warnings.push("Max activations/hour is unset.");
     }
+    
+    // Termination condition warnings (Phase 7)
+    const hasSuccessKeywords = profile.guardrails.success_keywords && profile.guardrails.success_keywords.length > 0;
+    const hasFailureKeywords = profile.guardrails.failure_keywords && profile.guardrails.failure_keywords.length > 0;
+    const hasOCRPattern = profile.guardrails.ocr_termination_pattern && profile.guardrails.ocr_termination_pattern.trim().length > 0;
+    const hasHeartbeat = profile.guardrails.heartbeat_timeout_ms && profile.guardrails.heartbeat_timeout_ms > 0;
+    const hasTerminationCondition = hasSuccessKeywords || hasFailureKeywords || hasOCRPattern || hasHeartbeat;
+    
+    if (!hasTerminationCondition && !profile.guardrails.max_runtime_ms) {
+      warnings.push("No termination conditions configured. Consider adding success/failure keywords, OCR pattern, or heartbeat timeout.");
+    }
+    
+    if (hasOCRPattern && (!profile.guardrails.ocr_region_ids || profile.guardrails.ocr_region_ids.length === 0)) {
+      warnings.push("OCR termination pattern is set, but no regions are selected for OCR scanning.");
+    }
+  }
+  
+  // Check for AI adaptive mode without API key
+  const hasLLMAction = profile.actions?.some((a) => a.type === "LLMPromptGeneration");
+  if (hasLLMAction) {
+    // Note: We can't check API key status here synchronously, so just provide a hint
+    warnings.push("AI actions require OpenAI API key. Configure it in Settings if not already set.");
   }
 
   return { errors, warnings };

@@ -7,6 +7,7 @@ import {
   getTriggerEditor,
 } from "../plugins/registry";
 import { PlusIcon, TrashIcon } from "./Icons";
+import { TerminationConditionsEditor } from "./TerminationConditionsEditor";
 
 export function GraphComposer({ profile, onChange }: { profile: Profile | null; onChange: (p: Profile) => void }) {
   const actionTypes = useMemo(() => getActionTypes(), []);
@@ -111,6 +112,15 @@ export function GraphComposer({ profile, onChange }: { profile: Profile | null; 
             );
           })}
         </ol>
+      </div>
+
+      {/* Termination Conditions Section */}
+      <div>
+        <TerminationConditionsEditor
+          guardrails={profile.guardrails || { cooldown_ms: 5000 }}
+          regions={profile.regions}
+          onGuardrailsChange={(guardrails) => onChange({ ...profile, guardrails })}
+        />
       </div>
     </div>
   );
