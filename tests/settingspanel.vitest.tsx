@@ -114,7 +114,7 @@ describe("SettingsPanel", () => {
 
     it("shows API key input when no key is configured", async () => {
         vi.mocked(secureStorage.getOpenAIKeyStatus).mockResolvedValue(false);
-        
+
         render(
             <SettingsPanel
                 isOpen={true}
@@ -134,7 +134,7 @@ describe("SettingsPanel", () => {
 
     it("shows masked key and delete button when key is configured", async () => {
         vi.mocked(secureStorage.getOpenAIKeyStatus).mockResolvedValue(true);
-        
+
         render(
             <SettingsPanel
                 isOpen={true}
@@ -154,7 +154,7 @@ describe("SettingsPanel", () => {
 
     it("shows Replace Key button when key exists", async () => {
         vi.mocked(secureStorage.getOpenAIKeyStatus).mockResolvedValue(true);
-        
+
         render(
             <SettingsPanel
                 isOpen={true}
@@ -173,7 +173,7 @@ describe("SettingsPanel", () => {
 
     it("saves model selection when changed", async () => {
         vi.mocked(secureStorage.setOpenAIModel).mockResolvedValue(undefined);
-        
+
         render(
             <SettingsPanel
                 isOpen={true}
@@ -190,7 +190,7 @@ describe("SettingsPanel", () => {
         // Find radio button by value attribute
         const radioButtons = screen.getAllByRole("radio");
         const gpt4oMiniRadio = radioButtons.find((radio) => (radio as HTMLInputElement).value === "gpt-4o-mini");
-        
+
         expect(gpt4oMiniRadio).toBeTruthy();
         fireEvent.click(gpt4oMiniRadio!);
 
@@ -295,7 +295,7 @@ describe("SettingsPanel", () => {
     it("saves API key successfully and shows success state", async () => {
         vi.mocked(secureStorage.getOpenAIKeyStatus).mockResolvedValue(false);
         vi.mocked(secureStorage.setOpenAIKey).mockResolvedValue(undefined);
-        
+
         render(
             <SettingsPanel
                 isOpen={true}
@@ -321,10 +321,10 @@ describe("SettingsPanel", () => {
     it("deletes API key successfully", async () => {
         vi.mocked(secureStorage.getOpenAIKeyStatus).mockResolvedValue(true);
         vi.mocked(secureStorage.deleteOpenAIKey).mockResolvedValue(undefined);
-        
+
         // Mock window.confirm
         const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-        
+
         render(
             <SettingsPanel
                 isOpen={true}
@@ -349,7 +349,7 @@ describe("SettingsPanel", () => {
     it("replaces existing API key", async () => {
         vi.mocked(secureStorage.getOpenAIKeyStatus).mockResolvedValue(true);
         vi.mocked(secureStorage.setOpenAIKey).mockResolvedValue(undefined);
-        
+
         render(
             <SettingsPanel
                 isOpen={true}
@@ -381,7 +381,7 @@ describe("SettingsPanel", () => {
     it("handles API key save error gracefully", async () => {
         vi.mocked(secureStorage.getOpenAIKeyStatus).mockResolvedValue(false);
         vi.mocked(secureStorage.setOpenAIKey).mockRejectedValue(new Error("Keyring not available"));
-        
+
         render(
             <SettingsPanel
                 isOpen={true}
@@ -408,10 +408,10 @@ describe("SettingsPanel", () => {
     it("handles API key delete error gracefully", async () => {
         vi.mocked(secureStorage.getOpenAIKeyStatus).mockResolvedValue(true);
         vi.mocked(secureStorage.deleteOpenAIKey).mockRejectedValue(new Error("Permission denied"));
-        
+
         // Mock window.confirm to bypass dialog
         const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-        
+
         render(
             <SettingsPanel
                 isOpen={true}
@@ -436,7 +436,7 @@ describe("SettingsPanel", () => {
 
     it("handles model selection error gracefully", async () => {
         vi.mocked(secureStorage.setOpenAIModel).mockRejectedValue(new Error("Storage error"));
-        
+
         render(
             <SettingsPanel
                 isOpen={true}
@@ -452,7 +452,7 @@ describe("SettingsPanel", () => {
 
         const radioButtons = screen.getAllByRole("radio");
         const gpt4oMiniRadio = radioButtons.find((radio) => (radio as HTMLInputElement).value === "gpt-4o-mini");
-        
+
         fireEvent.click(gpt4oMiniRadio!);
 
         // Error message should appear in UI
@@ -463,7 +463,7 @@ describe("SettingsPanel", () => {
 
     it("validates empty input on save attempt", async () => {
         vi.mocked(secureStorage.getOpenAIKeyStatus).mockResolvedValue(false);
-        
+
         render(
             <SettingsPanel
                 isOpen={true}
@@ -476,7 +476,7 @@ describe("SettingsPanel", () => {
         );
 
         await screen.findByPlaceholderText(/sk-proj/i);
-        
+
         const saveButton = screen.getByText(/Save Key/i);
         fireEvent.click(saveButton);
 

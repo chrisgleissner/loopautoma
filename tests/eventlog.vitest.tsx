@@ -111,7 +111,7 @@ describe("EventLog", () => {
     render(
       <EventLog
         events={[
-          { 
+          {
             type: "MonitorTick",
             next_check_ms: 5000,
             cooldown_remaining_ms: 2000,
@@ -130,7 +130,7 @@ describe("EventLog", () => {
       <EventLog
         events={[
           { type: "TriggerFired" },
-          { 
+          {
             type: "MonitorTick",
             next_check_ms: 5000,
             cooldown_remaining_ms: 0,

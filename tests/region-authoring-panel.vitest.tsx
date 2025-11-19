@@ -342,19 +342,19 @@ describe("RegionAuthoringPanel", () => {
     // Add first region
     await emitRegionPick({ rect: { x: 10, y: 20, width: 100, height: 80 } });
     rerender(<RegionAuthoringPanel regions={[]} onRegionAdd={mockAdd} />);
-    
+
     await waitFor(() => expect(screen.getByText("Add region to profile")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Add region to profile"));
-    
+
     await waitFor(() => expect(mockAdd).toHaveBeenCalledTimes(1));
 
     // Add second region
     await emitRegionPick({ rect: { x: 50, y: 60, width: 120, height: 90 } });
     rerender(<RegionAuthoringPanel regions={addedRegions} onRegionAdd={mockAdd} />);
-    
+
     await waitFor(() => expect(screen.getByText("Add region to profile")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Add region to profile"));
-    
+
     await waitFor(() => expect(mockAdd).toHaveBeenCalledTimes(2));
 
     // Check that IDs are different
@@ -403,24 +403,24 @@ describe("RegionAuthoringPanel", () => {
 
     // First trigger an error
     mockOnRegionAdd.mockRejectedValueOnce(new Error("First error"));
-    
+
     await emitRegionPick({ rect: { x: 10, y: 20, width: 100, height: 80 } });
     rerender(<RegionAuthoringPanel regions={[]} onRegionAdd={mockOnRegionAdd} />);
-    
+
     await waitFor(() => expect(screen.getByText("Add region to profile")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Add region to profile"));
-    
+
     await waitFor(() => expect(screen.getByText("First error")).toBeInTheDocument());
 
     // Now succeed
     mockOnRegionAdd.mockResolvedValueOnce(undefined);
-    
+
     await emitRegionPick({ rect: { x: 50, y: 60, width: 120, height: 90 } });
     rerender(<RegionAuthoringPanel regions={[]} onRegionAdd={mockOnRegionAdd} />);
-    
+
     await waitFor(() => expect(screen.getByText("Add region to profile")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Add region to profile"));
-    
+
     await waitFor(() => {
       expect(screen.queryByText("First error")).not.toBeInTheDocument();
     });

@@ -25,6 +25,7 @@ Any LLM agent (Copilot, Cursor, Codex, etc.) working in this repo must:
     - [Structure rules](#structure-rules)
     - [Plan-then-act contract](#plan-then-act-contract)
   - [Active tasks](#active-tasks)
+    - [Task: Major UX Overhaul - AI Integration, Simplified Condition Logic, and Visual Improvements](#task-major-ux-overhaul---ai-integration-simplified-condition-logic-and-visual-improvements)
     - [Task: Input Capture Auto-Transform on Stop (Complete)](#task-input-capture-auto-transform-on-stop-complete)
     - [Task: E2E Verification of Core Features (Integration Tests + Documentation)](#task-e2e-verification-of-core-features-integration-tests--documentation)
     - [Task: Critical showstoppers - Input recording, playback, window minimize, and countdown timers](#task-critical-showstoppers---input-recording-playback-window-minimize-and-countdown-timers)
