@@ -98,13 +98,37 @@ Notes:
 - Use the filter buttons to focus on guardrails or errors during debugging.
 - Clicking an entry reveals structured payloads (region hashes, action IDs, guardrail reasons).
 
-## 10. Quit workflow
+## 10. Settings panel (API keys, model selection, theme)
+
+Click the **gear icon** (tooltip **"Settings"**) in the top-right corner to open the Settings panel. This dialog manages:
+
+- **OpenAI API Key**: Securely stored in your OS keyring (macOS Keychain, Windows Credential Manager, or Linux Secret Service)
+  - If no key is configured, you'll see an input field. Paste your key (starts with `sk-`) and click **Save Key**.
+  - Once saved, the status shows **"✓ API key is configured"** with masked value `sk-••••••••••••••••`.
+  - To replace the key, enter a new one and click **Replace Key**.
+  - To remove the key, click **Delete Key**.
+  - All keys are encrypted at rest by the OS; see `doc/secureStorage.md` for security details.
+
+- **Model Selection**: Choose the OpenAI model used for `LLMPromptGeneration` actions
+  - **GPT-4o**: Best for complex prompts requiring vision + reasoning (default)
+  - **GPT-4o mini**: Faster and cheaper, suitable for simple prompt generation tasks
+  - Model choice is saved to the workspace config and applies globally to all profiles.
+
+- **Font Size Adjustment**: Increase or decrease the base font size for the entire UI (in 2px increments)
+
+- **Theme Selector**: Future feature placeholder (light/dark/auto modes)
+
+The Settings panel closes when you click outside the dialog or press **Esc**. Changes are persisted immediately (no separate save button required).
+
+For platform-specific troubleshooting (e.g., keyring not available on Linux), see `doc/secureStorage.md`.
+
+## 11. Quit workflow
 
 - **Desktop build**: The Quit button closes the main window, stops the monitor/input capture, and exits the Tauri process. Use this after stopping automation.
-- **Web preview**: Browsers block `window.close()` for tabs the app didn’t open. The Quit button logs instructions in the console; close the tab manually.
+- **Web preview**: Browsers block `window.close()` for tabs the app didn't open. The Quit button logs instructions in the console; close the tab manually.
 - Before quitting, stop the monitor or trigger Panic Stop to ensure no actions keep running.
 
-## 11. Troubleshooting checklist
+## 12. Troubleshooting checklist
 
 | Symptom | Fix |
 | --- | --- |
@@ -114,7 +138,7 @@ Notes:
 | Screenshot/manual mismatch | Run `bun run build:web` to regenerate the screenshot using the deterministic automation. |
 | Release build shows wrong version | Ensure the release tag follows `vMAJOR.MINOR.PATCH`; the workflow syncs manifests before packaging. |
 
-## 12. Key commands summary
+## 13. Key commands summary
 
 - `bun run dev` — web preview for rapid UI changes (fake backends only).
 - `bun run tauri dev` — desktop development build (requires Ubuntu/X11 + dependencies).

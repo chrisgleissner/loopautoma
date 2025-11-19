@@ -195,58 +195,58 @@ function LLMPromptGenerationEditor({ value, onChange }: ActionEditorProps) {
       <SparklesIcon size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 8, border: "1px solid #ccc", borderRadius: 4, flex: 1 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <label title="Region IDs to capture and send to LLM (comma-separated)">
-          Region IDs
+          <label title="Region IDs to capture and send to LLM (comma-separated)">
+            Region IDs
+            <input
+              type="text"
+              value={v.region_ids.join(", ")}
+              onChange={(e) =>
+                onChange({
+                  ...v,
+                  type: "LLMPromptGeneration",
+                  region_ids: e.target.value.split(",").map((s) => s.trim()).filter((s) => s),
+                })
+              }
+              placeholder="e.g., chat-out, progress"
+              style={{ width: 200, marginLeft: 6 }}
+            />
+          </label>
+          <label
+            title="Maximum acceptable risk level (0.0 = low, 1.0 = high)"
+            style={{ display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <span>Risk Threshold</span>
+            <AcceleratingNumberInput
+              min={0}
+              max={1}
+              value={v.risk_threshold}
+              onValueChange={(next) =>
+                onChange({ ...v, type: "LLMPromptGeneration", risk_threshold: next === "" ? 0 : Number(next) })
+              }
+              inputMode="decimal"
+              containerStyle={{ width: 110 }}
+            />
+          </label>
+        </div>
+        <label title="Optional system prompt to guide the LLM">
+          System Prompt (optional)
+          <textarea
+            value={v.system_prompt || ""}
+            onChange={(e) => onChange({ ...v, type: "LLMPromptGeneration", system_prompt: e.target.value || undefined })}
+            placeholder="Optional: Guide the LLM with specific instructions..."
+            style={{ width: "100%", minHeight: 60, marginTop: 4, fontFamily: "inherit" }}
+          />
+        </label>
+        <label title="Variable name to store the generated prompt (default: prompt)">
+          Variable Name
           <input
             type="text"
-            value={v.region_ids.join(", ")}
-            onChange={(e) =>
-              onChange({
-                ...v,
-                type: "LLMPromptGeneration",
-                region_ids: e.target.value.split(",").map((s) => s.trim()).filter((s) => s),
-              })
-            }
-            placeholder="e.g., chat-out, progress"
-            style={{ width: 200, marginLeft: 6 }}
+            value={v.variable_name || "prompt"}
+            onChange={(e) => onChange({ ...v, type: "LLMPromptGeneration", variable_name: e.target.value || undefined })}
+            placeholder="prompt"
+            style={{ width: 150, marginLeft: 6 }}
           />
         </label>
-        <label
-          title="Maximum acceptable risk level (0.0 = low, 1.0 = high)"
-          style={{ display: "flex", alignItems: "center", gap: 6 }}
-        >
-          <span>Risk Threshold</span>
-          <AcceleratingNumberInput
-            min={0}
-            max={1}
-            value={v.risk_threshold}
-            onValueChange={(next) =>
-              onChange({ ...v, type: "LLMPromptGeneration", risk_threshold: next === "" ? 0 : Number(next) })
-            }
-            inputMode="decimal"
-            containerStyle={{ width: 110 }}
-          />
-        </label>
-      </div>
-      <label title="Optional system prompt to guide the LLM">
-        System Prompt (optional)
-        <textarea
-          value={v.system_prompt || ""}
-          onChange={(e) => onChange({ ...v, type: "LLMPromptGeneration", system_prompt: e.target.value || undefined })}
-          placeholder="Optional: Guide the LLM with specific instructions..."
-          style={{ width: "100%", minHeight: 60, marginTop: 4, fontFamily: "inherit" }}
-        />
-      </label>
-      <label title="Variable name to store the generated prompt (default: prompt)">
-        Variable Name
-        <input
-          type="text"
-          value={v.variable_name || "prompt"}
-          onChange={(e) => onChange({ ...v, type: "LLMPromptGeneration", variable_name: e.target.value || undefined })}
-          placeholder="prompt"
-          style={{ width: 150, marginLeft: 6 }}
-        />
-      </label>
         {hasApiKey === false && (
           <div
             style={{
@@ -260,23 +260,23 @@ function LLMPromptGenerationEditor({ value, onChange }: ActionEditorProps) {
             }}
             role="alert"
           >
-            ⚠️ OpenAI API key not configured. <a 
-              href="#" 
-              onClick={(e) => { 
-                e.preventDefault(); 
+            ⚠️ OpenAI API key not configured. <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
                 window.dispatchEvent(new CustomEvent("open-settings"));
-              }} 
+              }}
               style={{ color: "#856404", textDecoration: "underline", cursor: "pointer" }}
             >
               Open Settings
             </a> to add your key.
           </div>
         )}
-        
+
         <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4, lineHeight: 1.5 }}>
           💡 <strong>How it works:</strong> Captures specified regions as screenshots → sends to OpenAI GPT-4 Vision → analyzes content → generates prompt based on risk threshold → stores result in ${'{'}${v.variable_name || "prompt"}{'}'} variable for use in subsequent Type actions.
         </div>
-        
+
         <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>
           💡 <strong>Tip:</strong> Reference the variable in subsequent Type actions using {'$' + (v.variable_name || "prompt")}
         </div>

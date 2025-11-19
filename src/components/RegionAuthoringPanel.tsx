@@ -41,7 +41,7 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
     subscribeEvent<RegionPickEventPayload>("loopautoma://region_pick_complete", (payload) => {
       if (!payload) return;
       setOverlayActive(false);
-      
+
       // Check if we're redefining an existing region
       if (redefiningRegionId && onRegionUpdate) {
         onRegionUpdate(redefiningRegionId, payload.rect);
@@ -53,7 +53,7 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
         setError(null);
         return;
       }
-      
+
       // Otherwise, create new pending region
       setPending({
         rect: payload.rect,

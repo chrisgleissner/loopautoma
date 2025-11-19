@@ -61,7 +61,7 @@ describe("GraphComposer actions", () => {
 
     const typeInput = within(items[0]).getByLabelText(/Text/i) as HTMLTextAreaElement;
     expect(typeInput.value).toBe("Hello {Key:Enter}");
-    
+
     // Verify the help text exists (shows inline syntax is supported)
     expect(screen.getByText(/\{Key:Enter\}/i)).toBeTruthy();
   });

@@ -32,17 +32,17 @@ describe("GraphComposer", () => {
     // Phase 1 simplified UI: no dropdowns, just editors
     const intervalLabel = screen.getByText(/Check interval/i);
     expect(intervalLabel).toBeTruthy();
-    
+
     // Verify condition editor renders properly
     const triggerText = screen.getByText(/Trigger if/i);
     expect(triggerText).toBeTruthy();
-    
+
     // Verify change/no change select exists
     const changeSelect = screen.getByTitle(/Trigger on change or no change/i) as HTMLSelectElement;
     expect(changeSelect).toBeTruthy();
     fireEvent.change(changeSelect, { target: { value: "a" } });
     expect(changeSelect.value).toBe("a");
-    
+
     // Verify "change detected for" text exists
     expect(screen.getByText(/change detected for/i)).toBeTruthy();
     expect(screen.getByText(/check\(s\)/i)).toBeTruthy();

@@ -22,20 +22,20 @@ describe("RecordingBar", () => {
 
     const recordBtn = screen.getByRole("button", { name: /Record Actions/i });
     expect(recordBtn).toBeTruthy();
-    
+
     fireEvent.click(recordBtn);
-    
+
     await waitFor(() => expect(mockActionRecorderShow).toHaveBeenCalledTimes(1));
   });
 
   it("displays error message when action recorder fails to open", async () => {
     mockActionRecorderShow.mockRejectedValueOnce(new Error("Failed to open window"));
-    
+
     render(<RecordingBar />);
-    
+
     const recordBtn = screen.getByRole("button", { name: /Record Actions/i });
     fireEvent.click(recordBtn);
-    
+
     await screen.findByRole("alert");
     expect(screen.getByText(/Failed to open window/i)).toBeTruthy();
   });

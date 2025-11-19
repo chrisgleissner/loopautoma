@@ -329,4 +329,100 @@ describe("RegionAuthoringPanel", () => {
       expect(screen.getByText(errorMsg)).toBeInTheDocument();
     });
   });
+
+  it("generates unique region IDs when adding multiple regions", async () => {
+    const addedRegions: Region[] = [];
+    const mockAdd = vi.fn((region: Region) => {
+      addedRegions.push(region);
+      return Promise.resolve();
+    });
+
+    const { rerender } = render(<RegionAuthoringPanel regions={[]} onRegionAdd={mockAdd} />);
+
+    // Add first region
+    await emitRegionPick({ rect: { x: 10, y: 20, width: 100, height: 80 } });
+    rerender(<RegionAuthoringPanel regions={[]} onRegionAdd={mockAdd} />);
+    
+    await waitFor(() => expect(screen.getByText("Add region to profile")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Add region to profile"));
+    
+    await waitFor(() => expect(mockAdd).toHaveBeenCalledTimes(1));
+
+    // Add second region
+    await emitRegionPick({ rect: { x: 50, y: 60, width: 120, height: 90 } });
+    rerender(<RegionAuthoringPanel regions={addedRegions} onRegionAdd={mockAdd} />);
+    
+    await waitFor(() => expect(screen.getByText("Add region to profile")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Add region to profile"));
+    
+    await waitFor(() => expect(mockAdd).toHaveBeenCalledTimes(2));
+
+    // Check that IDs are different
+    expect(addedRegions[0].id).not.toBe(addedRegions[1].id);
+  });
+
+  it("displays bounding box details for existing regions", () => {
+    const regions: Region[] = [
+      { id: "region-1", rect: { x: 100, y: 200, width: 300, height: 400 }, name: "Test Region" },
+    ];
+
+    render(<RegionAuthoringPanel regions={regions} />);
+
+    expect(screen.getByText(/\(100, 200\)/)).toBeInTheDocument();
+    expect(screen.getByText(/300×400/)).toBeInTheDocument();
+  });
+
+  it("allows multiple regions with different coordinates", () => {
+    const regions: Region[] = [
+      { id: "region-1", rect: { x: 0, y: 0, width: 50, height: 50 }, name: "Top-left" },
+      { id: "region-2", rect: { x: 1920, y: 1080, width: 100, height: 100 }, name: "Bottom-right" },
+    ];
+
+    render(<RegionAuthoringPanel regions={regions} onRegionRemove={mockOnRegionRemove} />);
+
+    expect(screen.getByText("Top-left")).toBeInTheDocument();
+    expect(screen.getByText("Bottom-right")).toBeInTheDocument();
+    expect(screen.getByText(/\(0, 0\)/)).toBeInTheDocument();
+    expect(screen.getByText(/\(1920, 1080\)/)).toBeInTheDocument();
+  });
+
+  it("handles regions with minimal dimensions", async () => {
+    const { rerender } = render(<RegionAuthoringPanel regions={[]} onRegionAdd={mockOnRegionAdd} />);
+
+    await emitRegionPick({ rect: { x: 10, y: 10, width: 1, height: 1 } });
+
+    rerender(<RegionAuthoringPanel regions={[]} onRegionAdd={mockOnRegionAdd} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/w=1, h=1/)).toBeInTheDocument();
+    });
+  });
+
+  it("clears error message after successful region add", async () => {
+    const { rerender } = render(<RegionAuthoringPanel regions={[]} onRegionAdd={mockOnRegionAdd} />);
+
+    // First trigger an error
+    mockOnRegionAdd.mockRejectedValueOnce(new Error("First error"));
+    
+    await emitRegionPick({ rect: { x: 10, y: 20, width: 100, height: 80 } });
+    rerender(<RegionAuthoringPanel regions={[]} onRegionAdd={mockOnRegionAdd} />);
+    
+    await waitFor(() => expect(screen.getByText("Add region to profile")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Add region to profile"));
+    
+    await waitFor(() => expect(screen.getByText("First error")).toBeInTheDocument());
+
+    // Now succeed
+    mockOnRegionAdd.mockResolvedValueOnce(undefined);
+    
+    await emitRegionPick({ rect: { x: 50, y: 60, width: 120, height: 90 } });
+    rerender(<RegionAuthoringPanel regions={[]} onRegionAdd={mockOnRegionAdd} />);
+    
+    await waitFor(() => expect(screen.getByText("Add region to profile")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Add region to profile"));
+    
+    await waitFor(() => {
+      expect(screen.queryByText("First error")).not.toBeInTheDocument();
+    });
+  });
 });

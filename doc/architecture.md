@@ -347,6 +347,26 @@ Global variable store that persists within a single monitor activation:
 - Resilience: on crash/restart, Profiles reload and default to stopped; start is explicit.
 - Focus binding (optional extension): a Condition variant may assert the expected app/window is focused before actions occur.
 
+## Secure credential storage
+
+OpenAI API keys and model preferences are stored securely using the OS-native keyring via `tauri-plugin-store` v2.4.1:
+
+- **macOS**: Keychain Services API
+- **Windows**: Windows Credential Manager
+- **Linux**: Secret Service API (GNOME Keyring, KWallet)
+
+Keys are encrypted at rest by the OS and never stored in plaintext. The Rust backend (`src-tauri/src/secure_storage.rs`) wraps the plugin and exposes:
+
+- `get_openai_key() -> Option<String>`
+- `set_openai_key(key: &str)`
+- `delete_openai_key()`
+- `get_openai_model() -> Option<String>`
+- `set_openai_model(model: &str)`
+
+The UI (`src/components/SettingsPanel.tsx`) provides a single settings dialog for managing credentials. API keys are masked in the UI (shown as `sk-••••••••••••••••`) and saved via Tauri commands. Users can replace or delete keys at any time.
+
+For detailed security best practices and troubleshooting, see [doc/secureStorage.md](secureStorage.md).
+
 ## Monitor semantics (state machine)
 
 - States: Stopped → Running → Stopping → Stopped

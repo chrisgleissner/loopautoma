@@ -3,9 +3,9 @@ export type Rect = { x: number; y: number; width: number; height: number };
 export type Region = { id: string; rect: Rect; name?: string };
 
 export type TriggerConfig = { type: string; check_interval_sec: number };
-export type ConditionConfig = { 
-  type: string; 
-  consecutive_checks: number; 
+export type ConditionConfig = {
+  type: string;
+  consecutive_checks: number;
   expect_change: boolean;
 };
 
