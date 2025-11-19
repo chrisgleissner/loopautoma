@@ -144,7 +144,7 @@ libxdo-dev
 The fix was verified by:
 
 1. Installing all packages on a clean Ubuntu 24.04 system
-2. Running a full release build: `cargo build --release --no-default-features --features os-linux-input,os-linux-capture-xcap`
+2. Running a full release build: `cargo build --release --no-default-features --features os-linux-automation,os-linux-capture-xcap`
 3. Build completed successfully in ~31 seconds
 
 ## Why This Happened

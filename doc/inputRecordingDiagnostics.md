@@ -30,7 +30,7 @@ Root causes (one or more):
 1. **Wayland session** - User running Wayland instead of X11 (check `$XDG_SESSION_TYPE`)
 2. **Missing packages** - Missing libx11-dev, libxi-dev, libxtst-dev, libxkbcommon-x11-dev
 3. **Wrong backend** - LOOPAUTOMA_BACKEND=fake environment variable blocks real capture
-4. **Build without feature** - Compiled without os-linux-input feature (unlikely, it's in default)
+4. **Build without feature** - Compiled without os-linux-automation feature (unlikely, it's in default)
 5. **X11 permissions** - App doesn't have permission to capture global input events
 6. **VM/Container limits** - Running in environment that blocks raw input access
 
@@ -61,7 +61,7 @@ Root causes (one or more):
   3. ✓/✗ XInput Extension (version ≥2.0)
   4. ✓/✗ XTest Extension
   5. ✓/✗ Real Backend (LOOPAUTOMA_BACKEND not "fake")
-  6. ✓/✗ Feature Enabled (os-linux-input compiled)
+  6. ✓/✗ Feature Enabled (os-linux-automation compiled)
 - Detailed error messages with specific issues
 - Copy-pasteable fix commands (apt install, env var unset)
 - Step-by-step instructions for Wayland→X11 session switch

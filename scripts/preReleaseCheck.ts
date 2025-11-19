@@ -63,7 +63,7 @@ check(
 
 check(
     "os-linux feature exists",
-    cargoToml.includes('os-linux-input =') && cargoToml.includes('os-linux-capture-xcap ='),
+    cargoToml.includes('os-linux-automation =') && cargoToml.includes('os-linux-capture-xcap ='),
     "❌ os-linux features missing from Cargo.toml"
 );
 

@@ -579,7 +579,7 @@ This document defines the exact expected behavior of all interactive UI elements
 4. Backend (`src-tauri/src/lib.rs::start_input_recording`):
    - **Environment validation:**
      - If `LOOPAUTOMA_BACKEND=fake`: Returns error "Input capture is disabled because LOOPAUTOMA_BACKEND=fake. Remove that override to use the OS-level recorder."
-     - If compiled without `os-linux-input` feature: Returns error "This build was compiled without the os-linux-input backend. Rebuild with --features os-linux-input..."
+     - If compiled without `os-linux-automation` feature: Returns error "This build was compiled without the os-linux-automation backend. Rebuild with --features os-linux-automation..."
    - **Duplicate check:** If input capture already running, returns success immediately (idempotent)
    - **Backend initialization:**
      - Creates `InputCapture` backend (X11 XInput2 + XKB on Linux)
@@ -614,7 +614,7 @@ This document defines the exact expected behavior of all interactive UI elements
 **Platform Requirements:**
 - **Linux (Ubuntu 24.04):** X11 session required, Wayland not supported for input capture
 - **Required packages:** libx11-dev, libxext-dev, libxi-dev, libxtst-dev, libxkbcommon-x11-dev
-- **Build flag:** Must compile with `--features os-linux-input`
+- **Build flag:** Must compile with `--features os-linux-automation`
 - **macOS/Windows:** Not yet implemented (Phase 5)
 
 ---
@@ -806,8 +806,8 @@ This document defines the exact expected behavior of all interactive UI elements
    - Resolution: Unset environment variable, restart app
    
 2. **Missing build feature:**
-   - Message: "This build was compiled without the os-linux-input backend. Rebuild with --features os-linux-input..."
-   - Resolution: Rebuild with `cargo build --features os-linux-input`
+   - Message: "This build was compiled without the os-linux-automation backend. Rebuild with --features os-linux-automation..."
+   - Resolution: Rebuild with `cargo build --features os-linux-automation`
    
 3. **X11 libraries missing:**
    - Message: "Input capture backend is missing. On Ubuntu 24.04 install the X11 dev packages listed in doc/developer.md..."

@@ -26,4 +26,4 @@ If the helper reports an error, verify the same prerequisites required by the ma
 - X11 session (not Wayland) with `DISPLAY` set
 - Required X11/XInput packages installed (see `doc/developer.md`)
 - `LOOPAUTOMA_BACKEND` unset or not equal to `fake`
-- Build includes the `os-linux-input` feature (enabled by default)
+- Build includes the `os-linux-automation` feature (enabled by default)

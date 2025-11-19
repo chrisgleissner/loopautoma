@@ -140,7 +140,7 @@ This prevents configuration drift and ensures consistency across all environment
 cargo clean
 cargo build --release \
   --no-default-features \
-  --features os-linux-input,os-linux-capture-xcap
+  --features os-linux-automation,os-linux-capture-xcap
 
 # Result
 ✅ Finished `release` profile [optimized] target(s) in 4m 19s

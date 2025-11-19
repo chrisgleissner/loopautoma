@@ -115,7 +115,7 @@ bun tauri build --target x86_64-apple-darwin -- --no-default-features --features
 ```bash
 cd /home/chris/dev/loopautoma
 bun install --frozen-lockfile
-bun tauri build -- --no-default-features --features os-linux-input,os-linux-capture-xcap
+bun tauri build -- --no-default-features --features os-linux-automation,os-linux-capture-xcap
 ```
 
 **Output**: 
@@ -138,7 +138,7 @@ bun tauri build -- --no-default-features --features os-windows
 
 ### Linux Features
 
-- `os-linux-input`: X11 input recording (libx11rb, xkbcommon)
+- `os-linux-automation`: X11 input automation and playback (libx11rb, xkbcommon)
 - `os-linux-capture-xcap`: Screen capture via xcap (requires libspa-0.2-dev)
 
 ### macOS Features
@@ -168,7 +168,7 @@ git push origin 0.1.2
 |----------|--------|--------|----------|
 | macOS (aarch64) | `macos-latest` | `aarch64-apple-darwin` | `os-macos` |
 | macOS (x86_64) | `macos-latest` | `x86_64-apple-darwin` | `os-macos` |
-| Linux | `ubuntu-24.04` | (native) | `os-linux-input,os-linux-capture-xcap` |
+| Linux | `ubuntu-24.04` | (native) | `os-linux-automation,os-linux-capture-xcap` |
 | Windows | `windows-latest` | (native) | `os-windows` |
 
 ## Troubleshooting

@@ -227,7 +227,7 @@ The app now includes automatic prerequisite checking. When you click "Record", i
 - ✓/✗ XInput extension available
 - ✓/✗ XTest extension available
 - ✓/✗ Real backend (not fake mode)
-- ✓/✗ Feature compiled (os-linux-input)
+- ✓/✗ Feature compiled (os-linux-automation)
 
 The modal includes copy-pasteable fix commands for each issue.
 

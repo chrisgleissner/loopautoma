@@ -22,7 +22,7 @@ jobs:
             args: '--target x86_64-apple-darwin -- --no-default-features --features os-macos'
           - platform: 'ubuntu-24.04'
             # Ubuntu 24.04+ required for os-linux-capture-xcap (libspa 0.8.0)
-            args: '-- --no-default-features --features os-linux-input,os-linux-capture-xcap'
+            args: '-- --no-default-features --features os-linux-automation,os-linux-capture-xcap'
           - platform: 'windows-latest'
             args: '-- --no-default-features --features os-windows'
 
