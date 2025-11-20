@@ -2162,4 +2162,136 @@ mod tests {
             assert_eq!(termination_events.len(), 1, "Should emit exactly one TerminationCheckTriggered event");
         }
     }
+    
+    // Domain-specific unit tests for types and utilities
+    mod domain_tests {
+        use super::*;
+        use crate::domain::{ActionContext, LLMPromptResponse, BackendError, OcrMode, Guardrails, OCRCapture, Automation, MouseButton, Region, Rect};
+        
+        #[test]
+        fn action_context_variable_expansion() {
+            let mut ctx = ActionContext::new();
+            ctx.set("name", "Alice");
+            ctx.set("value", "42");
+            
+            let expanded = ctx.expand("Hello $name, the answer is $value!");
+            assert_eq!(expanded, "Hello Alice, the answer is 42!");
+        }
+        
+        #[test]
+        fn action_context_termination_request() {
+            let mut ctx = ActionContext::new();
+            assert!(!ctx.is_termination_requested());
+            
+            ctx.request_termination("task_complete");
+            assert!(ctx.is_termination_requested());
+            assert_eq!(ctx.termination_reason, Some("task_complete".to_string()));
+        }
+        
+        #[test]
+        fn llm_prompt_response_simple() {
+            let response = LLMPromptResponse::simple("test prompt".to_string(), 0.5);
+            assert_eq!(response.prompt, "test prompt");
+            assert_eq!(response.risk, 0.5);
+            assert_eq!(response.continuation_prompt, Some("test prompt".to_string()));
+            assert_eq!(response.continuation_prompt_risk, 0.5);
+            assert!(!response.task_complete);
+            assert_eq!(response.task_complete_reason, None);
+        }
+        
+        #[test]
+        fn llm_prompt_response_completed() {
+            let response = LLMPromptResponse::completed("Task finished successfully".to_string());
+            assert_eq!(response.prompt, "");
+            assert_eq!(response.risk, 0.0);
+            assert_eq!(response.continuation_prompt, None);
+            assert_eq!(response.continuation_prompt_risk, 0.0);
+            assert!(response.task_complete);
+            assert_eq!(response.task_complete_reason, Some("Task finished successfully".to_string()));
+        }
+        
+        #[test]
+        fn llm_prompt_response_continuation() {
+            let response = LLMPromptResponse::continuation("next step".to_string(), 0.3);
+            assert_eq!(response.prompt, "next step");
+            assert_eq!(response.risk, 0.3);
+            assert_eq!(response.continuation_prompt, Some("next step".to_string()));
+            assert_eq!(response.continuation_prompt_risk, 0.3);
+            assert!(!response.task_complete);
+            assert_eq!(response.task_complete_reason, None);
+        }
+        
+        #[test]
+        fn backend_error_display() {
+            let err = BackendError::new("test_code", "test message");
+            assert_eq!(err.code, "test_code");
+            assert_eq!(err.message, "test message");
+            assert_eq!(format!("{}", err), "test_code: test message");
+        }
+        
+        #[test]
+        fn ocr_mode_default() {
+            assert_eq!(OcrMode::default(), OcrMode::Vision);
+        }
+        
+        #[test]
+        fn guardrails_default() {
+            let g = Guardrails::default();
+            assert_eq!(g.cooldown, Duration::from_millis(0));
+            assert_eq!(g.max_runtime, None);
+            assert_eq!(g.max_activations_per_hour, None);
+            assert_eq!(g.heartbeat_timeout, None);
+            assert_eq!(g.ocr_mode, OcrMode::Vision);
+            assert!(g.success_keywords.is_empty());
+            assert!(g.failure_keywords.is_empty());
+            assert_eq!(g.ocr_termination_pattern, None);
+            assert!(g.ocr_region_ids.is_empty());
+        }
+        
+        #[test]
+        fn automation_trait_default_methods() {
+            struct TestAutomation;
+            impl Automation for TestAutomation {
+                fn move_cursor(&self, _x: u32, _y: u32) -> Result<(), String> {
+                    Ok(())
+                }
+                fn click(&self, _button: MouseButton) -> Result<(), String> {
+                    Ok(())
+                }
+                fn type_text(&self, _text: &str) -> Result<(), String> {
+                    Ok(())
+                }
+                fn key(&self, _key: &str) -> Result<(), String> {
+                    Ok(())
+                }
+            }
+            
+            let auto = TestAutomation;
+            assert!(auto.mouse_down(MouseButton::Left).is_ok());
+            assert!(auto.mouse_up(MouseButton::Right).is_ok());
+            assert!(auto.key_down("a").is_ok());
+            assert!(auto.key_up("b").is_ok());
+        }
+        
+        #[test]
+        fn ocr_capture_default_cached_method() {
+            struct TestOCR;
+            impl OCRCapture for TestOCR {
+                fn extract_text(&self, _region: &Region) -> Result<String, BackendError> {
+                    Ok("test text".to_string())
+                }
+            }
+            
+            let ocr = TestOCR;
+            let region = Region {
+                id: "test".to_string(),
+                rect: Rect { x: 0, y: 0, width: 100, height: 100 },
+                name: None,
+            };
+            
+            // Default cached implementation should just call extract_text
+            let result = ocr.extract_text_cached(&region, 12345);
+            assert_eq!(result.unwrap(), "test text");
+        }
+    }
 }
