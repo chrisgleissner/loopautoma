@@ -108,8 +108,8 @@ async function maybeReplaceScreenshot() {
             );
         }
     } catch (err) {
-        // Fallback to byte comparison on error
-        console.warn("Pixel comparison failed, using byte comparison:", err);
+        // Fallback: if pixel comparison fails, save the new screenshot (already verified bytes differ)
+        console.warn("Pixel comparison failed, saving new screenshot as fallback:", err);
         await fs.rename(tempPath, screenshotPath);
         console.info("UI screenshot updated at", screenshotPath);
     }
