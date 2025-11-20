@@ -751,6 +751,18 @@ textarea {
 
 button {
   cursor: pointer;
+  max-width: 100%;
+}
+
+/* Utility class for truncating text with ellipsis */
+.truncate-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Vertically center button text */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 button:hover {

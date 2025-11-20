@@ -5,6 +5,8 @@ import { preview } from "vite";
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs/promises";
+import { PNG } from "pngjs";
+import pixelmatch from "pixelmatch";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const screenshotPath = path.join(rootDir, "doc", "img", "ui-screenshot.png");
@@ -52,14 +54,65 @@ async function maybeReplaceScreenshot() {
     }
 
     const existingBuffer = existing.status === "fulfilled" ? existing.value : undefined;
-    if (existingBuffer && existingBuffer.equals(nextBuffer)) {
-        await fs.unlink(tempPath);
-        console.info("UI screenshot unchanged; keeping existing file.");
+    
+    // If no existing screenshot, save the new one
+    if (!existingBuffer) {
+        await fs.rename(tempPath, screenshotPath);
+        console.info("UI screenshot created (first time) at", screenshotPath);
         return;
     }
 
-    await fs.rename(tempPath, screenshotPath);
-    console.info("UI screenshot updated at", screenshotPath);
+    // Byte-level comparison first (fastest)
+    if (existingBuffer.equals(nextBuffer)) {
+        await fs.unlink(tempPath);
+        console.info("UI screenshot unchanged (identical bytes); keeping existing file.");
+        return;
+    }
+
+    // Use pixelmatch for visual diff detection
+    try {
+        const img1 = PNG.sync.read(existingBuffer);
+        const img2 = PNG.sync.read(nextBuffer);
+
+        // If dimensions differ, definitely replace
+        if (img1.width !== img2.width || img1.height !== img2.height) {
+            await fs.rename(tempPath, screenshotPath);
+            console.info("UI screenshot updated (dimensions changed) at", screenshotPath);
+            return;
+        }
+
+        // Calculate pixel differences
+        const diff = new PNG({ width: img1.width, height: img1.height });
+        const numDiffPixels = pixelmatch(
+            img1.data,
+            img2.data,
+            diff.data,
+            img1.width,
+            img1.height,
+            { threshold: 0.1 } // 0.1 color difference threshold (pixelmatch sensitivity, 0.0–1.0 scale)
+        );
+
+        const totalPixels = img1.width * img1.height;
+        const diffPercent = (numDiffPixels / totalPixels) * 100;
+
+        // Only save if there's a visible difference (>0.1% of pixels changed)
+        if (diffPercent > 0.1) {
+            await fs.rename(tempPath, screenshotPath);
+            console.info(
+                `UI screenshot updated at ${screenshotPath} (${numDiffPixels} pixels changed, ${diffPercent.toFixed(2)}% diff)`
+            );
+        } else {
+            await fs.unlink(tempPath);
+            console.info(
+                `UI screenshot unchanged (${diffPercent.toFixed(4)}% diff, below 0.1% threshold); keeping existing file.`
+            );
+        }
+    } catch (err) {
+        // Fallback: if pixel comparison fails, save the new screenshot (already verified bytes differ)
+        console.warn("Pixel comparison failed, saving new screenshot as fallback:", err);
+        await fs.rename(tempPath, screenshotPath);
+        console.info("UI screenshot updated at", screenshotPath);
+    }
 }
 
 async function captureScreenshot(baseUrl: string) {

@@ -72,12 +72,26 @@ The app loads with a ready-to-use preset that keeps AI agents running:
 
 ### Settings
 
-Click the **gear icon** (⚙️) in the top-right to access Settings:
+Click the **gear icon** (⚙️) in the top-right to access the Settings panel:
 
-- **Appearance**: Toggle between light/dark themes and adjust font size
-- **OpenAI Integration**: Securely store your API key for AI-powered prompt generation
+![Settings Panel](./doc/img/settings-panel.png)
+
+The Settings panel provides centralized configuration for:
+
+- **Appearance**
+  - **Theme**: Toggle between light and dark themes
+  - **Font Size**: Adjust UI font size (10-20px) for better readability
+
+- **Audio Notifications**
+  - Enable/disable audio alerts for automation events
+  - Adjust volume (0-100%)
+  - Test intervention and completion sounds
+
+- **OpenAI Integration** (Secure Configuration)
+  - Store your API key securely in your OS keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service)
   - Get your API key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-  - Keys are encrypted and stored in your OS keyring (never in plaintext)
+  - Select preferred GPT-4 Vision model for AI-powered prompt generation
+  - Keys are encrypted and never stored in plaintext
   - Test, replace, or delete keys directly from the Settings panel
 
 ## Profiles & persistence
