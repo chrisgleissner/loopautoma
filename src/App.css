@@ -751,8 +751,11 @@ textarea {
 
 button {
   cursor: pointer;
-  /* Ensure button text never overflows container */
   max-width: 100%;
+}
+
+/* Utility class for truncating text with ellipsis */
+.truncate-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
