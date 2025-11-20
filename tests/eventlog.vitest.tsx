@@ -17,13 +17,13 @@ describe("EventLog", () => {
         ]}
       />
     );
-    expect(screen.getByText(/TriggerFired/)).toBeTruthy();
-    expect(screen.getByText(/ConditionEvaluated: true/)).toBeTruthy();
-    expect(screen.getByText(/ActionStarted: Click/)).toBeTruthy();
-    expect(screen.getByText(/ActionCompleted: Click/)).toBeTruthy();
-    expect(screen.getByText(/MonitorStateChanged: Running/)).toBeTruthy();
-    expect(screen.getByText(/WatchdogTripped: max_runtime/)).toBeTruthy();
-    expect(screen.getByText(/Error: oops/)).toBeTruthy();
+    // Issue 8: EventLog redesigned as table with Time/Name/Details columns
+    expect(screen.getByText(/Trigger Fired/)).toBeTruthy();
+    expect(screen.getByText(/Result: true/)).toBeTruthy();
+    expect(screen.getByText(/Click/)).toBeTruthy(); // appears in Action Started and Completed
+    expect(screen.getByText(/Running/)).toBeTruthy();
+    expect(screen.getByText(/max_runtime/)).toBeTruthy();
+    expect(screen.getByText(/oops/)).toBeTruthy();
   });
 
   it("renders empty state when no events", () => {
@@ -191,7 +191,7 @@ describe("EventLog", () => {
       cooldown_remaining_ms: 0,
       condition_met: false
     };
-    
+
     // MonitorTick is filtered, but test the formatting logic exists
     render(<EventLog events={[tickEvent]} />);
     expect(screen.queryByText(/MonitorTick/)).toBeNull();

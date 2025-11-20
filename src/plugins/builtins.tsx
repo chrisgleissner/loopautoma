@@ -129,14 +129,13 @@ function TypeEditor({ value, onChange }: ActionEditorProps) {
     <>
       <KeyboardIcon size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
       <div className="type-editor" title="Type literal text; use {Key:Enter} inline markers for special keys">
-        <label>
-          Text
-          <textarea
-            value={v.text}
-            onChange={(e) => onChange({ type: "Type", text: e.target.value })}
-            style={{ width: 260, minHeight: 48, marginLeft: 6 }}
-          />
-        </label>
+        <textarea
+          value={v.text}
+          onChange={(e) => onChange({ type: "Type", text: e.target.value })}
+          style={{ width: 260, minHeight: 48, marginLeft: 6 }}
+          placeholder="Enter text to type..."
+          aria-label="Text to type"
+        />
         <div className="type-editor__helpers">
           <label>
             Insert special key

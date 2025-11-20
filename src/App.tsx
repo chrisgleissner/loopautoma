@@ -414,7 +414,7 @@ function MainWindow() {
                 <span className="panel-icon" aria-hidden="true">🛡️</span>
                 <strong>Guardrails</strong>
               </div>
-              <label>
+              <label title="Minimum time (in seconds) to wait after actions execute before checking the condition again. Prevents the automation from running too frequently.">
                 Cooldown (s)
                 <AcceleratingNumberInput
                   min={0}

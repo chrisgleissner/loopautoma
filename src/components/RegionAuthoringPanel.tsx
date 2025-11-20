@@ -97,6 +97,21 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
     const trimmedId = pendingId.trim();
     const regionId = trimmedId.length > 0 ? trimmedId : `region-${Date.now().toString(36)}`;
     const friendlyName = pendingName.trim() || undefined;
+
+    // Issue 3: Validate for duplicate region ID or name
+    const existingIds = new Set(regions?.map(r => r.id) || []);
+    const existingNames = new Set(regions?.map(r => r.name).filter(Boolean) || []);
+
+    if (existingIds.has(regionId)) {
+      setError(`Region ID "${regionId}" already exists. Please choose a different ID.`);
+      return;
+    }
+
+    if (friendlyName && existingNames.has(friendlyName)) {
+      setError(`Region name "${friendlyName}" already exists. Please choose a different name.`);
+      return;
+    }
+
     try {
       await onRegionAdd({ rect: pending.rect, id: regionId, name: friendlyName });
       if (pending.thumbnail) {

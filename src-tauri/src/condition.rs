@@ -29,12 +29,15 @@ impl Condition for RegionCondition {
     fn evaluate(&mut self, _now: Instant, regions: &[Region], capture: &dyn ScreenCapture) -> bool {
         // Check if any region changed since last evaluation
         let mut any_changed = false;
+        let mut all_regions_initialized = true;
+        
         for r in regions {
             let h = capture.hash_region(r, 1); // No downscaling
             match self.last_hashes.get(&r.id) {
                 None => {
                     // First observation: record hash, don't count as change yet
                     self.last_hashes.insert(r.id.clone(), h);
+                    all_regions_initialized = false;
                 }
                 Some(&prev_h) => {
                     if prev_h != h {
@@ -45,10 +48,16 @@ impl Condition for RegionCondition {
             }
         }
 
+        // Issue 6: Skip evaluation if this is the initial capture (not all regions initialized yet)
+        // This ensures the first capture doesn't count towards consecutive_checks
+        if !all_regions_initialized {
+            return false;
+        }
+
         // Update consecutive count
         match self.last_had_change {
             None => {
-                // First evaluation after initialization
+                // First real evaluation after initialization
                 self.last_had_change = Some(any_changed);
                 self.consecutive_same_state = 1;
             }

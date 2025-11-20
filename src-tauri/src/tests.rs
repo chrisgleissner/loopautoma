@@ -95,12 +95,65 @@ mod tests {
         };
         let cap = FakeCap { seq: vec![42] };
         let t0 = Instant::now();
-        // First 3 evaluations: not yet 4 consecutive no-change states
+        // First evaluation initializes the hash (Issue 6 fix: doesn't count)
         assert!(!c.evaluate(t0, &[r.clone()], &cap));
+        // Next 3 evaluations: not yet 4 consecutive no-change states
         assert!(!c.evaluate(t0 + Duration::from_millis(50), &[r.clone()], &cap));
         assert!(!c.evaluate(t0 + Duration::from_millis(100), &[r.clone()], &cap));
-        // 4th consecutive evaluation with same hash: should trigger
-        assert!(c.evaluate(t0 + Duration::from_millis(150), &[r], &cap));
+        assert!(!c.evaluate(t0 + Duration::from_millis(150), &[r.clone()], &cap));
+        // 5th total evaluation (4th consecutive after init): should trigger
+        assert!(c.evaluate(t0 + Duration::from_millis(200), &[r], &cap));
+    }
+
+    #[test]
+    fn region_condition_initial_capture_does_not_count() {
+        // Issue 6: First capture should not count towards consecutive_checks
+        let mut c = RegionCondition::new(1, false); // expect_change=false, consecutive=1
+        let r = Region {
+            id: "r1".into(),
+            rect: Rect {
+                x: 0,
+                y: 0,
+                width: 10,
+                height: 10,
+            },
+            name: None,
+        };
+        let cap = FakeCap { seq: vec![42] };
+        let t0 = Instant::now();
+        
+        // First evaluation: initializing, should return false
+        assert!(!c.evaluate(t0, &[r.clone()], &cap));
+        
+        // Second evaluation with same hash: now should trigger (1 consecutive no-change)
+        assert!(c.evaluate(t0 + Duration::from_millis(50), &[r], &cap));
+    }
+
+    #[test]
+    fn region_condition_starts_counting_after_init() {
+        // Verify that after initialization, consecutive checks work correctly
+        let mut c = RegionCondition::new(2, false);
+        let r = Region {
+            id: "r1".into(),
+            rect: Rect {
+                x: 0,
+                y: 0,
+                width: 10,
+                height: 10,
+            },
+            name: None,
+        };
+        let cap = FakeCap { seq: vec![42] };
+        let t0 = Instant::now();
+        
+        // Initial capture - should not trigger
+        assert!(!c.evaluate(t0, &[r.clone()], &cap));
+        
+        // First real check - not enough consecutive
+        assert!(!c.evaluate(t0 + Duration::from_millis(50), &[r.clone()], &cap));
+        
+        // Second real check - now we have 2 consecutive no-change
+        assert!(c.evaluate(t0 + Duration::from_millis(100), &[r], &cap));
     }
 
     #[test]
@@ -199,24 +252,31 @@ mod tests {
         let mut events = vec![];
         let t0 = Instant::now();
         monitor.start(&mut events);
-        // Need 4 consecutive ticks with same hash to trigger (expect_change=false, consecutive_checks=4)
-        monitor.tick(t0, &[r.clone()], &cap, &auto, &mut events); // check 1
+        // Need 5 total ticks: 1 to initialize + 4 consecutive with same hash to trigger (Issue 6 fix)
+        monitor.tick(t0, &[r.clone()], &cap, &auto, &mut events); // initialization
         monitor.tick(
             t0 + Duration::from_millis(20),
             &[r.clone()],
             &cap,
             &auto,
             &mut events,
-        ); // check 2
+        ); // check 1
         monitor.tick(
             t0 + Duration::from_millis(40),
             &[r.clone()],
             &cap,
             &auto,
             &mut events,
-        ); // check 3
+        ); // check 2
         monitor.tick(
             t0 + Duration::from_millis(60),
+            &[r.clone()],
+            &cap,
+            &auto,
+            &mut events,
+        ); // check 3
+        monitor.tick(
+            t0 + Duration::from_millis(80),
             &[r],
             &cap,
             &auto,
@@ -1645,8 +1705,11 @@ mod tests {
             let auto = FakeAuto::new();
             let capture_trait: &dyn ScreenCapture = &TestCapture;
             
-            // First tick should run action and detect termination
-            monitor.tick(Instant::now(), &regions, capture_trait, &auto, &mut events);
+            let t0 = Instant::now();
+            // First tick initializes (Issue 6 fix)
+            monitor.tick(t0, &regions, capture_trait, &auto, &mut events);
+            // Second tick should trigger condition, run action, and detect termination
+            monitor.tick(t0 + Duration::from_millis(200), &regions, capture_trait, &auto, &mut events);
             
             // Monitor should be stopped due to termination
             assert!(monitor.started_at.is_none(), "Monitor should stop after task completion");

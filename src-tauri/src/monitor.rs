@@ -237,9 +237,17 @@ impl<'a> Monitor<'a> {
                 Ok(t) => t,
                 Err(e) => {
                     eprintln!("[Monitor] OCR extraction failed for '{}': {}", region_id, e.message);
+                    println!("[OCR] Failed to extract text from region '{}' ({}): {}", 
+                        region.name.as_deref().unwrap_or(&region_id), region_id, e.message);
                     continue;
                 }
             };
+
+            // Issue 7: Log OCR extraction with region name and extracted text
+            let region_name = region.name.as_deref().unwrap_or(&region_id);
+            println!("[OCR] Region '{}' (ID: {}) extracted text: '{}'", 
+                region_name, region_id, 
+                if text.len() > 100 { format!("{}...", &text[..100]) } else { text.clone() });
 
             let text_upper = text.to_uppercase();
 

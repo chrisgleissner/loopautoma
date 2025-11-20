@@ -1,3 +1,4 @@
+import React from "react";
 import { GuardrailsConfig, Region } from "../types";
 import { AcceleratingNumberInput } from "./AcceleratingNumberInput";
 
@@ -16,6 +17,16 @@ export function TerminationConditionsEditor({
     onGuardrailsChange({ ...guardrails, ...updates });
   };
 
+  // Issue 2: Clean up stale OCR region IDs that no longer exist
+  React.useEffect(() => {
+    const currentIds = guardrails.ocr_region_ids || [];
+    const validIds = new Set(regions.map(r => r.id));
+    const filtered = currentIds.filter(id => validIds.has(id));
+    if (filtered.length !== currentIds.length) {
+      updateGuardrails({ ocr_region_ids: filtered });
+    }
+  }, [regions]);
+
   return (
     <div className="termination-conditions">
       <div className="termination-section">
@@ -30,7 +41,7 @@ export function TerminationConditionsEditor({
       <div className="termination-section">
         <h4 className="termination-subsection-title">Keyword Detection</h4>
         <div className="form-group">
-          <label htmlFor="success-keywords">
+          <label htmlFor="success-keywords" title="Keywords or regex patterns that indicate successful completion. Automation stops when detected.">
             Success Keywords
             <span className="help-text">
               (one per line, supports regex patterns)
@@ -50,7 +61,7 @@ export function TerminationConditionsEditor({
         </div>
 
         <div className="form-group">
-          <label htmlFor="failure-keywords">
+          <label htmlFor="failure-keywords" title="Keywords or regex patterns that indicate failure. Automation stops when detected.">
             Failure Keywords
             <span className="help-text">
               (one per line, supports regex patterns)
@@ -74,7 +85,7 @@ export function TerminationConditionsEditor({
       <div className="termination-section">
         <h4 className="termination-subsection-title">OCR Pattern Matching</h4>
         <div className="form-group">
-          <label htmlFor="ocr-mode">
+          <label htmlFor="ocr-mode" title="Choose between local Tesseract OCR or cloud-based GPT-4 Vision API for text extraction">
             OCR Mode
             <span className="help-text">
               (local = Tesseract, vision = GPT-4 Vision)
@@ -93,7 +104,7 @@ export function TerminationConditionsEditor({
         </div>
 
         <div className="form-group">
-          <label htmlFor="ocr-pattern">
+          <label htmlFor="ocr-pattern" title="Regular expression pattern to match against extracted text. When matched, the automation will stop.">
             OCR Termination Pattern
             <span className="help-text">(regex pattern)</span>
           </label>
@@ -115,22 +126,25 @@ export function TerminationConditionsEditor({
             {regions.length === 0 ? (
               <p className="help-text">No regions defined yet</p>
             ) : (
-              regions.map((region) => (
-                <label key={region.id} className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={(guardrails.ocr_region_ids || []).includes(region.id)}
-                    onChange={(e) => {
-                      const current = guardrails.ocr_region_ids || [];
-                      const next = e.target.checked
-                        ? [...current, region.id]
-                        : current.filter((id) => id !== region.id);
-                      updateGuardrails({ ocr_region_ids: next });
-                    }}
-                  />
-                  <span>{region.name || region.id}</span>
-                </label>
-              ))
+              regions.map((region) => {
+                const isSelected = (guardrails.ocr_region_ids || []).includes(region.id);
+                return (
+                  <label key={region.id} className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        const current = guardrails.ocr_region_ids || [];
+                        const next = e.target.checked
+                          ? [...current, region.id]
+                          : current.filter((id) => id !== region.id);
+                        updateGuardrails({ ocr_region_ids: next });
+                      }}
+                    />
+                    <span>{region.name || region.id}</span>
+                  </label>
+                );
+              })
             )}
           </div>
         </div>
@@ -140,7 +154,7 @@ export function TerminationConditionsEditor({
       <div className="termination-section">
         <h4 className="termination-subsection-title">Timeout Settings</h4>
         <div className="form-group">
-          <label htmlFor="action-timeout">
+          <label htmlFor="action-timeout" title="Maximum time (in milliseconds) allowed for each action to complete. Automation stops if exceeded.">
             Action Timeout (ms)
             <span className="help-text">(max time per action)</span>
           </label>
@@ -153,7 +167,7 @@ export function TerminationConditionsEditor({
         </div>
 
         <div className="form-group">
-          <label htmlFor="heartbeat-timeout">
+          <label htmlFor="heartbeat-timeout" title="Maximum time between automation cycles. If exceeded, the automation is considered stalled and will stop.">
             Heartbeat Timeout (ms)
             <span className="help-text">(detect stalled loops)</span>
           </label>
@@ -166,7 +180,7 @@ export function TerminationConditionsEditor({
         </div>
 
         <div className="form-group">
-          <label htmlFor="max-consecutive-failures">
+          <label htmlFor="max-consecutive-failures" title="Stop the automation after this many consecutive action failures.">
             Max Consecutive Failures
             <span className="help-text">(stop after N failures)</span>
           </label>
