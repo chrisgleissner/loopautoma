@@ -485,4 +485,73 @@ describe("SettingsPanel", () => {
             expect(screen.getByText(/API key cannot be empty/)).toBeTruthy();
         });
     });
+
+    it("renders light theme styles", () => {
+        render(
+            <SettingsPanel
+                isOpen={true}
+                onClose={vi.fn()}
+                theme="light"
+                onThemeChange={vi.fn()}
+                fontSize={13}
+                onFontSizeChange={vi.fn()}
+            />
+        );
+
+        const panel = screen.getByText("Settings").parentElement;
+        expect(panel).toBeTruthy();
+    });
+
+    it("handles empty model value", async () => {
+        vi.mocked(secureStorage.getOpenAIKeyStatus).mockResolvedValue(true);
+        vi.mocked(secureStorage.getOpenAIModel).mockResolvedValue("");
+
+        render(
+            <SettingsPanel
+                isOpen={true}
+                onClose={vi.fn()}
+                theme="dark"
+                onThemeChange={vi.fn()}
+                fontSize={13}
+                onFontSizeChange={vi.fn()}
+            />
+        );
+
+        // Component should handle empty model gracefully
+        await waitFor(() => {
+            expect(screen.getByText("OpenAI Integration")).toBeTruthy();
+        });
+    });
+
+    it("handles boundary font sizes", () => {
+        render(
+            <SettingsPanel
+                isOpen={true}
+                onClose={vi.fn()}
+                theme="dark"
+                onThemeChange={vi.fn()}
+                fontSize={10}
+                onFontSizeChange={vi.fn()}
+            />
+        );
+
+        const fontInput = screen.getByDisplayValue("10");
+        expect(fontInput).toBeTruthy();
+    });
+
+    it("handles max font size", () => {
+        render(
+            <SettingsPanel
+                isOpen={true}
+                onClose={vi.fn()}
+                theme="dark"
+                onThemeChange={vi.fn()}
+                fontSize={20}
+                onFontSizeChange={vi.fn()}
+            />
+        );
+
+        const fontInput = screen.getByDisplayValue("20");
+        expect(fontInput).toBeTruthy();
+    });
 });

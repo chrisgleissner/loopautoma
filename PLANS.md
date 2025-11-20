@@ -120,6 +120,43 @@ To prevent uncontrolled growth of this file:
 
 ## Active tasks
 
+### Task: CI Release Build Type Annotation Fix ✅ COMPLETE
+
+**Started:** 2025-11-20  
+**Completed:** 2025-11-20
+
+**User request (summary)**
+- Fix CI release build failures (run 19533143945) across all platforms (Ubuntu, macOS x86_64, macOS ARM, Windows)
+- All builds were failing at the tauri-action step with Rust compilation error
+
+**Context and constraints**
+- Release workflow: `.github/workflows/release.yaml` triggered on tag push (0.3.2)
+- Error: `error[E0282]: type annotations needed` in `src/action.rs:123`
+- Compiler couldn't infer type parameter `T` for `None` in tuple return `(images, None)`
+
+**Plan (checklist)**
+- [x] 1. Fetch CI logs from GitHub Actions run 19533143945
+- [x] 2. Identify root cause: type inference failure in action.rs line 123
+- [x] 3. Fix by adding explicit type annotation: `None::<String>`
+- [x] 4. Verify fix compiles locally with release features
+- [x] 5. Commit fix with clear commit message
+
+**Progress log**
+- 2025-11-20 11:20 UTC: Fetched CI logs, identified compilation error in action.rs:123
+- 2025-11-20 11:25 UTC: Fixed type annotation from `(images, None)` to `(images, None::<String>)`
+- 2025-11-20 11:27 UTC: Verified compilation with `cargo check --no-default-features --features os-linux-automation,os-linux-capture-xcap`
+- 2025-11-20 11:28 UTC: Committed fix (89f14af)
+
+**Resolution**
+The issue was in the `LLMPromptGeneration` action's `run()` method where it builds a tuple `(images, extracted_text)` for different OCR modes. In the `Vision` mode branch, the code returned `(images, None)` but Rust couldn't infer that `None` should be `Option<String>` to match the `Local` mode branch that returns `Some(String)`. 
+
+Fixed by explicitly typing: `(images, None::<String>)`.
+
+**Commit**
+- 89f14af: "fix: add type annotation for None in action.rs tuple return"
+
+---
+
 ### Task: Intelligent Termination System - AI Completion, OCR, Guardrails, and Audio Notifications
 
 **Started:** 2025-11-19
