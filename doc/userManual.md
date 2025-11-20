@@ -122,6 +122,40 @@ The Settings panel closes when you click outside the dialog or press **Esc**. Ch
 
 For platform-specific troubleshooting (e.g., keyring not available on Linux), see `doc/secureStorage.md`.
 
+## 10.1. Intelligent Termination Conditions
+
+LoopAutoma profiles can automatically stop when specific conditions are met, allowing unattended operation without manual intervention. Configure termination conditions in the **Graph Composer** under the **Termination Conditions** section.
+
+### Keyword Detection
+
+- **Success Keywords**: Regex patterns (one per line) that indicate successful completion. Example: `BUILD SUCCESS`, `All tests passed`, `Deployment complete`.
+- **Failure Keywords**: Regex patterns that indicate failures requiring intervention. Example: `ERROR`, `FAILED`, `Exception`.
+
+When detected in any monitored region, the profile stops immediately and plays an audio notification (if enabled in Settings).
+
+### OCR Pattern Matching
+
+- **OCR Mode**: Choose between:
+  - **Vision API (default)**: Uses GPT-4 Vision for high accuracy on complex UIs (requires API key, higher cost)
+  - **Local OCR**: Uses Tesseract for offline text extraction (free, faster, good for text-heavy UIs)
+- **OCR Termination Pattern**: General regex pattern for completion detection (e.g., `DONE|COMPLETE|SUCCESS`)
+- **OCR Region IDs**: Select which regions to scan for patterns (multi-select from your defined regions)
+
+### Timeout Settings
+
+- **Action Timeout (ms)**: Stop if a single action takes longer than this duration (helps catch stuck actions)
+- **Heartbeat Timeout (ms)**: Stop if no action progress for this duration (detects stalled loops)
+- **Max Consecutive Failures**: Stop after N failed action sequences in a row (prevents repeated errors)
+
+### Best Practices
+
+- Always configure at least one termination condition for unattended runs
+- Use **max_runtime** as a safety backstop even with other conditions
+- Test OCR patterns in local mode first (faster feedback during development)
+- Enable audio notifications in Settings to hear when intervention is needed
+
+See `doc/terminationPatterns.md` for comprehensive examples and troubleshooting.
+
 ## 11. Quit workflow
 
 - **Desktop build**: The Quit button closes the main window, stops the monitor/input capture, and exits the Tauri process. Use this after stopping automation.

@@ -16,12 +16,17 @@ Cross‑platform desktop automation that watches configurable screen regions and
 
 - **Keep agents moving**: automatically type "Continue" and press enter when an agent stalls.
 - **AI-powered automation**: Use OpenAI's GPT-4 Vision to analyze screen content and generate intelligent prompts with built-in risk assessment (requires API key).
+- **Intelligent termination**: Profiles stop automatically when tasks complete via:
+  - AI task completion detection (structured LLM responses)
+  - OCR pattern matching (success/failure keywords with regex)
+  - Timeout guardrails (action timeout, heartbeat watchdog, consecutive failures)
+  - Audio notifications for user intervention or completion
 - **Secure credential storage**: API keys stored in OS keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service) — never in plaintext.
 - **Flexible conditions**: Trigger actions after N consecutive checks with no changes or when changes are detected.
 - **Run unattended**: detect stable/changed UI regions and advance workflows automatically.
 - **Stay safe**: risk thresholds, cooldowns, rate limits, and guardrails to keep automation bounded.
 - **Modern UI**: dual light/dark palettes, visual action icons (mouse, keyboard, sparkles), responsive layout, and inline tooltips.
-- **Settings panel**: Configure theme, font size, and OpenAI API key via a centralized Settings dialog (gear icon in header).
+- **Settings panel**: Configure theme, font size, OpenAI API key, and audio notifications via a centralized Settings dialog (gear icon in header).
 
 ## Quick Start Tutorial
 
