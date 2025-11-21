@@ -98,6 +98,10 @@ jobs:
           rm -rf /workspace/coverage || true
           rm -rf /workspace/coverage-e2e || true
           rm -rf /workspace/target || true
+          rm -rf /workspace/dist || true
+          rm -rf /workspace/playwright-report || true
+          rm -rf /workspace/test-results || true
+          rm -rf /workspace/tmp || true
           df -h
 
       - name: Rust tests
@@ -108,11 +112,17 @@ jobs:
         env:
           CARGO_BUILD_JOBS: 2
           RUSTFLAGS: "-Ccodegen-units=1"
+          CARGO_TARGET_DIR: /tmp/llvm-cov-target
         run: |
           if [ -f src-tauri/Cargo.toml ]; then (
             cd src-tauri && \
             cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
           ); fi
+
+      - name: Cleanup coverage target dir
+        if: ${{ always() }}
+        run: |
+          rm -rf /tmp/llvm-cov-target || true
 
       - name: Collect coverage artifacts
         id: coverage
