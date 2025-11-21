@@ -86,6 +86,16 @@ jobs:
           set -x
           if [ -f package.json ]; then timeout 600 bun run test:e2e:cov || true; else echo "No UI; skipping"; fi
 
+      - name: Free disk space before Rust coverage
+        if: ${{ always() }}
+        run: |
+          set -x
+          df -h
+          rm -rf /root/.cache/ms-playwright || true
+          rm -rf /root/.npm/_logs || true
+          rm -rf /workspace/target || true
+          df -h
+
       - name: Rust tests
         run: |
           if [ -d src-tauri ]; then (cd src-tauri && cargo test --all --locked); else echo "No src-tauri/; skipping"; fi
