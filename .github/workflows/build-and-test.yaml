@@ -57,7 +57,9 @@ jobs:
       - name: Install system dependencies (X11 input)
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends libxkbcommon-x11-dev libxcb-xkb-dev
+          apt-get install -y --no-install-recommends libxkbcommon-x11-dev libxcb-xkb-dev nodejs npm
+          node -v
+          npm -v
 
       - name: Install dependencies (UI)
         run: |

@@ -138,17 +138,18 @@ To prevent uncontrolled growth of this file:
 
 **Plan (checklist)**
 - [x] Reproduce CI behavior locally with `CI=1` for `bun run test:ui:cov` and `bun run test:e2e:cov` (including timeout wrappers) to capture where runs stall.
-- [ ] Inspect workflow/test configs for timeouts, environment differences, and background processes; pinpoint root causes for UI silence and E2E hang.
-- [ ] Implement workflow/config fixes so UI and E2E coverage steps exit cleanly on GitHub Actions (adjust timeouts/reporters, ensure webServer shutdown, avoid swallowed failures).
+- [x] Inspect workflow/test configs for timeouts, environment differences, and background processes; pinpoint root causes for UI silence and E2E hang.
+- [x] Implement workflow/config fixes so UI and E2E coverage steps exit cleanly on GitHub Actions (adjust timeouts/reporters, ensure webServer shutdown, avoid swallowed failures).
 - [ ] Validate with local CI-mode runs and document outcomes; prepare for a CI rerun if needed.
 
 **Progress log**
 - 2025-11-21 — Started task, reviewed repo instructions, and gathered current CI workflow context.
 - 2025-11-21 — Reproduced CI-mode runs locally with `timeout` wrappers: UI coverage completed in ~13s with full output; E2E coverage completed in ~66s (65 passed, 5 skipped) and wrote coverage-e2e/lcov.info.
+- 2025-11-21 — Identified CI hang root cause: Playwright CLI needs `node`, but the CI container ships only Bun. Reproduced hang locally by removing `node` from PATH—`bun run test:e2e:cov` stalls after coverage prep. Added workflow step to install nodejs/npm before tests.
 
 **Assumptions and open questions**
 - `doc/rollout-plan.md` remains absent; continuing with available docs.
-- Assuming Actions continue to run in the published CI container with Bun and no Node.js.
+- Assuming Actions continue to run in the published CI container with Bun and no Node.js prior to the new install step.
 
 **Follow-ups / future work**
 - Rerun GitHub Actions after fixes and monitor runtime; tighten budgets further if needed.
