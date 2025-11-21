@@ -11,17 +11,17 @@ import { availableParallelism } from 'os';
  * - Configure via PLAYWRIGHT_WORKERS env var (default: 75% of CPU cores for local, 2 for CI)
  */
 const cpuCount = availableParallelism();
-const defaultWorkers = process.env.CI ? 2 : Math.max(1, Math.min(cpuCount - 1, Math.floor(cpuCount * 0.75)));
+const defaultWorkers = process.env.CI ? 1 : Math.max(1, Math.min(cpuCount - 1, Math.floor(cpuCount * 0.75)));
 const maxWorkers = process.env.PLAYWRIGHT_WORKERS
   ? parseInt(process.env.PLAYWRIGHT_WORKERS, 10)
   : defaultWorkers;
 
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: true, // Enable parallel execution at test level (projects control their own parallelism)
+  fullyParallel: !process.env.CI, // Parallel only locally; sequential in CI to avoid resource contention
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: maxWorkers, // Configurable workers (default: 50% of CPU cores locally, 1 in CI)
+  workers: maxWorkers, // Configurable workers (default: 75% of CPU cores locally, 1 in CI)
   // Never auto-open the HTML report to avoid blocking terminals/agents
   reporter: process.env.CI
     ? [["html", { open: 'never' }], ["github"]]
