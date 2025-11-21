@@ -11,8 +11,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-  // Pick up Vitest tests named *.vitest.* (no .test/.spec suffix) so Bun won't discover them
-  include: ["tests/**/*.vitest.{ts,tsx,js,jsx}"],
+    // Pick up Vitest tests named *.vitest.* (no .test/.spec suffix) so Bun won't discover them
+    include: ["tests/**/*.vitest.{ts,tsx,js,jsx}"],
     // Parallel execution with configurable workers (default: 50% of CPU cores)
     pool: "threads",
     poolOptions: {

@@ -26,48 +26,48 @@ export default defineConfig({
   reporter: process.env.CI
     ? [["html", { open: 'never' }], ["github"]]
     : [["html", { open: 'never' }], ["list"]],
-  
-    use: {
-      trace: 'on-first-retry',
-      screenshot: 'only-on-failure',
-      video: 'retain-on-failure',
+
+  use: {
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+  },
+
+  projects: [
+    {
+      name: 'web-only-mode',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: 'http://127.0.0.1:1420',
+        viewport: { width: 1280, height: 720 },
+      },
+      testMatch: /.*web\.e2e\.ts/,
+      // Web tests can run fully parallel (isolated browser contexts)
+      fullyParallel: true,
     },
+    {
+      name: 'tauri-desktop-mode',
+      use: {
+        ...devices['Desktop Chrome'],
+        // Tauri tests use custom launch logic (see test files)
+        viewport: { width: 1280, height: 720 },
+        baseURL: 'http://127.0.0.1:1420',
+      },
+      testMatch: /.*tauri\.e2e\.ts/,
+      // Tauri tests must run sequentially (shared app state, file system)
+      fullyParallel: false,
+    },
+  ],
 
-    projects: [
-      {
-        name: 'web-only-mode',
-        use: {
-          ...devices['Desktop Chrome'],
-          baseURL: 'http://127.0.0.1:1420',
-          viewport: { width: 1280, height: 720 },
-        },
-        testMatch: /.*web\.e2e\.ts/,
-        // Web tests can run fully parallel (isolated browser contexts)
-        fullyParallel: true,
+  webServer: [
+    {
+      command: 'bun run dev:web',
+      url: 'http://127.0.0.1:1420',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120000,
+      env: {
+        VITE_E2E_COVERAGE: process.env.VITE_E2E_COVERAGE || '',
       },
-      {
-        name: 'tauri-desktop-mode',
-        use: {
-          ...devices['Desktop Chrome'],
-          // Tauri tests use custom launch logic (see test files)
-          viewport: { width: 1280, height: 720 },
-          baseURL: 'http://127.0.0.1:1420',
-        },
-        testMatch: /.*tauri\.e2e\.ts/,
-        // Tauri tests must run sequentially (shared app state, file system)
-        fullyParallel: false,
-      },
-    ],
-
-    webServer: [
-      {
-        command: 'bun run dev:web',
-        url: 'http://127.0.0.1:1420',
-        reuseExistingServer: !process.env.CI,
-        timeout: 120000,
-        env: {
-          VITE_E2E_COVERAGE: process.env.VITE_E2E_COVERAGE || '',
-        },
-      },
-    ],
+    },
+  ],
 });
