@@ -153,6 +153,73 @@ To prevent uncontrolled growth of this file:
 **Follow-ups / future work**
 - Consider post-task documentation explaining how to interpret combined coverage reports once target ≥90% gate is reinstated.
 
+### Task: UI Test Coverage Push to 90%+ ✅ COMPLETE
+
+**Started:** 2025-11-21  
+**Completed:** 2025-11-21
+
+**User request (summary)**
+- Complete OCR documentation (Issue 3 of 10 Critical UI/UX improvements)
+- Increase UI test coverage from 78.28% to 90%+ (verified 3x consecutively)
+- Work autonomously until both objectives achieved
+
+**Context and constraints**
+- Branch: `cursor/boost-code-coverage-and-integrate-e2e-tests-a547`
+- Baseline: 78.28% statements, 71.06% branches, 80.08% functions, 80.69% lines
+- Target: 90%+ average coverage across all metrics
+- Verification: Must run tests 3x consecutively with stable 90%+ results
+- Test framework: Vitest 2.1.4 with Istanbul coverage, @testing-library/react
+
+**Plan (checklist)**
+- [x] 1. Complete Issue 3 (OCR documentation) in doc/userManual.md
+- [x] 2. Analyze coverage gaps and prioritize by impact
+- [x] 3. Write comprehensive ActionRecorder tests (0% → 90%+)
+- [x] 4. Improve TerminationConditionsEditor tests (65% → 90%+)
+- [x] 5. Improve RegionAuthoringPanel tests (76% → 90%+)
+- [x] 6. Verify coverage 3x consecutively at 90%+
+- [x] 7. Commit all changes and update PLANS.md
+
+**Progress log**
+- 2025-11-21 11:57 — Completed OCR documentation (Issue 3), added comprehensive guide to userManual.md. Status now 8/10 issues complete. Committed 97bff05.
+- 2025-11-21 11:58 — Created coverage improvement plan, identified ActionRecorder (0%), TerminationConditionsEditor (65%), RegionAuthoringPanel (76%) as targets.
+- 2025-11-21 11:59 — Created tests/actionrecorder.vitest.tsx with 21 comprehensive tests covering click recording, text buffering, coordinate transformation, keyboard events, state management. Coverage: 0% → 98.93%.
+- 2025-11-21 12:01 — Added 8 new tests to TerminationConditionsEditor: OCR mode selection (none/local/vision), failure keywords, termination patterns, region checkboxes, duplicate region cleanup, all timeout settings. Coverage: 65% → 100%.
+- 2025-11-21 12:03 — Added 5 tests to RegionAuthoringPanel: duplicate ID/name prevention, region redefine workflow, empty region handling, thumbnail cleanup. Coverage: 76% → 90.25%.
+- 2025-11-21 12:04 — Overall coverage reached 92.56% statements (81.08% branches, 93.5% functions, 94.88% lines). Exceeds 90% target!
+- 2025-11-21 12:05 — Verified stable 92.56% coverage across 3 consecutive runs. 273 tests passing in 29 test files.
+- 2025-11-21 12:06 — Committed all test improvements (0ca107b) with detailed commit message documenting coverage gains.
+
+**Coverage metrics achieved**
+
+```text
+Baseline (before):  78.28% statements | 71.06% branches | 80.08% functions | 80.69% lines
+Final (after):      92.56% statements | 81.08% branches | 93.50% functions | 94.88% lines
+Improvement:        +14.28%           | +10.02%         | +13.42%          | +14.19%
+```
+
+
+**Component-specific improvements**
+- ActionRecorder: 0% → 98.93% statements (21 tests, 245 lines covered)
+- TerminationConditionsEditor: 65.38% → 100% statements (19 tests total)
+- RegionAuthoringPanel: 76.62% → 90.25% statements (29 tests total)
+
+**Test details**
+- ActionRecorder tests (21): Initial render, recording toggle, click recording (single/multiple), text buffering, special keys, modifier keys, coordinate transformation (80% scale), Done/Cancel/Refresh buttons, Escape key handling, context menu prevention, action markers
+- TerminationConditionsEditor tests (8 new): Success/failure keywords, OCR mode changes (local/vision), OCR pattern input, region checkbox toggle/uncheck, stale region cleanup, timeout inputs (action/heartbeat/max failures)
+- RegionAuthoringPanel tests (5 new): Duplicate ID/name validation, region redefine via overlay, empty regions array handling, thumbnail cleanup on region removal
+
+**Assumptions and decisions**
+- Skipped SettingsPanel and EventLog further improvements since 92.56% already exceeds 90% target
+- Used fireEvent.change for AcceleratingNumberInput instead of userEvent.type (matches existing test patterns)
+- ActionRecorder coordinate tests mock getBoundingClientRect to verify SCREENSHOT_SCALE=0.8 conversion
+- All tests follow existing patterns: Vitest + @testing-library/react, mock tauriBridge functions
+
+**Verification**
+All test runs show consistent results:
+- Run 1/3: 29 files, 273 tests passed, 92.56% statements
+- Run 2/3: 29 files, 273 tests passed, 92.56% statements
+- Run 3/3: 29 files, 273 tests passed, 92.56% statements
+
 ### Task: CI Release Build Type Annotation Fix ✅ COMPLETE
 
 **Started:** 2025-11-20  
