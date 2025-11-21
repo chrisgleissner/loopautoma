@@ -69,12 +69,19 @@ jobs:
 
       - name: UI tests (Vitest with coverage)
         timeout-minutes: 5
+        env:
+          FORCE_COLOR: "1"
         run: |
-          if [ -f package.json ]; then timeout 300 bun run test:ui:cov || true; else echo "No UI; skipping"; fi
+          set -x
+          if [ -f package.json ]; then timeout 300 bun run test:ui:cov -- --reporter=dot --reporter=verbose || true; else echo "No UI; skipping"; fi
 
       - name: E2E tests (Playwright with coverage)
         timeout-minutes: 10
+        env:
+          DEBUG: pw:webServer,pw:api
+          FORCE_COLOR: "1"
         run: |
+          set -x
           if [ -f package.json ]; then timeout 600 bun run test:e2e:cov || true; else echo "No UI; skipping"; fi
 
       - name: Rust tests

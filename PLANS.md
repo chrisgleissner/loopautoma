@@ -18,6 +18,14 @@ Any LLM agent (Copilot, Cursor, Codex, etc.) working in this repo must:
 - [PLANS.md — Multi‑hour plans for loopautoma](#plansmd--multihour-plans-for-loopautoma)
   - [TOC](#toc)
   - [How to use this file](#how-to-use-this-file)
+    - [Table of Contents](#table-of-contents)
+    - [Pruning and archiving](#pruning-and-archiving)
+    - [Structure rules](#structure-rules)
+    - [Plan-then-act contract](#plan-then-act-contract)
+  - [Active tasks](#active-tasks)
+    - [Task: CI Playwright hang on GitHub Actions](#task-ci-playwright-hang-on-github-actions)
+    - [Task: Coverage uplift and E2E Codecov integration](#task-coverage-uplift-and-e2e-codecov-integration)
+    - [Task: UI Test Coverage Push to 90%+ ✅ COMPLETE](#task-ui-test-coverage-push-to-90--complete)
     - [Task: CI Release Build Type Annotation Fix ✅ COMPLETE](#task-ci-release-build-type-annotation-fix--complete)
     - [Task: Intelligent Termination System - AI Completion, OCR, Guardrails, and Audio Notifications](#task-intelligent-termination-system---ai-completion-ocr-guardrails-and-audio-notifications)
     - [Task: Major UX Overhaul - AI Integration, Simplified Condition Logic, and Visual Improvements](#task-major-ux-overhaul---ai-integration-simplified-condition-logic-and-visual-improvements)
@@ -114,6 +122,36 @@ To prevent uncontrolled growth of this file:
 - All assumptions must be recorded in the "Assumptions and open questions" section.
 
 ## Active tasks
+
+### Task: CI Playwright hang on GitHub Actions
+
+**Started:** 2025-11-21
+
+**User request (summary)**
+- UI coverage step prints no test output and times out on CI.
+- E2E coverage step hangs indefinitely on GitHub runners after Playwright/parallelism changes, while local `bun test:all` passes.
+
+**Context and constraints**
+- GitHub Actions uses `.github/workflows/build-and-test.yaml` inside the `ghcr.io/.../loopautoma-ci:latest` container (Bun-only) with `timeout` wrappers (300s UI, 600s E2E) and step timeouts (5m/10m).
+- Playwright config starts `bun run dev:web` via `webServer` with `VITE_E2E_COVERAGE=1` and `PLAYWRIGHT_COVERAGE=1`; workers default to 1 on CI.
+- Vitest coverage runs with dynamic worker count; tests live under `tests/**/*.vitest.*` and are invoked under `CI` env.
+
+**Plan (checklist)**
+- [x] Reproduce CI behavior locally with `CI=1` for `bun run test:ui:cov` and `bun run test:e2e:cov` (including timeout wrappers) to capture where runs stall.
+- [ ] Inspect workflow/test configs for timeouts, environment differences, and background processes; pinpoint root causes for UI silence and E2E hang.
+- [ ] Implement workflow/config fixes so UI and E2E coverage steps exit cleanly on GitHub Actions (adjust timeouts/reporters, ensure webServer shutdown, avoid swallowed failures).
+- [ ] Validate with local CI-mode runs and document outcomes; prepare for a CI rerun if needed.
+
+**Progress log**
+- 2025-11-21 — Started task, reviewed repo instructions, and gathered current CI workflow context.
+- 2025-11-21 — Reproduced CI-mode runs locally with `timeout` wrappers: UI coverage completed in ~13s with full output; E2E coverage completed in ~66s (65 passed, 5 skipped) and wrote coverage-e2e/lcov.info.
+
+**Assumptions and open questions**
+- `doc/rollout-plan.md` remains absent; continuing with available docs.
+- Assuming Actions continue to run in the published CI container with Bun and no Node.js.
+
+**Follow-ups / future work**
+- Rerun GitHub Actions after fixes and monitor runtime; tighten budgets further if needed.
 
 ### Task: Coverage uplift and E2E Codecov integration
 

@@ -18,13 +18,16 @@ const maxWorkers = process.env.PLAYWRIGHT_WORKERS
 
 export default defineConfig({
   testDir: './tests/e2e',
+  globalSetup: './tests/e2e/globalSetup.ts',
+  // Hard cap to avoid indefinite hangs on CI; step wrapper also enforces a timeout
+  globalTimeout: process.env.CI ? 8 * 60 * 1000 : undefined,
   fullyParallel: !process.env.CI, // Parallel only locally; sequential in CI to avoid resource contention
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: maxWorkers, // Configurable workers (default: 75% of CPU cores locally, 1 in CI)
   // Never auto-open the HTML report to avoid blocking terminals/agents
   reporter: process.env.CI
-    ? [["html", { open: 'never' }], ["github"]]
+    ? [["list"], ["html", { open: 'never' }], ["github"]]
     : [["html", { open: 'never' }], ["list"]],
 
   use: {
