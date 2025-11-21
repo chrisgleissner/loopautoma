@@ -36,6 +36,12 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
   const [thumbLoading, setThumbLoading] = useState<string | null>(null);
   // Use ref to avoid re-subscribing when redefining ID changes
   const redefiningRegionIdRef = useRef<string | null>(null);
+  const idCounterRef = useRef(0);
+
+  const nextRegionId = useCallback(() => {
+    const counter = idCounterRef.current++;
+    return `region-${Date.now().toString(36)}-${counter.toString(36)}`;
+  }, []);
 
   useEffect(() => {
     let dispose: (() => void) | undefined;
@@ -56,15 +62,15 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
         return;
       }
 
-      // Otherwise, create new pending region
-      setPending({
-        rect: payload.rect,
-        thumbnail: payload.thumbnail_png_base64 ?? null,
-      });
-      setPendingId(`region-${Date.now().toString(36)}`);
-      setPendingName(`Region ${regionCount + 1}`);
-      setStatus("Region captured — review details below.");
-      setError(null);
+        // Otherwise, create new pending region
+        setPending({
+          rect: payload.rect,
+          thumbnail: payload.thumbnail_png_base64 ?? null,
+        });
+        setPendingId(nextRegionId());
+        setPendingName(`Region ${regionCount + 1}`);
+        setStatus("Region captured — review details below.");
+        setError(null);
     }).then((off) => (dispose = off));
     return () => {
       try {
@@ -73,7 +79,7 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
         // ignore
       }
     };
-  }, [regionCount, onRegionUpdate]);
+    }, [regionCount, onRegionUpdate, nextRegionId]);
 
   const launchOverlay = useCallback(async () => {
     if (disabled) {
@@ -97,12 +103,12 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
   const handleSavePending = useCallback(async () => {
     if (!pending || !onRegionAdd) return;
     const trimmedId = pendingId.trim();
-    const regionId = trimmedId.length > 0 ? trimmedId : `region-${Date.now().toString(36)}`;
+    const regionId = trimmedId.length > 0 ? trimmedId : nextRegionId();
     const friendlyName = pendingName.trim() || undefined;
 
     // Issue 3: Validate for duplicate region ID or name
-    const existingIds = new Set(regions?.map(r => r.id) || []);
-    const existingNames = new Set(regions?.map(r => r.name).filter(Boolean) || []);
+    const existingIds = new Set(regions?.map((r) => r.id) || []);
+    const existingNames = new Set(regions?.map((r) => r.name).filter(Boolean) || []);
 
     if (existingIds.has(regionId)) {
       setError(`Region ID "${regionId}" already exists. Please choose a different ID.`);
@@ -127,7 +133,7 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg || "Failed to add region");
     }
-  }, [onRegionAdd, pending, pendingId, pendingName]);
+  }, [onRegionAdd, pending, pendingId, pendingName, nextRegionId, regions]);
 
   const handleCancelPending = useCallback(() => {
     setPending(null);

@@ -337,11 +337,11 @@ describe("RegionAuthoringPanel", () => {
       return Promise.resolve();
     });
 
-    const { rerender } = render(<RegionAuthoringPanel regions={[]} onRegionAdd={mockAdd} />);
+    const { rerender } = render(<RegionAuthoringPanel regions={addedRegions} onRegionAdd={mockAdd} />);
 
     // Add first region
     await emitRegionPick({ rect: { x: 10, y: 20, width: 100, height: 80 } });
-    rerender(<RegionAuthoringPanel regions={[]} onRegionAdd={mockAdd} />);
+    rerender(<RegionAuthoringPanel regions={addedRegions} onRegionAdd={mockAdd} />);
 
     await waitFor(() => expect(screen.getByText("Add region to profile")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Add region to profile"));
@@ -349,6 +349,7 @@ describe("RegionAuthoringPanel", () => {
     await waitFor(() => expect(mockAdd).toHaveBeenCalledTimes(1));
 
     // Add second region
+    rerender(<RegionAuthoringPanel regions={addedRegions} onRegionAdd={mockAdd} />);
     await emitRegionPick({ rect: { x: 50, y: 60, width: 120, height: 90 } });
     rerender(<RegionAuthoringPanel regions={addedRegions} onRegionAdd={mockAdd} />);
 

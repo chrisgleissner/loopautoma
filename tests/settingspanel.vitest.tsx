@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SettingsPanel } from "../src/components/SettingsPanel";
 import * as secureStorage from "../src/tauriSecureStorage";
+import * as tauriBridge from "../src/tauriBridge";
 
 // Mock secure storage to prevent Tauri invocation errors
 vi.mock("../src/tauriSecureStorage", () => ({
@@ -11,6 +12,21 @@ vi.mock("../src/tauriSecureStorage", () => ({
     getOpenAIModel: vi.fn().mockResolvedValue("gpt-4o"),
     setOpenAIModel: vi.fn().mockResolvedValue(undefined),
 }));
+
+vi.mock("../src/tauriBridge", () => ({
+    audioTestIntervention: vi.fn().mockResolvedValue(undefined),
+    audioTestCompleted: vi.fn().mockResolvedValue(undefined),
+    audioSetEnabled: vi.fn().mockResolvedValue(undefined),
+    audioGetEnabled: vi.fn().mockResolvedValue(false),
+    audioSetVolume: vi.fn().mockResolvedValue(undefined),
+    audioGetVolume: vi.fn().mockResolvedValue(0.5),
+}));
+
+beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(tauriBridge.audioGetEnabled).mockResolvedValue(false);
+    vi.mocked(tauriBridge.audioGetVolume).mockResolvedValue(0.5);
+});
 
 describe("SettingsPanel", () => {
     it("does not render when closed", () => {
@@ -553,5 +569,99 @@ describe("SettingsPanel", () => {
 
         const fontInput = screen.getByDisplayValue("20");
         expect(fontInput).toBeTruthy();
+    });
+
+    it("loads audio preferences on open", async () => {
+        vi.mocked(tauriBridge.audioGetEnabled).mockResolvedValue(true);
+        vi.mocked(tauriBridge.audioGetVolume).mockResolvedValue(0.7);
+
+        render(
+            <SettingsPanel
+                isOpen={true}
+                onClose={vi.fn()}
+                theme="dark"
+                onThemeChange={vi.fn()}
+                fontSize={13}
+                onFontSizeChange={vi.fn()}
+            />
+        );
+
+        const checkbox = await screen.findByRole("checkbox", { name: /enable audio notifications/i });
+        expect(checkbox).toBeChecked();
+
+        const slider = screen.getByRole("slider") as HTMLInputElement;
+        expect(slider.value).toBe("0.7");
+    });
+
+    it("persists audio toggle changes", async () => {
+        render(
+            <SettingsPanel
+                isOpen={true}
+                onClose={vi.fn()}
+                theme="dark"
+                onThemeChange={vi.fn()}
+                fontSize={13}
+                onFontSizeChange={vi.fn()}
+            />
+        );
+
+        const checkbox = await screen.findByRole("checkbox", { name: /enable audio notifications/i });
+        fireEvent.click(checkbox);
+
+        await waitFor(() => {
+            expect(tauriBridge.audioSetEnabled).toHaveBeenCalledWith(true);
+        });
+        expect(screen.getByText(/Audio notifications enabled/i)).toBeInTheDocument();
+    });
+
+    it("persists volume adjustments", async () => {
+        vi.mocked(tauriBridge.audioGetEnabled).mockResolvedValue(true);
+
+        render(
+            <SettingsPanel
+                isOpen={true}
+                onClose={vi.fn()}
+                theme="dark"
+                onThemeChange={vi.fn()}
+                fontSize={13}
+                onFontSizeChange={vi.fn()}
+            />
+        );
+
+        const slider = await screen.findByRole("slider") as HTMLInputElement;
+        fireEvent.change(slider, { target: { value: "0.8" } });
+        fireEvent.mouseUp(slider, { target: { value: "0.8" } });
+
+        await waitFor(() => {
+            expect(tauriBridge.audioSetVolume).toHaveBeenCalledWith(0.8);
+        });
+        expect(screen.getByText(/Volume set to 80%/i)).toBeInTheDocument();
+    });
+
+    it("plays test sounds when buttons clicked", async () => {
+        vi.mocked(tauriBridge.audioGetEnabled).mockResolvedValue(true);
+
+        render(
+            <SettingsPanel
+                isOpen={true}
+                onClose={vi.fn()}
+                theme="dark"
+                onThemeChange={vi.fn()}
+                fontSize={13}
+                onFontSizeChange={vi.fn()}
+            />
+        );
+
+        const interventionButton = await screen.findByText(/Test Intervention Sound/i);
+        fireEvent.click(interventionButton);
+        await waitFor(() => {
+            expect(tauriBridge.audioTestIntervention).toHaveBeenCalled();
+        });
+
+        const completionButton = await screen.findByText(/Test Completion Sound/i);
+        fireEvent.click(completionButton);
+        await waitFor(() => {
+            expect(tauriBridge.audioTestCompleted).toHaveBeenCalled();
+        });
     });
 });

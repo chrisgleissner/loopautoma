@@ -15,40 +15,43 @@ export default defineConfig({
     ? [["html", { open: 'never' }], ["github"]]
     : [["html", { open: 'never' }], ["list"]],
   
-  use: {
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
-  },
+    use: {
+      trace: 'on-first-retry',
+      screenshot: 'only-on-failure',
+      video: 'retain-on-failure',
+    },
 
-  projects: [
-    {
-      name: 'web-only-mode',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: 'http://127.0.0.1:1420',
-        viewport: { width: 1280, height: 720 },
+    projects: [
+      {
+        name: 'web-only-mode',
+        use: {
+          ...devices['Desktop Chrome'],
+          baseURL: 'http://127.0.0.1:1420',
+          viewport: { width: 1280, height: 720 },
+        },
+        testMatch: /.*web\.e2e\.ts/,
       },
-      testMatch: /.*web\.e2e\.ts/,
-    },
-    {
-      name: 'tauri-desktop-mode',
-      use: {
-        ...devices['Desktop Chrome'],
-        // Tauri tests use custom launch logic (see test files)
-        viewport: { width: 1280, height: 720 },
-        baseURL: 'http://127.0.0.1:1420',
+      {
+        name: 'tauri-desktop-mode',
+        use: {
+          ...devices['Desktop Chrome'],
+          // Tauri tests use custom launch logic (see test files)
+          viewport: { width: 1280, height: 720 },
+          baseURL: 'http://127.0.0.1:1420',
+        },
+        testMatch: /.*tauri\.e2e\.ts/,
       },
-      testMatch: /.*tauri\.e2e\.ts/,
-    },
-  ],
+    ],
 
-  webServer: [
-    {
-      command: 'bun run dev:web',
-      url: 'http://127.0.0.1:1420',
-      reuseExistingServer: !process.env.CI,
-      timeout: 120000,
-    },
-  ],
+    webServer: [
+      {
+        command: 'bun run dev:web',
+        url: 'http://127.0.0.1:1420',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120000,
+        env: {
+          VITE_E2E_COVERAGE: process.env.VITE_E2E_COVERAGE,
+        },
+      },
+    ],
 });

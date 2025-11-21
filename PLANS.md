@@ -120,6 +120,39 @@ To prevent uncontrolled growth of this file:
 
 ## Active tasks
 
+### Task: Coverage uplift and E2E Codecov integration
+
+**User request (summary)**
+- Raise combined frontend coverage from ~61% to at least 80%.
+- Capture Playwright/E2E coverage and upload it to Codecov the same way the `sidflow` project does (adapted for this Tauri app).
+
+**Context and constraints**
+- Current Vitest suites are failing (RegionAuthoringPanel + EventLog) so coverage numbers are unreliable until those regressions are fixed.
+- E2E tests run outside CI today and there is no instrumentation path for their coverage.
+- Need to keep changes compatible with Bun + Vite dev server for local workflows.
+- Target: instrumentation must not slow non-coverage builds; gate via env vars.
+
+**Plan (checklist)**
+- [x] 1. Stabilize existing Vitest suites (RegionAuthoringPanel/EventLog) so coverage runs green again.
+- [x] 2. Write/expand component tests for EventLog, RegionAuthoringPanel, and under-tested helpers to push coverage ≥80%.
+- [x] 3. Add Vite instrumentation (e.g., vite-plugin-istanbul) toggled by `VITE_E2E_COVERAGE` for Playwright runs.
+- [x] 4. Capture Playwright coverage in tests (shared hook/fixture) and merge into `coverage-e2e/lcov.info`.
+- [x] 5. Extend package scripts + CI workflow to run Playwright with coverage and upload merged artifacts to Codecov.
+- [x] 6. Validate end-to-end locally (Vitest coverage, Playwright coverage, Rust tests) and document any residual gaps.
+
+**Progress log**
+- 2025-11-20 — Reviewed repo instructions, current CI workflow, and baseline coverage failure modes; drafted plan.
+- 2025-11-20 — Fixed RegionAuthoringPanel ID collisions + rewrote EventLog tests to match new UI; Vitest suite + coverage run now passing (≈76% statements).
+- 2025-11-20 — Added audio-notification coverage to SettingsPanel tests plus Playwright instrumentation; vitest lines now ≈81% and e2e coverage stored in `coverage-e2e/lcov.info`.
+- 2025-11-20 — `npm run test:e2e:cov` green end-to-end; `cargo test --all --locked` blocked by dependency requiring `edition2024` (Cargo 1.82), noted for CI environment.
+
+**Assumptions and open questions**
+- `doc/rollout-plan.md` referenced in instructions is currently absent; assuming no new content is required for this task.
+- No direct access to the `sidflow` repo, so “same way” will follow standard Istanbul + Playwright merging approach documented here.
+
+**Follow-ups / future work**
+- Consider post-task documentation explaining how to interpret combined coverage reports once target ≥90% gate is reinstated.
+
 ### Task: CI Release Build Type Annotation Fix ✅ COMPLETE
 
 **Started:** 2025-11-20  

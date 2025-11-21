@@ -10,6 +10,7 @@ lerna-debug.log*
 # Coverage
 coverage/*
 src-tauri/coverage/*
+coverage-e2e/
 
 # Playwright
 playwright-report/

@@ -128,7 +128,7 @@ export function EventLog({ events }: { events: Event[] }) {
                     </td>
                     <td style={{ padding: "3px 4px", textAlign: "center" }}>
                       {hasMore && (
-                        <button
+                          <button
                           onClick={() => toggleExpand(i)}
                           style={{
                             background: "none",
@@ -139,7 +139,8 @@ export function EventLog({ events }: { events: Event[] }) {
                             fontSize: 9,
                             opacity: 0.7
                           }}
-                          title={isExpanded ? "Collapse" : "Expand"}
+                            title={isExpanded ? "Collapse details" : "Expand details"}
+                            aria-label={isExpanded ? "Collapse details" : "Expand details"}
                         >
                           {isExpanded ? "▲" : "▼"}
                         </button>

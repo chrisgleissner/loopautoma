@@ -126,6 +126,9 @@ cd src-tauri && cargo llvm-cov --workspace --locked --lcov --output-path lcov.in
 # Run headless E2E tests against the web preview (Vite dev server)
 bun run test:e2e
 
+# Run E2E tests with Istanbul instrumentation and combine coverage into coverage-e2e/lcov.info
+bun run test:e2e:cov
+
 # OPTIONALLY open the HTML report after (does not block the test run)
 bun run test:e2e:report
 ```
