@@ -9,9 +9,10 @@
     ],
     "module": "ESNext",
     "skipLibCheck": true,
-    "types": [
-      "bun-types"
-    ],
+      "types": [
+        "bun-types",
+        "node"
+      ],
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

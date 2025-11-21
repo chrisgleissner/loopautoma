@@ -1,20 +1,38 @@
 import { defineConfig, devices } from '@playwright/test';
+import { availableParallelism } from 'os';
 
 /**
  * Playwright configuration for Loop Automa E2E tests
  * Tests run against both web-only dev mode and Tauri desktop mode
+ *
+ * Parallelism:
+ * - Web-only tests can run in parallel (isolated contexts)
+ * - Tauri desktop tests run sequentially (shared app state)
+ * - Configure via PLAYWRIGHT_WORKERS env var (default: 75% of CPU cores for local, 2 for CI)
  */
+const cpuCount = availableParallelism();
+const defaultWorkers = process.env.CI ? 1 : Math.max(1, Math.min(cpuCount - 1, Math.floor(cpuCount * 0.75)));
+const maxWorkers = process.env.PLAYWRIGHT_WORKERS
+  ? parseInt(process.env.PLAYWRIGHT_WORKERS, 10)
+  : defaultWorkers;
+const webServerCommand = process.env.CI
+  ? "node ./node_modules/vite/bin/vite.js"
+  : "bun run dev:web";
+
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: false, // Run sequentially to avoid interference from shared localStorage and Vite dev server state
+  globalSetup: './tests/e2e/globalSetup.ts',
+  // Hard cap to avoid indefinite hangs on CI; step wrapper also enforces a timeout
+  globalTimeout: process.env.CI ? 8 * 60 * 1000 : undefined,
+  fullyParallel: !process.env.CI, // Parallel only locally; sequential in CI to avoid resource contention
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : 1, // Single worker to avoid race conditions
+  workers: maxWorkers, // Configurable workers (default: 75% of CPU cores locally, 1 in CI)
   // Never auto-open the HTML report to avoid blocking terminals/agents
   reporter: process.env.CI
-    ? [["html", { open: 'never' }], ["github"]]
+    ? [["list"], ["html", { open: 'never' }], ["github"]]
     : [["html", { open: 'never' }], ["list"]],
-  
+
   use: {
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
@@ -30,6 +48,8 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 },
       },
       testMatch: /.*web\.e2e\.ts/,
+      // Web tests can run fully parallel (isolated browser contexts)
+      fullyParallel: true,
     },
     {
       name: 'tauri-desktop-mode',
@@ -40,15 +60,22 @@ export default defineConfig({
         baseURL: 'http://127.0.0.1:1420',
       },
       testMatch: /.*tauri\.e2e\.ts/,
+      // Tauri tests must run sequentially (shared app state, file system)
+      fullyParallel: false,
     },
   ],
 
   webServer: [
     {
-      command: 'bun run dev:web',
+      command: webServerCommand,
       url: 'http://127.0.0.1:1420',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
+      ...(process.env.VITE_E2E_COVERAGE && {
+        env: {
+          VITE_E2E_COVERAGE: process.env.VITE_E2E_COVERAGE,
+        },
+      }),
     },
   ],
 });

@@ -136,10 +136,30 @@ When detected in any monitored region, the profile stops immediately and plays a
 ### OCR Pattern Matching
 
 - **OCR Mode**: Choose between:
-  - **Vision API (default)**: Uses GPT-4 Vision for high accuracy on complex UIs (requires API key, higher cost)
+  - **None (default)**: OCR disabled - use this if you don't need text recognition
   - **Local OCR**: Uses Tesseract for offline text extraction (free, faster, good for text-heavy UIs)
+  - **Vision API**: Uses GPT-4 Vision for high accuracy on complex UIs (requires API key, higher cost)
 - **OCR Termination Pattern**: General regex pattern for completion detection (e.g., `DONE|COMPLETE|SUCCESS`)
 - **OCR Region IDs**: Select which regions to scan for patterns (multi-select from your defined regions)
+
+**Important**: To use OCR-based termination, you must:
+1. Set OCR Mode to "Local" or "Vision" (not "None")
+2. Define at least one screen region and add its ID to OCR Region IDs
+3. Configure at least one of: Success Keywords, Failure Keywords, or OCR Termination Pattern
+4. OCR only runs during termination checks, not as a standalone action
+
+**Example OCR Setup**:
+```json
+{
+  "ocr_mode": "local",
+  "ocr_region_ids": ["region-1"],
+  "success_keywords": ["COMPLETE", "SUCCESS", "DONE"],
+  "failure_keywords": ["ERROR", "FAILED"],
+  "ocr_termination_pattern": "Status: (Complete|Failed)"
+}
+```
+
+When text matches, results are logged to stdout. Enable "Local" mode for faster testing during development.
 
 ### Timeout Settings
 

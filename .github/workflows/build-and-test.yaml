@@ -38,18 +38,18 @@ jobs:
 
       - name: Environment diagnostics (Rust)
         run: |
-          set -x
-          echo "CARGO_TARGET_DIR=${CARGO_TARGET_DIR}"
-          echo "CARGO_HOME=${CARGO_HOME}"
-          echo "RUSTUP_HOME=${RUSTUP_HOME}"
-          echo "PWD=$(pwd)"
-          which cargo || true
-          cargo -vV || true
-          rustc -vV || true
-          echo "Listing /workspace/target (if present):"
-          ls -la /workspace/target || true
-          echo "Listing src-tauri/target (if present):"
-          ls -la src-tauri/target || true
+            set -x
+            echo "CARGO_TARGET_DIR=${CARGO_TARGET_DIR}"
+            echo "CARGO_HOME=${CARGO_HOME}"
+            echo "RUSTUP_HOME=${RUSTUP_HOME}"
+            echo "PWD=$(pwd)"
+            which cargo || true
+            cargo -vV || true
+            rustc -vV || true
+            echo "Listing /workspace/target (if present):"
+            ls -la /workspace/target || true
+            echo "Listing src-tauri/target (if present):"
+            ls -la src-tauri/target || true
 
       - name: Bun version
         run: bun --version || true
@@ -58,25 +58,71 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends libxkbcommon-x11-dev libxcb-xkb-dev
+          node -v
+          npm -v
 
       - name: Install dependencies (UI)
         run: |
           if [ -f package.json ]; then bun install --frozen-lockfile || bun install; else echo "No package.json"; fi
 
-      - name: UI tests (Vitest with coverage)
+      - name: Install Playwright browsers
         run: |
-          if [ -f package.json ]; then bun run test:ui:cov || true; else echo "No UI; skipping"; fi
+          if [ -f package.json ]; then bunx playwright install --with-deps; else echo "No package.json"; fi
 
-      - name: Rust tests
+      - name: UI tests (Vitest with coverage)
+        timeout-minutes: 5
+        env:
+          FORCE_COLOR: "1"
         run: |
-          if [ -d src-tauri ]; then (cd src-tauri && cargo test --all --locked); else echo "No src-tauri/; skipping"; fi
+          set -x
+          if [ -f package.json ]; then timeout 300 bun run test:ui:cov -- --reporter=dot --reporter=verbose || true; else echo "No UI; skipping"; fi
+
+      - name: E2E tests (Playwright with coverage)
+        timeout-minutes: 10
+        env:
+          DEBUG: pw:webServer,pw:api
+          FORCE_COLOR: "1"
+        run: |
+          set -x
+          if [ -f package.json ]; then timeout 600 bun run test:e2e:cov || true; else echo "No UI; skipping"; fi
+
+      - name: Free disk space before Rust coverage
+        if: ${{ always() }}
+        run: |
+          set -x
+          df -h
+          rm -rf /root/.cache/ms-playwright || true
+          rm -rf /root/.npm/_logs || true
+          rm -rf /root/.bun/install/cache || true
+          rm -rf /workspace/node_modules || true
+          rm -rf /workspace/coverage || true
+          rm -rf /workspace/coverage-e2e || true
+          rm -rf /workspace/target || true
+          rm -rf /workspace/dist || true
+          rm -rf /workspace/playwright-report || true
+          rm -rf /workspace/test-results || true
+          rm -rf /workspace/tmp || true
+          rm -rf /tmp/cargo-target || true
+          rm -rf /tmp/llvm-cov* || true
+          df -h
 
       - name: Rust coverage (llvm-cov)
+        env:
+          CARGO_BUILD_JOBS: 2
+          RUSTFLAGS: "-Ccodegen-units=1"
+          CARGO_TARGET_DIR: /tmp/cargo-target
         run: |
           if [ -f src-tauri/Cargo.toml ]; then (
             cd src-tauri && \
+            rm -rf "$CARGO_TARGET_DIR" && \
+            cargo llvm-cov clean --workspace && \
             cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
           ); fi
+
+      - name: Cleanup coverage target dir
+        if: ${{ always() }}
+        run: |
+          rm -rf /tmp/cargo-target || true
 
       - name: Collect coverage artifacts
         id: coverage
@@ -89,6 +135,9 @@ jobs:
           fi
           if [ -f coverage/lcov.info ]; then
             cp coverage/lcov.info coverage-artifacts/ui.lcov
+          fi
+          if [ -f coverage-e2e/lcov.info ]; then
+            cp coverage-e2e/lcov.info coverage-artifacts/e2e.lcov
           fi
           shopt -s nullglob
           declare -a files=()

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { TerminationConditionsEditor } from "../src/components/TerminationConditionsEditor";
 import { GuardrailsConfig, Region } from "../src/types";
@@ -18,7 +18,7 @@ describe("TerminationConditionsEditor", () => {
   let mockOnGuardrailsChange: (guardrails: GuardrailsConfig) => void;
 
   beforeEach(() => {
-    mockOnGuardrailsChange = () => {};
+    mockOnGuardrailsChange = () => { };
   });
 
   it("renders termination conditions section", () => {
@@ -72,7 +72,7 @@ describe("TerminationConditionsEditor", () => {
     );
 
     const successTextarea = screen.getByLabelText(/Success Keywords/i) as HTMLTextAreaElement;
-    
+
     // Directly paste text to avoid userEvent character-by-character issues
     await user.click(successTextarea);
     await user.paste("BUILD SUCCESS\nAll tests passed");
@@ -195,7 +195,7 @@ describe("TerminationConditionsEditor", () => {
     expect(screen.getByText("Action Timeout (ms)")).toBeInTheDocument();
     expect(screen.getByText("Heartbeat Timeout (ms)")).toBeInTheDocument();
     expect(screen.getByText("Max Consecutive Failures")).toBeInTheDocument();
-    
+
     // Verify inputs have correct values
     const inputs = screen.getAllByRole("spinbutton");
     expect(inputs).toHaveLength(3);
@@ -220,5 +220,191 @@ describe("TerminationConditionsEditor", () => {
     expect(successTextarea).toHaveValue("");
     expect(failureTextarea).toHaveValue("");
     expect(patternInput).toHaveValue("");
+  });
+
+  it("updates failure keywords on textarea change", async () => {
+    const user = userEvent.setup();
+    let capturedGuardrails: GuardrailsConfig | null = null;
+    mockOnGuardrailsChange = (guardrails) => {
+      capturedGuardrails = guardrails;
+    };
+
+    render(
+      <TerminationConditionsEditor
+        guardrails={defaultGuardrails}
+        regions={mockRegions}
+        onGuardrailsChange={mockOnGuardrailsChange}
+      />
+    );
+
+    const failureTextarea = screen.getByLabelText(/Failure Keywords/i) as HTMLTextAreaElement;
+
+    await user.click(failureTextarea);
+    await user.paste("ERROR\nFAILED\nException");
+
+    expect(capturedGuardrails).not.toBeNull();
+    expect(capturedGuardrails?.failure_keywords).toEqual(["ERROR", "FAILED", "Exception"]);
+  });
+
+  it("updates OCR mode to vision", async () => {
+    const user = userEvent.setup();
+    let capturedGuardrails: GuardrailsConfig | null = null;
+    mockOnGuardrailsChange = (guardrails) => {
+      capturedGuardrails = guardrails;
+    };
+
+    render(
+      <TerminationConditionsEditor
+        guardrails={defaultGuardrails}
+        regions={mockRegions}
+        onGuardrailsChange={mockOnGuardrailsChange}
+      />
+    );
+
+    const ocrModeSelect = screen.getByLabelText(/OCR Mode/i);
+    await user.selectOptions(ocrModeSelect, "vision");
+
+    expect(capturedGuardrails).not.toBeNull();
+    expect(capturedGuardrails?.ocr_mode).toBe("vision");
+  });
+
+  it("updates OCR termination pattern on input change", () => {
+    let capturedGuardrails: GuardrailsConfig | null = null;
+    mockOnGuardrailsChange = (guardrails) => {
+      capturedGuardrails = guardrails;
+    };
+
+    render(
+      <TerminationConditionsEditor
+        guardrails={defaultGuardrails}
+        regions={mockRegions}
+        onGuardrailsChange={mockOnGuardrailsChange}
+      />
+    );
+
+    const patternInput = screen.getByLabelText(/OCR Termination Pattern/i);
+    fireEvent.change(patternInput, { target: { value: "SUCCESS|COMPLETE" } });
+
+    expect(capturedGuardrails).not.toBeNull();
+    expect(capturedGuardrails?.ocr_termination_pattern).toBe("SUCCESS|COMPLETE");
+  });
+
+  it("unchecks OCR region when checkbox clicked again", async () => {
+    const user = userEvent.setup();
+    let capturedGuardrails: GuardrailsConfig | null = null;
+    mockOnGuardrailsChange = (guardrails) => {
+      capturedGuardrails = guardrails;
+    };
+
+    render(
+      <TerminationConditionsEditor
+        guardrails={{ ...defaultGuardrails, ocr_region_ids: ["region-1", "region-2"] }}
+        regions={mockRegions}
+        onGuardrailsChange={mockOnGuardrailsChange}
+      />
+    );
+
+    const region1Checkbox = screen.getByLabelText("Region 1");
+    await user.click(region1Checkbox);
+
+    expect(capturedGuardrails).not.toBeNull();
+    expect(capturedGuardrails?.ocr_region_ids).toEqual(["region-2"]);
+  });
+
+  it("cleans up stale OCR region IDs on region changes", async () => {
+    let capturedGuardrails: GuardrailsConfig | null = null;
+    mockOnGuardrailsChange = (guardrails) => {
+      capturedGuardrails = guardrails;
+    };
+
+    const { rerender } = render(
+      <TerminationConditionsEditor
+        guardrails={{ ...defaultGuardrails, ocr_region_ids: ["region-1", "region-2", "region-3"] }}
+        regions={mockRegions}
+        onGuardrailsChange={mockOnGuardrailsChange}
+      />
+    );
+
+    // Remove one region - should trigger cleanup
+    const newRegions = [mockRegions[0]];
+    rerender(
+      <TerminationConditionsEditor
+        guardrails={{ ...defaultGuardrails, ocr_region_ids: ["region-1", "region-2", "region-3"] }}
+        regions={newRegions}
+        onGuardrailsChange={mockOnGuardrailsChange}
+      />
+    );
+
+    expect(capturedGuardrails).not.toBeNull();
+    expect(capturedGuardrails?.ocr_region_ids).toEqual(["region-1"]);
+  });
+
+  it("updates action_timeout_ms when AcceleratingNumberInput changes", () => {
+    let capturedGuardrails: GuardrailsConfig | null = null;
+    mockOnGuardrailsChange = (guardrails) => {
+      capturedGuardrails = guardrails;
+    };
+
+    render(
+      <TerminationConditionsEditor
+        guardrails={defaultGuardrails}
+        regions={mockRegions}
+        onGuardrailsChange={mockOnGuardrailsChange}
+      />
+    );
+
+    const inputs = screen.getAllByRole("spinbutton");
+    const actionTimeoutInput = inputs[0];
+
+    fireEvent.change(actionTimeoutInput, { target: { value: "45000" } });
+
+    expect(capturedGuardrails).not.toBeNull();
+    expect(capturedGuardrails?.action_timeout_ms).toBe(45000);
+  });
+
+  it("updates heartbeat_timeout_ms when AcceleratingNumberInput changes", () => {
+    let capturedGuardrails: GuardrailsConfig | null = null;
+    mockOnGuardrailsChange = (guardrails) => {
+      capturedGuardrails = guardrails;
+    };
+
+    render(
+      <TerminationConditionsEditor
+        guardrails={defaultGuardrails}
+        regions={mockRegions}
+        onGuardrailsChange={mockOnGuardrailsChange}
+      />
+    );
+
+    const inputs = screen.getAllByRole("spinbutton");
+    const heartbeatInput = inputs[1];
+
+    fireEvent.change(heartbeatInput, { target: { value: "90000" } });
+
+    expect(capturedGuardrails).not.toBeNull();
+    expect(capturedGuardrails?.heartbeat_timeout_ms).toBe(90000);
+  });
+
+  it("updates max_consecutive_failures when AcceleratingNumberInput changes", () => {
+    let capturedGuardrails: GuardrailsConfig | null = null;
+    mockOnGuardrailsChange = (guardrails) => {
+      capturedGuardrails = guardrails;
+    };
+
+    render(
+      <TerminationConditionsEditor
+        guardrails={defaultGuardrails}
+        regions={mockRegions}
+        onGuardrailsChange={mockOnGuardrailsChange}
+      />
+    );
+
+    const inputs = screen.getAllByRole("spinbutton");
+    const maxFailuresInput = inputs[2];
+
+    fireEvent.change(maxFailuresInput, { target: { value: "5" } });
+
+    expect(capturedGuardrails).not.toBeNull();
+    expect(capturedGuardrails?.max_consecutive_failures).toBe(5);
   });
 });

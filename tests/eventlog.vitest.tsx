@@ -1,214 +1,123 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { EventLog } from "../src/components/EventLog";
+import { Event } from "../src/types";
+
+const baseEvents: Event[] = [
+  { type: "TriggerFired" },
+  { type: "ConditionEvaluated", result: true },
+  { type: "ActionStarted", action: "Click primary button" },
+  { type: "ActionCompleted", action: "Click primary button", success: true },
+  { type: "MonitorStateChanged", state: "Running" },
+  { type: "WatchdogTripped", reason: "max_runtime" },
+  { type: "Error", message: "oops" },
+];
 
 describe("EventLog", () => {
-  it("renders various events", () => {
-    render(
-      <EventLog
-        events={[
-          { type: "TriggerFired" },
-          { type: "ConditionEvaluated", result: true },
-          { type: "ActionStarted", action: "Click" },
-          { type: "ActionCompleted", action: "Click", success: true },
-          { type: "MonitorStateChanged", state: "Running" },
-          { type: "WatchdogTripped", reason: "max_runtime" },
-          { type: "Error", message: "oops" },
-        ]}
-      />
-    );
-    // Issue 8: EventLog redesigned as table with Time/Name/Details columns
-    expect(screen.getByText(/Trigger Fired/)).toBeTruthy();
-    expect(screen.getByText(/Result: true/)).toBeTruthy();
-    expect(screen.getByText(/Click/)).toBeTruthy(); // appears in Action Started and Completed
-    expect(screen.getByText(/Running/)).toBeTruthy();
-    expect(screen.getByText(/max_runtime/)).toBeTruthy();
-    expect(screen.getByText(/oops/)).toBeTruthy();
+  it("renders events inside a table with the new Name/Details columns", () => {
+    render(<EventLog events={baseEvents} />);
+
+    const table = screen.getByRole("table");
+    const rows = within(table).getAllByRole("row");
+    expect(rows.length).toBeGreaterThan(1); // header + data rows
+
+    expect(screen.getByText("Trigger Fired")).toBeInTheDocument();
+    expect(screen.getByText("Condition Evaluated")).toBeInTheDocument();
+    expect(screen.getByText(/Result: true/)).toBeInTheDocument();
+    expect(screen.getByText("Action Completed")).toBeInTheDocument();
+    expect(screen.getByText("Monitor State")).toBeInTheDocument();
+    expect(screen.getByText(/⚠️ Watchdog/)).toBeInTheDocument();
+    expect(screen.getByText(/❌ Error/)).toBeInTheDocument();
+    expect(screen.getByText(/oops/)).toBeInTheDocument();
   });
 
-  it("renders empty state when no events", () => {
+  it("shows the empty state message when no events are provided", () => {
     render(<EventLog events={[]} />);
-    expect(screen.getByText(/No events yet/)).toBeTruthy();
+    expect(screen.getByText("No events yet")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
-  it("displays ConditionEvaluated with false result", () => {
-    render(
-      <EventLog
-        events={[{ type: "ConditionEvaluated", result: false }]}
-      />
-    );
+  it("filters MonitorTick events out of the visible list", () => {
+    const events: Event[] = [
+      { type: "TriggerFired" },
+      {
+        type: "MonitorTick",
+        next_check_ms: 5000,
+        cooldown_remaining_ms: 2000,
+        condition_met: true,
+      },
+      { type: "Error", message: "tick should be hidden" },
+    ];
 
-    expect(screen.getByText(/ConditionEvaluated: false/)).toBeTruthy();
+    render(<EventLog events={events} />);
+    expect(screen.getByText("Trigger Fired")).toBeInTheDocument();
+    expect(screen.getByText(/tick should be hidden/)).toBeInTheDocument();
+    expect(screen.queryByText(/MonitorTick/)).not.toBeInTheDocument();
   });
 
-  it("displays ActionCompleted with failure", () => {
-    render(
-      <EventLog
-        events={[{ type: "ActionCompleted", action: "Type", success: false }]}
-      />
-    );
+  it("expands long details when the disclosure button is clicked", () => {
+    const longAction = "Type A REALLY LONG STRING THAT SHOULD BE TRUNCATED IN THE TABLE CELL";
+    const events: Event[] = [
+      { type: "ActionCompleted", action: longAction, success: false },
+    ];
 
-    expect(screen.getByText(/ActionCompleted: Type/)).toBeTruthy();
-    expect(screen.getByText(/success=false/)).toBeTruthy();
+    render(<EventLog events={events} />);
+
+    const detailsCell = screen.getByText(/Type A REALLY LONG STRING/);
+    expect(detailsCell.textContent).toContain("...");
+
+    const toggle = screen.getByRole("button", { name: /expand details/i });
+    fireEvent.click(toggle);
+
+    const expanded = screen.getByText(`✗ ${longAction}`);
+    expect(expanded).toBeInTheDocument();
   });
 
-  it("displays WatchdogTripped with different reasons", () => {
+  it("shows and hides the JSON tooltip on hover", () => {
+    render(<EventLog events={baseEvents} />);
+    const anyRow = screen.getAllByRole("row")[1];
+
+    fireEvent.mouseEnter(anyRow, { clientX: 50, clientY: 40 });
+    expect(screen.getByText(/"type": "TriggerFired"/)).toBeInTheDocument();
+
+    fireEvent.mouseLeave(anyRow);
+    expect(screen.queryByText(/"type": "TriggerFired"/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to JSON stringification for unknown event types", () => {
+    const unknownEvent = { type: "TotallyNewEvent", payload: { foo: "bar" } } as unknown as Event;
+    render(<EventLog events={[unknownEvent]} />);
+
+    expect(screen.getAllByText(/TotallyNewEvent/)[0]).toBeInTheDocument();
+    expect(screen.getByText(/"foo":"bar"/)).toBeInTheDocument();
+  });
+
+  it("renders multiple Watchdog reasons distinctly", () => {
     render(
       <EventLog
         events={[
           { type: "WatchdogTripped", reason: "max_runtime" },
-          { type: "WatchdogTripped", reason: "max_activations_per_hour" },
-          { type: "WatchdogTripped", reason: "cooldown" },
+          { type: "WatchdogTripped", reason: "heartbeat_stalled" },
         ]}
       />
     );
 
-    expect(screen.getByText(/max_runtime/)).toBeTruthy();
-    expect(screen.getByText(/max_activations_per_hour/)).toBeTruthy();
-    expect(screen.getByText(/cooldown/)).toBeTruthy();
+    expect(screen.getByText(/max_runtime/)).toBeInTheDocument();
+    expect(screen.getByText(/heartbeat_stalled/)).toBeInTheDocument();
   });
 
-  it("renders events in order provided", () => {
-    const { container } = render(
-      <EventLog
-        events={[
-          { type: "TriggerFired" },
-          { type: "ConditionEvaluated", result: true },
-          { type: "ActionCompleted", action: "Click", success: true },
-        ]}
-      />
-    );
+  it("keeps rows in the same order as supplied events", () => {
+    const events: Event[] = [
+      { type: "TriggerFired" },
+      { type: "ConditionEvaluated", result: false },
+      { type: "ActionStarted", action: "Type" },
+    ];
 
-    const items = container.querySelectorAll("li");
-    expect(items.length).toBe(3);
-  });
+    render(<EventLog events={events} />);
+    const rows = screen.getAllByRole("row").slice(1); // ignore header
 
-  it("handles ActionStarted without action field", () => {
-    render(
-      <EventLog
-        events={[
-          { type: "ActionStarted", action: "Click" },
-        ]}
-      />
-    );
-
-    expect(screen.getByText(/ActionStarted: Click/)).toBeTruthy();
-  });
-
-  it("handles ConditionEvaluated without result field", () => {
-    render(
-      <EventLog
-        events={[
-          { type: "ConditionEvaluated", result: true },
-        ]}
-      />
-    );
-
-    expect(screen.getByText(/ConditionEvaluated: true/)).toBeTruthy();
-  });
-
-  it("displays MonitorTick events with timing details", () => {
-    render(
-      <EventLog
-        events={[
-          {
-            type: "MonitorTick",
-            next_check_ms: 5000,
-            cooldown_remaining_ms: 2000,
-            condition_met: true
-          },
-        ]}
-      />
-    );
-
-    // MonitorTick events are filtered out, so should not be displayed
-    expect(screen.queryByText(/MonitorTick/)).toBeNull();
-  });
-
-  it("filters out MonitorTick events automatically", () => {
-    render(
-      <EventLog
-        events={[
-          { type: "TriggerFired" },
-          {
-            type: "MonitorTick",
-            next_check_ms: 5000,
-            cooldown_remaining_ms: 0,
-            condition_met: false
-          },
-          { type: "Error", message: "test" },
-        ]}
-      />
-    );
-
-    expect(screen.getByText(/TriggerFired/)).toBeTruthy();
-    expect(screen.getByText(/Error: test/)).toBeTruthy();
-    expect(screen.queryByText(/MonitorTick/)).toBeNull();
-  });
-
-  it("renders many events without crashing", () => {
-    const manyEvents = Array.from({ length: 100 }, (_, i) => ({
-      type: "TriggerFired" as const,
-    }));
-
-    const { container } = render(
-      <EventLog events={manyEvents} />
-    );
-
-    const items = container.querySelectorAll("li");
-    expect(items.length).toBe(100);
-  });
-
-  it("uses monospace font for event display", () => {
-    const { container } = render(
-      <EventLog
-        events={[{ type: "TriggerFired" }]}
-      />
-    );
-
-    const listItem = container.querySelector("li");
-    expect(listItem).toBeTruthy();
-    expect(listItem?.style.fontFamily).toBe("monospace");
-  });
-
-  it("handles unknown event types with default formatting", () => {
-    render(
-      <EventLog
-        events={[
-          // @ts-expect-error - Testing unknown event type
-          { type: "UnknownEventType" },
-        ]}
-      />
-    );
-
-    expect(screen.getByText(/Event\(UnknownEventType\)/)).toBeTruthy();
-  });
-
-  it("displays MonitorTick with zero cooldown", () => {
-    const tickEvent = {
-      type: "MonitorTick" as const,
-      next_check_ms: 3000,
-      cooldown_remaining_ms: 0,
-      condition_met: false
-    };
-
-    // MonitorTick is filtered, but test the formatting logic exists
-    render(<EventLog events={[tickEvent]} />);
-    expect(screen.queryByText(/MonitorTick/)).toBeNull();
-  });
-
-  it("handles multiple MonitorStateChanged events", () => {
-    render(
-      <EventLog
-        events={[
-          { type: "MonitorStateChanged", state: "Running" },
-          { type: "MonitorStateChanged", state: "Stopped" },
-          { type: "MonitorStateChanged", state: "Running" },
-        ]}
-      />
-    );
-
-    const items = screen.getAllByText(/MonitorStateChanged/);
-    expect(items.length).toBe(3);
+    expect(rows[0]).toHaveTextContent("Trigger Fired");
+    expect(rows[1]).toHaveTextContent("Condition Evaluated");
+    expect(rows[2]).toHaveTextContent("Action Started");
   });
 });

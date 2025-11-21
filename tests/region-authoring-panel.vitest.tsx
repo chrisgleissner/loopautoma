@@ -337,11 +337,11 @@ describe("RegionAuthoringPanel", () => {
       return Promise.resolve();
     });
 
-    const { rerender } = render(<RegionAuthoringPanel regions={[]} onRegionAdd={mockAdd} />);
+    const { rerender } = render(<RegionAuthoringPanel regions={addedRegions} onRegionAdd={mockAdd} />);
 
     // Add first region
     await emitRegionPick({ rect: { x: 10, y: 20, width: 100, height: 80 } });
-    rerender(<RegionAuthoringPanel regions={[]} onRegionAdd={mockAdd} />);
+    rerender(<RegionAuthoringPanel regions={addedRegions} onRegionAdd={mockAdd} />);
 
     await waitFor(() => expect(screen.getByText("Add region to profile")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Add region to profile"));
@@ -349,6 +349,7 @@ describe("RegionAuthoringPanel", () => {
     await waitFor(() => expect(mockAdd).toHaveBeenCalledTimes(1));
 
     // Add second region
+    rerender(<RegionAuthoringPanel regions={addedRegions} onRegionAdd={mockAdd} />);
     await emitRegionPick({ rect: { x: 50, y: 60, width: 120, height: 90 } });
     rerender(<RegionAuthoringPanel regions={addedRegions} onRegionAdd={mockAdd} />);
 
@@ -423,6 +424,132 @@ describe("RegionAuthoringPanel", () => {
 
     await waitFor(() => {
       expect(screen.queryByText("First error")).not.toBeInTheDocument();
+    });
+  });
+
+  it("prevents duplicate region IDs", async () => {
+    const existingRegions: Region[] = [
+      { id: "existing-region", rect: { x: 0, y: 0, width: 100, height: 100 }, name: "Existing" },
+    ];
+
+    const { rerender } = render(
+      <RegionAuthoringPanel regions={existingRegions} onRegionAdd={mockOnRegionAdd} />
+    );
+
+    await emitRegionPick({ rect: { x: 10, y: 10, width: 50, height: 50 } });
+    rerender(<RegionAuthoringPanel regions={existingRegions} onRegionAdd={mockOnRegionAdd} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/Region ID/i)).toBeInTheDocument());
+
+    const idInput = screen.getByLabelText(/Region ID/i);
+    fireEvent.change(idInput, { target: { value: "existing-region" } });
+
+    fireEvent.click(screen.getByText("Add region to profile"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Region ID "existing-region" already exists/)).toBeInTheDocument();
+    });
+
+    expect(mockOnRegionAdd).not.toHaveBeenCalled();
+  });
+
+  it("prevents duplicate region names", async () => {
+    const existingRegions: Region[] = [
+      { id: "region-1", rect: { x: 0, y: 0, width: 100, height: 100 }, name: "My Region" },
+    ];
+
+    const { rerender } = render(
+      <RegionAuthoringPanel regions={existingRegions} onRegionAdd={mockOnRegionAdd} />
+    );
+
+    await emitRegionPick({ rect: { x: 10, y: 10, width: 50, height: 50 } });
+    rerender(<RegionAuthoringPanel regions={existingRegions} onRegionAdd={mockOnRegionAdd} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/Name/i)).toBeInTheDocument());
+
+    const nameInput = screen.getByLabelText(/Name/i);
+    fireEvent.change(nameInput, { target: { value: "My Region" } });
+
+    fireEvent.click(screen.getByText("Add region to profile"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Region name "My Region" already exists/)).toBeInTheDocument();
+    });
+
+    expect(mockOnRegionAdd).not.toHaveBeenCalled();
+  });
+
+  it("supports redefining existing regions", async () => {
+    const existingRegions: Region[] = [
+      { id: "region-1", rect: { x: 0, y: 0, width: 100, height: 100 }, name: "Original" },
+    ];
+
+    const mockOnRegionUpdate = vi.fn().mockResolvedValue(undefined);
+    (tauriBridge.regionPickerShow as any).mockResolvedValue(undefined);
+
+    const { rerender } = render(
+      <RegionAuthoringPanel
+        regions={existingRegions}
+        onRegionUpdate={mockOnRegionUpdate}
+      />
+    );
+
+    const redefineButton = screen.getByText("Redefine");
+    fireEvent.click(redefineButton);
+
+    await waitFor(() => {
+      expect(tauriBridge.regionPickerShow).toHaveBeenCalled();
+      expect(screen.getByText(/Overlay active — click and drag to redefine/)).toBeInTheDocument();
+    });
+
+    // Simulate redefine completion
+    await emitRegionPick({
+      rect: { x: 50, y: 50, width: 200, height: 200 },
+      thumbnail_png_base64: "data:image/png;base64,newthumb",
+    });
+
+    await waitFor(() => {
+      expect(mockOnRegionUpdate).toHaveBeenCalledWith("region-1", {
+        x: 50,
+        y: 50,
+        width: 200,
+        height: 200,
+      });
+    });
+  });
+
+  it("handles empty regions array correctly", () => {
+    const { rerender } = render(<RegionAuthoringPanel regions={[]} />);
+
+    expect(screen.getByText("Define watch region")).toBeInTheDocument();
+
+    // Update to add a region
+    const newRegions: Region[] = [
+      { id: "region-1", rect: { x: 0, y: 0, width: 100, height: 100 }, name: "Test" },
+    ];
+    rerender(<RegionAuthoringPanel regions={newRegions} />);
+
+    expect(screen.getByText("Test")).toBeInTheDocument();
+  });
+
+  it("clears thumbnails when regions become empty", async () => {
+    const regionsWithThumbs: Region[] = [
+      { id: "region-1", rect: { x: 0, y: 0, width: 100, height: 100 }, name: "Test" },
+    ];
+
+    (tauriBridge.captureRegionThumbnail as any).mockResolvedValue("data:image/png;base64,thumb1");
+
+    const { rerender } = render(<RegionAuthoringPanel regions={regionsWithThumbs} />);
+
+    await waitFor(() => {
+      expect(tauriBridge.captureRegionThumbnail).toHaveBeenCalled();
+    });
+
+    // Clear regions
+    rerender(<RegionAuthoringPanel regions={[]} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Test")).not.toBeInTheDocument();
     });
   });
 });

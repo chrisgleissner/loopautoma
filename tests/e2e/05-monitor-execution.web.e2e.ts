@@ -39,9 +39,9 @@ test.describe('Monitor Execution - Web-Only Mode', () => {
     await waitForEvent(page, 'ActionCompleted');
 
     const entries = await getEventLogEntries(page);
-    expect(entries.some((t) => /TriggerFired/.test(t))).toBe(true);
-    expect(entries.some((t) => /ActionStarted/.test(t))).toBe(true);
-    expect(entries.some((t) => /ActionCompleted/.test(t))).toBe(true);
+    expect(entries.some((t) => /Trigger Fired/i.test(t))).toBe(true);
+    expect(entries.some((t) => /Action Started/i.test(t))).toBe(true);
+    expect(entries.some((t) => /Action Completed/i.test(t))).toBe(true);
   });
 
   test('6.4/6.5 - Guardrail/Watchdog events are shown', async ({ page }) => {
@@ -58,7 +58,7 @@ test.describe('Monitor Execution - Web-Only Mode', () => {
 
     await stopMonitor(page);
     // Events should remain visible
-    await expect(page.locator('.event-log')).toContainText(/triggerfired/i);
+    await expect(page.locator('.event-log')).toContainText(/trigger fired/i);
   });
 
   test('6.7 - Start button is enabled when a profile is selected', async ({ page }) => {

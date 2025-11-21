@@ -7,7 +7,7 @@
 
 Addressed 6 of 10 post-implementation testing issues. Commit includes EventLog improvements, region redefine fix, settings icon replacement, font-size button scaling, and OCR mode "none" option.
 
-## Completed Issues (7/10)
+## Completed Issues (8/10)
 
 ### ✅ Issue 1: EventLog font too large, needs scroll + hover tooltip
 **Status:** COMPLETE  
@@ -98,24 +98,26 @@ Addressed 6 of 10 post-implementation testing issues. Commit includes EventLog i
 3. Verify profiles persist
 4. Check `~/.config/loopautoma/profiles.json` exists
 
-## Remaining Issues (3/10)
+## Remaining Issues (2/10)
 
-### ⚠️ Issue 3: OCR not working - no output, no recognized text
-**Status:** INVESTIGATED - Configuration issue, not a bug  
+### ✅ Issue 3: OCR not working - no output, no recognized text
+**Status:** COMPLETE - Documentation added  
 **Findings:**
 - OCR requires specific configuration:
-  - `ocr_mode` must be set to `"local"` (not `"none"` or `"vision"`)
+  - `ocr_mode` must be set to `"local"` or `"vision"` (not `"none"`)
   - Must have configured `ocr_region_ids`
   - Must have at least one: `success_keywords`, `failure_keywords`, or `ocr_termination_pattern`
 - Stdout logging already exists (lines 247-254 in monitor.rs)
 - OCR only runs during termination checks, not as standalone action
 
-**Documentation needed:**
-- Add user manual section explaining OCR configuration requirements
-- Add example profile with OCR termination setup
-- Clarify difference between Local OCR (Tesseract) and Vision mode (GPT-4 Vision)
+**Documentation added:**
+- Updated `doc/userManual.md` with comprehensive OCR configuration section
+- Added example JSON configuration showing all required fields
+- Clarified "None" is now the default OCR mode (Issue 10)
+- Explained difference between Local OCR (Tesseract) and Vision mode (GPT-4 Vision)
+- Step-by-step setup instructions
 
-**Complexity:** Low - documentation only
+**Files:** `doc/userManual.md`
 
 ### ❌ Issue 4: XKB warnings in log about keyboard fallback
 **Status:** TODO (low priority)  

@@ -114,8 +114,8 @@ export function EventLog({ events }: { events: Event[] }) {
                 const hasMore = row.fullDetails && row.fullDetails !== row.details;
 
                 return (
-                  <tr 
-                    key={i} 
+                  <tr
+                    key={i}
                     style={{ borderBottom: "1px solid #3a3a3a", cursor: "help" }}
                     onMouseEnter={(event) => handleRowHover(event, e)}
                     onMouseMove={(event) => handleRowHover(event, e)}
@@ -139,7 +139,8 @@ export function EventLog({ events }: { events: Event[] }) {
                             fontSize: 9,
                             opacity: 0.7
                           }}
-                          title={isExpanded ? "Collapse" : "Expand"}
+                          title={isExpanded ? "Collapse details" : "Expand details"}
+                          aria-label={isExpanded ? "Collapse details" : "Expand details"}
                         >
                           {isExpanded ? "▲" : "▼"}
                         </button>
@@ -152,7 +153,7 @@ export function EventLog({ events }: { events: Event[] }) {
           </table>
         )}
       </div>
-      
+
       {/* Hover tooltip */}
       {tooltip.visible && (
         <div

@@ -1936,6 +1936,7 @@ button.ghost:hover {
   pointer-events: none;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
+
 /* Termination Conditions Editor Styles */
 .termination-conditions {
   display: grid;

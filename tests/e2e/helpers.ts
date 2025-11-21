@@ -3,9 +3,22 @@
  * Shared helpers for Playwright tests
  */
 
-import { Page, expect } from '@playwright/test';
+import { Page, expect, test as baseTest } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
 import { Profile, ProfilesConfig, Rect, normalizeProfilesConfig } from '../../src/types';
 import { BLANK_PNG_BASE64, STATE_SETTLE_TIMEOUT_MS } from '../../src/testConstants';
+
+const PLAYWRIGHT_COVERAGE = process.env.PLAYWRIGHT_COVERAGE === '1';
+const COVERAGE_OUTPUT_DIR = path.resolve(process.cwd(), 'coverage-e2e/.nyc_output');
+
+const EVENT_LABEL_MAP: Record<string, RegExp> = {
+  TriggerFired: /Trigger Fired/i,
+  ConditionEvaluated: /Condition Evaluated/i,
+  ActionStarted: /Action Started/i,
+  ActionCompleted: /Action Completed/i,
+  WatchdogTripped: /⚠️\s*Watchdog/i,
+};
 
 /**
  * Wait for app to be fully loaded and ready
@@ -100,15 +113,20 @@ export async function clickQuitButton(page: Page) {
  * Get event log entries
  */
 export async function getEventLogEntries(page: Page): Promise<string[]> {
-  const entries = await page.locator('.event-log-list li').allTextContents();
-  return entries;
+  const rows = page.locator('.event-log table tbody tr');
+  if (await rows.count() === 0) {
+    return [];
+  }
+  return rows.allTextContents();
 }
 
 /**
  * Wait for a specific event to appear in the log
  */
 export async function waitForEvent(page: Page, eventText: string, timeout = 5000) {
-  await expect(page.locator('.event-log-list')).toContainText(eventText, { timeout });
+  const locator = page.locator('.event-log');
+  const pattern = EVENT_LABEL_MAP[eventText] ?? new RegExp(eventText, 'i');
+  await expect(locator).toContainText(pattern, { timeout });
 }
 
 /**
@@ -378,4 +396,28 @@ export async function emitInputEvent(page: Page, event: any) {
 
 export async function getFakeDesktopState(page: Page) {
   return page.evaluate(() => (window as any).__LOOPAUTOMA_TEST__?.state);
+}
+
+if (PLAYWRIGHT_COVERAGE) {
+  baseTest.afterEach(async ({ page }, testInfo) => {
+    try {
+      const coverage = await page.evaluate(() => (window as any).__coverage__);
+      if (!coverage) {
+        return;
+      }
+      await page
+        .evaluate(() => {
+          (window as any).__coverage__ = undefined;
+        })
+        .catch(() => {});
+
+      fs.mkdirSync(COVERAGE_OUTPUT_DIR, { recursive: true });
+      const safeTitle = testInfo.title.replace(/[^\w.-]+/g, '_');
+      const fileName = `${Date.now()}-${testInfo.project.name}-${safeTitle}.json`;
+      const filePath = path.join(COVERAGE_OUTPUT_DIR, fileName);
+      fs.writeFileSync(filePath, JSON.stringify(coverage));
+    } catch (err) {
+      console.warn('[coverage] failed to collect browser coverage', err);
+    }
+  });
 }
