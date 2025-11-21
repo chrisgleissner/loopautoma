@@ -36,8 +36,8 @@ jobs:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
 
-        - name: Environment diagnostics (Rust)
-          run: |
+      - name: Environment diagnostics (Rust)
+        run: |
             set -x
             echo "CARGO_TARGET_DIR=${CARGO_TARGET_DIR}"
             echo "CARGO_HOME=${CARGO_HOME}"
@@ -51,29 +51,29 @@ jobs:
             echo "Listing src-tauri/target (if present):"
             ls -la src-tauri/target || true
 
-        - name: Bun version
-          run: bun --version || true
+      - name: Bun version
+        run: bun --version || true
 
-        - name: Install system dependencies (X11 input)
-          run: |
-            apt-get update
-            apt-get install -y --no-install-recommends libxkbcommon-x11-dev libxcb-xkb-dev
+      - name: Install system dependencies (X11 input)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends libxkbcommon-x11-dev libxcb-xkb-dev
 
-        - name: Install dependencies (UI)
-          run: |
-            if [ -f package.json ]; then bun install --frozen-lockfile || bun install; else echo "No package.json"; fi
+      - name: Install dependencies (UI)
+        run: |
+          if [ -f package.json ]; then bun install --frozen-lockfile || bun install; else echo "No package.json"; fi
 
-        - name: Install Playwright browsers
-          run: |
-            if [ -f package.json ]; then npx playwright install --with-deps; else echo "No package.json"; fi
+      - name: Install Playwright browsers
+        run: |
+          if [ -f package.json ]; then npx playwright install --with-deps; else echo "No package.json"; fi
 
-        - name: UI tests (Vitest with coverage)
-          run: |
-            if [ -f package.json ]; then bun run test:ui:cov || true; else echo "No UI; skipping"; fi
+      - name: UI tests (Vitest with coverage)
+        run: |
+          if [ -f package.json ]; then bun run test:ui:cov || true; else echo "No UI; skipping"; fi
 
-        - name: E2E tests (Playwright with coverage)
-          run: |
-            if [ -f package.json ]; then bun run test:e2e:cov || true; else echo "No UI; skipping"; fi
+      - name: E2E tests (Playwright with coverage)
+        run: |
+          if [ -f package.json ]; then bun run test:e2e:cov || true; else echo "No UI; skipping"; fi
 
       - name: Rust tests
         run: |
