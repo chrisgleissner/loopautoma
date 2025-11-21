@@ -150,6 +150,7 @@ To prevent uncontrolled growth of this file:
 - 2025-11-21 — Rust coverage failed on Actions due to disk exhaustion (`os error 28`). Added a disk-clean step before llvm-cov to delete Playwright caches and the shared target dir so coverage builds can fit in the runner.
 - 2025-11-21 — Rust coverage may also be memory constrained; capped cargo parallelism for Rust tests and llvm-cov (`CARGO_BUILD_JOBS=2` + `RUSTFLAGS="-Ccodegen-units=1"`) to reduce peak RAM on GitHub runners.
 - 2025-11-21 — Further disk pressure suspected; expanded cleanup to remove node_modules, coverage artifacts, bun cache, and reinforce `target` cleanup before Rust coverage.
+- 2025-11-21 — Consolidated Rust runs to coverage-only to avoid double compilation, moved coverage builds to `/tmp/cargo-target`, and ensured llvm-cov cleans first. Added cleanup of /tmp cargo/coverage dirs before/after to prevent “No space left” errors.
 
 **Assumptions and open questions**
 - `doc/rollout-plan.md` remains absent; continuing with available docs.

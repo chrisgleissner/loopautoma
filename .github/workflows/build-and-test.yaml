@@ -102,27 +102,27 @@ jobs:
           rm -rf /workspace/playwright-report || true
           rm -rf /workspace/test-results || true
           rm -rf /workspace/tmp || true
+          rm -rf /tmp/cargo-target || true
+          rm -rf /tmp/llvm-cov* || true
           df -h
-
-      - name: Rust tests
-        run: |
-          if [ -d src-tauri ]; then (cd src-tauri && CARGO_BUILD_JOBS=2 RUSTFLAGS="-Ccodegen-units=1" cargo test --all --locked); else echo "No src-tauri/; skipping"; fi
 
       - name: Rust coverage (llvm-cov)
         env:
           CARGO_BUILD_JOBS: 2
           RUSTFLAGS: "-Ccodegen-units=1"
-          CARGO_TARGET_DIR: /tmp/llvm-cov-target
+          CARGO_TARGET_DIR: /tmp/cargo-target
         run: |
           if [ -f src-tauri/Cargo.toml ]; then (
             cd src-tauri && \
+            rm -rf "$CARGO_TARGET_DIR" && \
+            cargo llvm-cov clean --workspace && \
             cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
           ); fi
 
       - name: Cleanup coverage target dir
         if: ${{ always() }}
         run: |
-          rm -rf /tmp/llvm-cov-target || true
+          rm -rf /tmp/cargo-target || true
 
       - name: Collect coverage artifacts
         id: coverage
