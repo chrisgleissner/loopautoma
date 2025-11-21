@@ -5,7 +5,7 @@ import * as secureStorage from "../src/tauriSecureStorage";
 import * as tauriBridge from "../src/tauriBridge";
 
 // Mock secure storage to prevent Tauri invocation errors
-vi.mock("../src/tauriSecureStorage", () => ({
+const secureStorageMocks = vi.hoisted(() => ({
     getOpenAIKeyStatus: vi.fn().mockResolvedValue(false),
     setOpenAIKey: vi.fn().mockResolvedValue(undefined),
     deleteOpenAIKey: vi.fn().mockResolvedValue(undefined),
@@ -13,7 +13,9 @@ vi.mock("../src/tauriSecureStorage", () => ({
     setOpenAIModel: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../src/tauriBridge", () => ({
+vi.mock("../src/tauriSecureStorage", () => secureStorageMocks);
+
+const tauriBridgeMocks = vi.hoisted(() => ({
     audioTestIntervention: vi.fn().mockResolvedValue(undefined),
     audioTestCompleted: vi.fn().mockResolvedValue(undefined),
     audioSetEnabled: vi.fn().mockResolvedValue(undefined),
@@ -21,6 +23,8 @@ vi.mock("../src/tauriBridge", () => ({
     audioSetVolume: vi.fn().mockResolvedValue(undefined),
     audioGetVolume: vi.fn().mockResolvedValue(0.5),
 }));
+
+vi.mock("../src/tauriBridge", () => tauriBridgeMocks);
 
 beforeEach(() => {
     vi.clearAllMocks();
