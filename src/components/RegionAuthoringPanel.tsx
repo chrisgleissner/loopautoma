@@ -62,15 +62,15 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
         return;
       }
 
-        // Otherwise, create new pending region
-        setPending({
-          rect: payload.rect,
-          thumbnail: payload.thumbnail_png_base64 ?? null,
-        });
-        setPendingId(nextRegionId());
-        setPendingName(`Region ${regionCount + 1}`);
-        setStatus("Region captured — review details below.");
-        setError(null);
+      // Otherwise, create new pending region
+      setPending({
+        rect: payload.rect,
+        thumbnail: payload.thumbnail_png_base64 ?? null,
+      });
+      setPendingId(nextRegionId());
+      setPendingName(`Region ${regionCount + 1}`);
+      setStatus("Region captured — review details below.");
+      setError(null);
     }).then((off) => (dispose = off));
     return () => {
       try {
@@ -79,7 +79,7 @@ export function RegionAuthoringPanel({ regions, disabled, onRegionAdd, onRegionR
         // ignore
       }
     };
-    }, [regionCount, onRegionUpdate, nextRegionId]);
+  }, [regionCount, onRegionUpdate, nextRegionId]);
 
   const launchOverlay = useCallback(async () => {
     if (disabled) {

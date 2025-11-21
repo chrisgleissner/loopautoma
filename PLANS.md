@@ -18,13 +18,7 @@ Any LLM agent (Copilot, Cursor, Codex, etc.) working in this repo must:
 - [PLANS.md — Multi‑hour plans for loopautoma](#plansmd--multihour-plans-for-loopautoma)
   - [TOC](#toc)
   - [How to use this file](#how-to-use-this-file)
-  - [Task: ](#task-)
-  - [Maintenance rules (required for all agents)](#maintenance-rules-required-for-all-agents)
-    - [Table of Contents](#table-of-contents)
-    - [Pruning and archiving](#pruning-and-archiving)
-    - [Structure rules](#structure-rules)
-    - [Plan-then-act contract](#plan-then-act-contract)
-  - [Active tasks](#active-tasks)
+    - [Task: CI Release Build Type Annotation Fix ✅ COMPLETE](#task-ci-release-build-type-annotation-fix--complete)
     - [Task: Intelligent Termination System - AI Completion, OCR, Guardrails, and Audio Notifications](#task-intelligent-termination-system---ai-completion-ocr-guardrails-and-audio-notifications)
     - [Task: Major UX Overhaul - AI Integration, Simplified Condition Logic, and Visual Improvements](#task-major-ux-overhaul---ai-integration-simplified-condition-logic-and-visual-improvements)
     - [Task: Input Capture Auto-Transform on Stop (Complete)](#task-input-capture-auto-transform-on-stop-complete)
@@ -34,6 +28,7 @@ Any LLM agent (Copilot, Cursor, Codex, etc.) working in this repo must:
     - [Task: Release warning cleanup and input recorder helper](#task-release-warning-cleanup-and-input-recorder-helper)
     - [Task: Action Recorder - UI-level Input Capture (Simplified Recording) ✅ COMPLETE](#task-action-recorder---ui-level-input-capture-simplified-recording--complete)
     - [Task: Action Recorder - Separate Window Architecture (Refactoring)](#task-action-recorder---separate-window-architecture-refactoring)
+    - [Task: 10 Critical UI/UX Refinements - EventLog, Config Persistence, OCR, Audio, and More](#task-10-critical-uiux-refinements---eventlog-config-persistence-ocr-audio-and-more)
   - [Completed tasks (archived)](#completed-tasks-archived)
 
 <!-- /TOC -->

@@ -520,15 +520,15 @@ describe("RegionAuthoringPanel", () => {
 
   it("handles empty regions array correctly", () => {
     const { rerender } = render(<RegionAuthoringPanel regions={[]} />);
-    
+
     expect(screen.getByText("Define watch region")).toBeInTheDocument();
-    
+
     // Update to add a region
     const newRegions: Region[] = [
       { id: "region-1", rect: { x: 0, y: 0, width: 100, height: 100 }, name: "Test" },
     ];
     rerender(<RegionAuthoringPanel regions={newRegions} />);
-    
+
     expect(screen.getByText("Test")).toBeInTheDocument();
   });
 

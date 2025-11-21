@@ -18,7 +18,7 @@ describe("TerminationConditionsEditor", () => {
   let mockOnGuardrailsChange: (guardrails: GuardrailsConfig) => void;
 
   beforeEach(() => {
-    mockOnGuardrailsChange = () => {};
+    mockOnGuardrailsChange = () => { };
   });
 
   it("renders termination conditions section", () => {
@@ -72,7 +72,7 @@ describe("TerminationConditionsEditor", () => {
     );
 
     const successTextarea = screen.getByLabelText(/Success Keywords/i) as HTMLTextAreaElement;
-    
+
     // Directly paste text to avoid userEvent character-by-character issues
     await user.click(successTextarea);
     await user.paste("BUILD SUCCESS\nAll tests passed");
@@ -195,7 +195,7 @@ describe("TerminationConditionsEditor", () => {
     expect(screen.getByText("Action Timeout (ms)")).toBeInTheDocument();
     expect(screen.getByText("Heartbeat Timeout (ms)")).toBeInTheDocument();
     expect(screen.getByText("Max Consecutive Failures")).toBeInTheDocument();
-    
+
     // Verify inputs have correct values
     const inputs = screen.getAllByRole("spinbutton");
     expect(inputs).toHaveLength(3);
@@ -238,7 +238,7 @@ describe("TerminationConditionsEditor", () => {
     );
 
     const failureTextarea = screen.getByLabelText(/Failure Keywords/i) as HTMLTextAreaElement;
-    
+
     await user.click(failureTextarea);
     await user.paste("ERROR\nFAILED\nException");
 
@@ -355,7 +355,7 @@ describe("TerminationConditionsEditor", () => {
 
     const inputs = screen.getAllByRole("spinbutton");
     const actionTimeoutInput = inputs[0];
-    
+
     fireEvent.change(actionTimeoutInput, { target: { value: "45000" } });
 
     expect(capturedGuardrails).not.toBeNull();
@@ -378,7 +378,7 @@ describe("TerminationConditionsEditor", () => {
 
     const inputs = screen.getAllByRole("spinbutton");
     const heartbeatInput = inputs[1];
-    
+
     fireEvent.change(heartbeatInput, { target: { value: "90000" } });
 
     expect(capturedGuardrails).not.toBeNull();
@@ -401,7 +401,7 @@ describe("TerminationConditionsEditor", () => {
 
     const inputs = screen.getAllByRole("spinbutton");
     const maxFailuresInput = inputs[2];
-    
+
     fireEvent.change(maxFailuresInput, { target: { value: "5" } });
 
     expect(capturedGuardrails).not.toBeNull();
