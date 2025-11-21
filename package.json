@@ -19,7 +19,7 @@
     "pre-release-check": "bun ./scripts/preReleaseCheck.ts",
     "generate:ui-screenshot": "bun ./scripts/generateUiScreenshot.ts",
     "test:e2e": "playwright test",
-    "test:e2e:cov": "node ./scripts/cleanE2eCoverage.js && cross-env VITE_E2E_COVERAGE=1 PLAYWRIGHT_COVERAGE=1 playwright test && node ./scripts/mergeE2eCoverage.js",
+    "test:e2e:cov": "bun ./scripts/cleanE2eCoverage.js && cross-env VITE_E2E_COVERAGE=1 PLAYWRIGHT_COVERAGE=1 playwright test && bun ./scripts/mergeE2eCoverage.js",
     "test:e2e:report": "playwright show-report",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
