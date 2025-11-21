@@ -149,6 +149,7 @@ To prevent uncontrolled growth of this file:
 - 2025-11-21 — CI progressed but failed because Vite requires Node >=20; the container-installed Node 18. Switched workflow to install Node 22.x from NodeSource and changed Playwright webServer to run Vite via `node` on CI to satisfy Vite/crypto.hash. Baked Node 22 into the CI Docker image and simplified the workflow step to rely on the preinstalled version (only prints node/npm).
 - 2025-11-21 — Rust coverage failed on Actions due to disk exhaustion (`os error 28`). Added a disk-clean step before llvm-cov to delete Playwright caches and the shared target dir so coverage builds can fit in the runner.
 - 2025-11-21 — Rust coverage may also be memory constrained; capped cargo parallelism for Rust tests and llvm-cov (`CARGO_BUILD_JOBS=2` + `RUSTFLAGS="-Ccodegen-units=1"`) to reduce peak RAM on GitHub runners.
+- 2025-11-21 — Further disk pressure suspected; expanded cleanup to remove node_modules, coverage artifacts, bun cache, and reinforce `target` cleanup before Rust coverage.
 
 **Assumptions and open questions**
 - `doc/rollout-plan.md` remains absent; continuing with available docs.

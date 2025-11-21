@@ -93,6 +93,10 @@ jobs:
           df -h
           rm -rf /root/.cache/ms-playwright || true
           rm -rf /root/.npm/_logs || true
+          rm -rf /root/.bun/install/cache || true
+          rm -rf /workspace/node_modules || true
+          rm -rf /workspace/coverage || true
+          rm -rf /workspace/coverage-e2e || true
           rm -rf /workspace/target || true
           df -h
 
