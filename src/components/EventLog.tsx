@@ -8,14 +8,14 @@ interface EventRow {
   fullDetails?: string;
 }
 
-interface TooltipState {
+type TooltipState = {
   visible: boolean;
   x: number;
   y: number;
   content: string;
-}
+};
 
-function formatEvent(e: Event, index: number): EventRow {
+function formatEvent(e: Event): EventRow {
   const time = new Date().toLocaleTimeString();
 
   switch (e.type) {
@@ -40,9 +40,11 @@ function formatEvent(e: Event, index: number): EventRow {
       const condition = e.condition_met ? "✓" : "✗";
       return { time, name: "Tick", details: `next=${next}s cooldown=${cooldown}s condition=${condition}` };
     }
-    default:
-      return { time, name: e.type, details: JSON.stringify(e) };
   }
+
+  // Exhaustive guard for future event types
+  const exhaustive: never = e;
+  return { time, name: "Unknown event", details: JSON.stringify(exhaustive) };
 }
 
 export function EventLog({ events }: { events: Event[] }) {
@@ -66,7 +68,6 @@ export function EventLog({ events }: { events: Event[] }) {
   };
 
   const handleRowHover = (e: React.MouseEvent, event: Event) => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setTooltip({
       visible: true,
       x: e.clientX + 10,
@@ -109,7 +110,7 @@ export function EventLog({ events }: { events: Event[] }) {
             </thead>
             <tbody>
               {filteredEvents.map((e, i) => {
-                const row = formatEvent(e, i);
+                const row = formatEvent(e);
                 const isExpanded = expandedRows.has(i);
                 const hasMore = row.fullDetails && row.fullDetails !== row.details;
 

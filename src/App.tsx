@@ -77,6 +77,10 @@ function MainWindow() {
 
   // Use ref to ensure we always have latest profile in event listener
   const selectedProfileRef = useRef<Profile | null>(null);
+  const guardrailsDraftRef = useRef<Profile["guardrails"] | undefined>(undefined);
+  const selectedProfileIdRef = useRef<string | null>(null);
+
+  type GuardrailKey = keyof NonNullable<Profile["guardrails"]>;
 
   useEffectOnce(() => {
     registerBuiltins();
@@ -182,8 +186,36 @@ function MainWindow() {
 
   // Keep ref in sync with selectedProfile
   useEffect(() => {
+    const prevId = selectedProfileIdRef.current;
     selectedProfileRef.current = selectedProfile;
+    if (!selectedProfile) {
+      guardrailsDraftRef.current = undefined;
+    } else if (prevId && prevId === selectedProfile.id) {
+      // Merge to retain unsaved fields when editing the same profile
+      guardrailsDraftRef.current = {
+        ...(guardrailsDraftRef.current ?? selectedProfile.guardrails ?? { cooldown_ms: 0 }),
+        ...(selectedProfile.guardrails ?? {}),
+      };
+    } else {
+      guardrailsDraftRef.current = selectedProfile.guardrails ? { ...selectedProfile.guardrails } : undefined;
+    }
+    selectedProfileIdRef.current = selectedProfile?.id ?? null;
   }, [selectedProfile]);
+
+  const mergeGuardrails = useCallback(
+    (patch: Partial<NonNullable<Profile["guardrails"]>>, opts?: { unset?: GuardrailKey[] }) => {
+      // Prefer the latest draft, then the live selected profile, then a default shell.
+      const base = guardrailsDraftRef.current
+        ?? (selectedProfileRef.current?.guardrails ? { ...selectedProfileRef.current.guardrails } : { cooldown_ms: 0 });
+      const next = { ...base, ...patch };
+      opts?.unset?.forEach((key) => {
+        delete (next as Record<string, unknown>)[key];
+      });
+      guardrailsDraftRef.current = next;
+      return next;
+    },
+    [],
+  );
 
   const updateProfile = useCallback(async (updated: Profile) => {
     // Always fetch fresh config to avoid stale closure when called from async event listeners
@@ -421,10 +453,9 @@ function MainWindow() {
                   value={selectedProfile.guardrails?.cooldown_ms !== undefined ? selectedProfile.guardrails.cooldown_ms / 1000 : ""}
                   onValueChange={async (seconds) => {
                     const safeSeconds = seconds === "" ? 0 : Number(seconds);
-                    const next = {
-                      ...(selectedProfile.guardrails ?? { cooldown_ms: 0 }),
+                    const next = mergeGuardrails({
                       cooldown_ms: Math.max(0, safeSeconds * 1000),
-                    };
+                    });
                     await updateProfile({ ...selectedProfile, guardrails: next });
                   }}
                 />
@@ -436,13 +467,9 @@ function MainWindow() {
                   value={selectedProfile.guardrails?.max_runtime_ms !== undefined ? selectedProfile.guardrails.max_runtime_ms / 1000 : ""}
                   onValueChange={async (seconds) => {
                     const parsed = seconds === "" ? undefined : Number(seconds);
-                    let next = { ...(selectedProfile.guardrails ?? { cooldown_ms: 0 }) } as Profile["guardrails"] & { max_runtime_ms?: number };
-                    if (parsed === undefined) {
-                      const { max_runtime_ms, ...rest } = next ?? {};
-                      next = rest as typeof next;
-                    } else {
-                      next = { ...next, max_runtime_ms: Math.max(0, parsed * 1000) };
-                    }
+                    const next = parsed === undefined
+                      ? mergeGuardrails({}, { unset: ["max_runtime_ms"] })
+                      : mergeGuardrails({ max_runtime_ms: Math.max(0, parsed * 1000) });
                     await updateProfile({ ...selectedProfile, guardrails: next });
                   }}
                   placeholder="unset"
@@ -455,10 +482,10 @@ function MainWindow() {
                   value={selectedProfile.guardrails?.max_activations_per_hour ?? ""}
                   onValueChange={async (nextValue) => {
                     const parsed = nextValue === "" ? undefined : Number(nextValue);
-                    await updateProfile({
-                      ...selectedProfile,
-                      guardrails: { ...(selectedProfile.guardrails ?? { cooldown_ms: 0 }), max_activations_per_hour: parsed },
-                    });
+                    const next = parsed === undefined
+                      ? mergeGuardrails({}, { unset: ["max_activations_per_hour"] })
+                      : mergeGuardrails({ max_activations_per_hour: parsed });
+                    await updateProfile({ ...selectedProfile, guardrails: next });
                   }}
                   placeholder="unset"
                 />
